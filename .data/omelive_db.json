@@ -30,8 +30,8 @@
       "isAdultVerified": false,
       "role": "user",
       "status": "banned",
-      "createdAt": 1792559686413,
-      "lastActiveAt": 1792559686413
+      "createdAt": 1792569000919,
+      "lastActiveAt": 1792569000919
     },
     "test_user_wfvzoe": {
       "id": "test_user_wfvzoe",
@@ -88,8 +88,8 @@
       "isAdultVerified": true,
       "role": "user",
       "status": "active",
-      "createdAt": 1792559686416,
-      "lastActiveAt": 1792559686416
+      "createdAt": 1792569000920,
+      "lastActiveAt": 1792569000920
     },
     "guest_dvtn75dm": {
       "id": "guest_dvtn75dm",
@@ -160,6 +160,17 @@
       "status": "active",
       "createdAt": 1792559686403,
       "lastActiveAt": 1792559686403
+    },
+    "test_user_5qj08a": {
+      "id": "test_user_5qj08a",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792569000907,
+      "lastActiveAt": 1792569000907
     }
   },
   "subscriptions": {
@@ -246,6 +257,20 @@
       "cancelAtPeriodEnd": true,
       "createdAt": 1792559686404,
       "updatedAt": 1792559686404
+    },
+    "test_user_5qj08a": {
+      "id": "sub_cf_ent_tneb48ok",
+      "userId": "test_user_5qj08a",
+      "provider": "cashfree",
+      "providerCustomerId": "cust_test_user_5qj08a",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792569000908,
+      "currentPeriodEnd": 1795161000908,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792569000908,
+      "updatedAt": 1792569000908
     }
   },
   "paymentEvents": {
@@ -349,6 +374,24 @@
       "payload": {
         "event": "subscription.charged",
         "event_id": "evt_test_unique_1792559686411",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792569000915": {
+      "id": "evt_cf_j7hdyorg",
+      "provider": "cashfree",
+      "providerEventId": "evt_test_unique_1792569000915",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792569000915,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792569000915",
         "subscription": {
           "id": "sub_wh_001",
           "notes": {
@@ -508,6 +551,31 @@
       "actionTaken": "banned",
       "moderatorNotes": "User confirmed underage",
       "resolvedAt": 1792559686413
+    },
+    "rep_sah6fskw": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_sah6fskw",
+      "status": "pending",
+      "createdAt": 1792569000916
+    },
+    "rep_ipzcj5jw": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_ipzcj5jw",
+      "status": "resolved",
+      "createdAt": 1792569000917,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792569000920
     }
   },
   "blocks": {
@@ -515,10 +583,38 @@
       "id": "user_blocker_blocks_user_spammer",
       "blockerId": "user_blocker",
       "blockedUserId": "user_spammer",
-      "createdAt": 1792559686407
+      "createdAt": 1792569000911
     }
   },
   "auditLogs": [
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_cf_ent_tneb48ok",
+      "details": {
+        "userId": "test_user_5qj08a",
+        "provider": "cashfree",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_b4hae86p",
+      "createdAt": 1792569000908
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_cf_ent_2gu6qn8r",
+      "details": {
+        "userId": "test_user_5qj08a",
+        "provider": "cashfree",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_mg4mxwdy",
+      "createdAt": 1792569000905
+    },
     {
       "adminUserId": "system",
       "action": "subscription_activated",

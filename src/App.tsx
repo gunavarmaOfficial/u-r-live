@@ -16,8 +16,18 @@ import { api } from './services/api';
 
 export default function App() {
   // Navigation views: 'onboarding' is now a dedicated full-page screen!
-  const [currentView, setCurrentView] = useState<'video' | 'safety' | 'admin' | 'landing' | 'onboarding'>('video');
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [currentView, setCurrentView] = useState<'video' | 'safety' | 'admin' | 'landing' | 'onboarding'>('onboarding');
+  const [user, setUser] = useState<UserProfile>(() => ({
+    id: 'guest_' + Math.random().toString(36).substring(2, 10),
+    displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
+    gender: 'unspecified',
+    country: 'GLOBAL',
+    isAdultVerified: false,
+    role: 'user',
+    status: 'active',
+    createdAt: Date.now(),
+    lastActiveAt: Date.now(),
+  }));
   const [isPro, setIsPro] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
@@ -34,24 +44,38 @@ export default function App() {
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
+    // Safety timeout: If server does not respond within 1.5s, continue with local guest user
+    const timer = setTimeout(() => {
+      setIsLoadingSession(false);
+    }, 1500);
+
     api
       .getSession()
       .then((data) => {
-        setUser(data.user);
+        clearTimeout(timer);
+        if (data.user) {
+          setUser(data.user);
+        }
         setIsPro(data.isPro);
         setSubscription(data.subscription);
 
         // If gender is unspecified or age verification is not completed, show onboarding directly on page!
-        if (!data.user.isAdultVerified || data.user.gender === 'unspecified') {
+        if (!data.user?.isAdultVerified || data.user?.gender === 'unspecified') {
           setCurrentView('onboarding');
+        } else {
+          setCurrentView('video');
         }
       })
       .catch((err) => {
-        console.error('Session loading failed:', err);
+        console.warn('Session loading fallback:', err);
+        setCurrentView('onboarding');
       })
       .finally(() => {
+        clearTimeout(timer);
         setIsLoadingSession(false);
       });
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleStartChatClicked = () => {

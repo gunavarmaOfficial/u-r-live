@@ -1,0 +1,6 @@
+{
+  "name": "OmeLive - Random Video Chat",
+  "description": "Adult-only 18+ live random video chat platform featuring real-time WebRTC connections, server-authoritative matchmaking, and safety moderation.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,681 @@
+{
+  "users": {
+    "admin-root-001": {
+      "id": "admin-root-001",
+      "displayName": "Safety Admin",
+      "gender": "unspecified",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "admin",
+      "status": "active",
+      "createdAt": 1789819123972,
+      "lastActiveAt": 1792411123972
+    },
+    "test_user_h84qoh": {
+      "id": "test_user_h84qoh",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792411124047,
+      "lastActiveAt": 1792411124047
+    },
+    "abuser_target": {
+      "id": "abuser_target",
+      "displayName": "Bad Actor",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "banned",
+      "createdAt": 1792559686413,
+      "lastActiveAt": 1792559686413
+    },
+    "test_user_wfvzoe": {
+      "id": "test_user_wfvzoe",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792411162803,
+      "lastActiveAt": 1792411162803
+    },
+    "guest_zz6pllf5": {
+      "id": "guest_zz6pllf5",
+      "displayName": "Stranger 4691",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792411219734,
+      "lastActiveAt": 1792411277692
+    },
+    "test_user_uik4ar": {
+      "id": "test_user_uik4ar",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792412427206,
+      "lastActiveAt": 1792412427206
+    },
+    "test_user_g3irra": {
+      "id": "test_user_g3irra",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792412452219,
+      "lastActiveAt": 1792412452219
+    },
+    "usr_g_test": {
+      "id": "usr_g_test",
+      "displayName": "Google Tester",
+      "email": "tester_google@example.com",
+      "googleId": "gid_998877",
+      "authProvider": "google",
+      "gender": "unspecified",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792559686416,
+      "lastActiveAt": 1792559686416
+    },
+    "guest_dvtn75dm": {
+      "id": "guest_dvtn75dm",
+      "displayName": "Stranger 5736",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792412460575,
+      "lastActiveAt": 1792412460575
+    },
+    "usr_g_qfqf9223": {
+      "id": "usr_g_qfqf9223",
+      "displayName": "Stranger 6840",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792412460575,
+      "lastActiveAt": 1792413569208,
+      "email": "gunavarma0000@gmail.com",
+      "googleId": "g_Z3VuYXZhcm1hMDAwMEBnbWFpbC5jb20",
+      "authProvider": "google",
+      "avatarUrl": "https://api.dicebear.com/7.x/initials/svg?seed=Guna%20Varma&backgroundColor=ff385c"
+    },
+    "test_user_s63ctc": {
+      "id": "test_user_s63ctc",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792413706409,
+      "lastActiveAt": 1792413706409
+    },
+    "guest_9gzmspkd": {
+      "id": "guest_9gzmspkd",
+      "displayName": "Stranger 3505",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792416363123,
+      "lastActiveAt": 1792416363123
+    },
+    "guest_jfau3u7v": {
+      "id": "guest_jfau3u7v",
+      "displayName": "Stranger 2454",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792505648932,
+      "lastActiveAt": 1792505648932
+    },
+    "test_user_9cp6xm": {
+      "id": "test_user_9cp6xm",
+      "displayName": "Test User",
+      "gender": "female",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792559686403,
+      "lastActiveAt": 1792559686403
+    }
+  },
+  "subscriptions": {
+    "test_user_h84qoh": {
+      "id": "sub_ent_mmtv0bqa",
+      "userId": "test_user_h84qoh",
+      "provider": "razorpay",
+      "providerCustomerId": "cust_test_user_h84qoh",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792411124048,
+      "currentPeriodEnd": 1795003124048,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792411124048,
+      "updatedAt": 1792411124048
+    },
+    "test_user_wfvzoe": {
+      "id": "sub_ent_puu6k8r8",
+      "userId": "test_user_wfvzoe",
+      "provider": "razorpay",
+      "providerCustomerId": "cust_test_user_wfvzoe",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792411162803,
+      "currentPeriodEnd": 1795003162803,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792411162803,
+      "updatedAt": 1792411162804
+    },
+    "test_user_uik4ar": {
+      "id": "sub_ent_64zm6sla",
+      "userId": "test_user_uik4ar",
+      "provider": "razorpay",
+      "providerCustomerId": "cust_test_user_uik4ar",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792412427207,
+      "currentPeriodEnd": 1795004427207,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792412427207,
+      "updatedAt": 1792412427207
+    },
+    "test_user_g3irra": {
+      "id": "sub_ent_x45bea7f",
+      "userId": "test_user_g3irra",
+      "provider": "razorpay",
+      "providerCustomerId": "cust_test_user_g3irra",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792412452219,
+      "currentPeriodEnd": 1795004452219,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792412452219,
+      "updatedAt": 1792412452220
+    },
+    "test_user_s63ctc": {
+      "id": "sub_ent_etuw3x7k",
+      "userId": "test_user_s63ctc",
+      "provider": "razorpay",
+      "providerCustomerId": "cust_test_user_s63ctc",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792413706410,
+      "currentPeriodEnd": 1795005706410,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792413706410,
+      "updatedAt": 1792413706410
+    },
+    "test_user_9cp6xm": {
+      "id": "sub_cf_ent_59crpy4k",
+      "userId": "test_user_9cp6xm",
+      "provider": "cashfree",
+      "providerCustomerId": "cust_test_user_9cp6xm",
+      "providerSubscriptionId": "sub_test_renew",
+      "planCode": "pro_monthly_299",
+      "status": "active",
+      "currentPeriodStart": 1792559686404,
+      "currentPeriodEnd": 1795151686404,
+      "cancelAtPeriodEnd": true,
+      "createdAt": 1792559686404,
+      "updatedAt": 1792559686404
+    }
+  },
+  "paymentEvents": {
+    "evt_test_unique_1792411124054": {
+      "id": "evt_3nfmpv8a",
+      "provider": "razorpay",
+      "providerEventId": "evt_test_unique_1792411124054",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792411124054,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792411124054",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792411162811": {
+      "id": "evt_jnk06qqz",
+      "provider": "razorpay",
+      "providerEventId": "evt_test_unique_1792411162811",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792411162811,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792411162811",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792412427225": {
+      "id": "evt_kbw6zwq3",
+      "provider": "razorpay",
+      "providerEventId": "evt_test_unique_1792412427225",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792412427225,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792412427225",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792412452226": {
+      "id": "evt_8itcqway",
+      "provider": "razorpay",
+      "providerEventId": "evt_test_unique_1792412452226",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792412452226,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792412452226",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792413706417": {
+      "id": "evt_oyn7oyo5",
+      "provider": "razorpay",
+      "providerEventId": "evt_test_unique_1792413706417",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792413706417,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792413706417",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    },
+    "evt_test_unique_1792559686411": {
+      "id": "evt_cf_1lc9lecv",
+      "provider": "cashfree",
+      "providerEventId": "evt_test_unique_1792559686411",
+      "eventType": "subscription.charged",
+      "processingStatus": "processed",
+      "receivedAt": 1792559686411,
+      "payload": {
+        "event": "subscription.charged",
+        "event_id": "evt_test_unique_1792559686411",
+        "subscription": {
+          "id": "sub_wh_001",
+          "notes": {
+            "userId": "user_target"
+          }
+        }
+      }
+    }
+  },
+  "reports": {
+    "rep_soyaxqny": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_soyaxqny",
+      "status": "pending",
+      "createdAt": 1792411124055
+    },
+    "rep_eb7t1m1c": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_eb7t1m1c",
+      "status": "resolved",
+      "createdAt": 1792411124056,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792411124056
+    },
+    "rep_rihdk5o4": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_rihdk5o4",
+      "status": "pending",
+      "createdAt": 1792411162812
+    },
+    "rep_8p8v67xl": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_8p8v67xl",
+      "status": "resolved",
+      "createdAt": 1792411162813,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792411162813
+    },
+    "rep_sqjw39hk": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_sqjw39hk",
+      "status": "pending",
+      "createdAt": 1792412427228
+    },
+    "rep_k9pslv9e": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_k9pslv9e",
+      "status": "resolved",
+      "createdAt": 1792412427228,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792412427233
+    },
+    "rep_k5cm6t3k": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_k5cm6t3k",
+      "status": "pending",
+      "createdAt": 1792412452227
+    },
+    "rep_3ulk4ixi": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_3ulk4ixi",
+      "status": "resolved",
+      "createdAt": 1792412452228,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792412452228
+    },
+    "rep_fgkuth1d": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_fgkuth1d",
+      "status": "pending",
+      "createdAt": 1792413706418
+    },
+    "rep_1czl6avg": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_1czl6avg",
+      "status": "resolved",
+      "createdAt": 1792413706419,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792413706419
+    },
+    "rep_8t0nhkij": {
+      "reporterId": "user_rep_1",
+      "reporterName": "Alice",
+      "reportedUserId": "user_abuser",
+      "reportedUserName": "Bob",
+      "category": "sexual_misconduct",
+      "description": "Inappropriate conduct on video",
+      "id": "rep_8t0nhkij",
+      "status": "pending",
+      "createdAt": 1792559686412
+    },
+    "rep_0d5p2rsb": {
+      "reporterId": "u1",
+      "reporterName": "U1",
+      "reportedUserId": "abuser_target",
+      "reportedUserName": "Bad Actor",
+      "category": "suspected_underage",
+      "description": "Minor declaration",
+      "id": "rep_0d5p2rsb",
+      "status": "resolved",
+      "createdAt": 1792559686413,
+      "actionTaken": "banned",
+      "moderatorNotes": "User confirmed underage",
+      "resolvedAt": 1792559686413
+    }
+  },
+  "blocks": {
+    "user_blocker_blocks_user_spammer": {
+      "id": "user_blocker_blocks_user_spammer",
+      "blockerId": "user_blocker",
+      "blockedUserId": "user_spammer",
+      "createdAt": 1792559686407
+    }
+  },
+  "auditLogs": [
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_cf_ent_59crpy4k",
+      "details": {
+        "userId": "test_user_9cp6xm",
+        "provider": "cashfree",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_o14jrti3",
+      "createdAt": 1792559686404
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_cf_ent_xtdcsfnd",
+      "details": {
+        "userId": "test_user_9cp6xm",
+        "provider": "cashfree",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_gy38g2nq",
+      "createdAt": 1792559686401
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_etuw3x7k",
+      "details": {
+        "userId": "test_user_s63ctc",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_pff82lwy",
+      "createdAt": 1792413706410
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_ofkqlctb",
+      "details": {
+        "userId": "test_user_s63ctc",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_02uzt1a8",
+      "createdAt": 1792413706407
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_x45bea7f",
+      "details": {
+        "userId": "test_user_g3irra",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_9tmyln7u",
+      "createdAt": 1792412452220
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_4rpc1dwh",
+      "details": {
+        "userId": "test_user_g3irra",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_sfzq9rmt",
+      "createdAt": 1792412452217
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_64zm6sla",
+      "details": {
+        "userId": "test_user_uik4ar",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_db7brypa",
+      "createdAt": 1792412427207
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_4hmfeaxh",
+      "details": {
+        "userId": "test_user_uik4ar",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_zd9fgqvt",
+      "createdAt": 1792412427195
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_puu6k8r8",
+      "details": {
+        "userId": "test_user_wfvzoe",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_vamfxkb4",
+      "createdAt": 1792411162804
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_wnpy0g0k",
+      "details": {
+        "userId": "test_user_wfvzoe",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_z6yn3ati",
+      "createdAt": 1792411162801
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_mmtv0bqa",
+      "details": {
+        "userId": "test_user_h84qoh",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_0ngwgr11",
+      "createdAt": 1792411124048
+    },
+    {
+      "adminUserId": "system",
+      "action": "subscription_activated",
+      "targetType": "subscription",
+      "targetId": "sub_ent_fvofqbg7",
+      "details": {
+        "userId": "test_user_h84qoh",
+        "planCode": "pro_monthly_299",
+        "price": 299
+      },
+      "id": "log_fomprw5p",
+      "createdAt": 1792411124046
+    }
+  ]
+}

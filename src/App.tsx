@@ -28,6 +28,7 @@ export default function App() {
     createdAt: Date.now(),
     lastActiveAt: Date.now(),
   }));
+  
   const [isPro, setIsPro] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);

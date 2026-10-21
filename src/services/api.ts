@@ -1,6 +1,7 @@
 import { UserProfile, Subscription, PlanInfo, UserReport } from '../types';
 
 const STORAGE_USER_ID_KEY = 'omelive_session_user_id';
+const STORAGE_SESSION_TOKEN_KEY = 'omelive_session_token';
 const STORAGE_OFFLINE_STATE_KEY = 'omelive_offline_state_v1';
 
 export function getStoredUserId(): string | null {
@@ -9,6 +10,14 @@ export function getStoredUserId(): string | null {
 
 export function setStoredUserId(id: string): void {
   localStorage.setItem(STORAGE_USER_ID_KEY, id);
+}
+
+export function getStoredSessionToken(): string | null {
+  return localStorage.getItem(STORAGE_SESSION_TOKEN_KEY);
+}
+
+export function setStoredSessionToken(token: string): void {
+  localStorage.setItem(STORAGE_SESSION_TOKEN_KEY, token);
 }
 
 interface OfflineState {
@@ -70,9 +79,14 @@ function saveOfflineState(state: OfflineState): void {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getStoredSessionToken();
   const userId = getStoredUserId();
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+    headers.set('x-session-token', token);
+  }
   if (userId) {
     headers.set('x-user-id', userId);
   }
@@ -91,11 +105,14 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  async getSession(): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }> {
+  async getSession(): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }> {
     try {
-      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }>(
+      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }>(
         '/api/auth/session'
       );
+      if (data.sessionToken) {
+        setStoredSessionToken(data.sessionToken);
+      }
       if (data.user?.id) {
         setStoredUserId(data.user.id);
         const current = getOfflineState();
@@ -120,20 +137,22 @@ export const api = {
   },
 
   async login(payload: {
-    role?: 'user' | 'admin';
     displayName?: string;
     gender?: string;
     country?: string;
     isAdultVerified?: boolean;
-  }): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }> {
+  }): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }> {
     try {
-      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }>(
+      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }>(
         '/api/auth/login',
         {
           method: 'POST',
           body: JSON.stringify(payload),
         }
       );
+      if (data.sessionToken) {
+        setStoredSessionToken(data.sessionToken);
+      }
       if (data.user?.id) {
         setStoredUserId(data.user.id);
         const current = getOfflineState();
@@ -153,7 +172,6 @@ export const api = {
         gender: (payload.gender as any) || current.user.gender,
         country: payload.country || current.user.country,
         isAdultVerified: payload.isAdultVerified ?? current.user.isAdultVerified,
-        role: payload.role || current.user.role,
       };
       const updatedState = { ...current, user: updatedUser };
       saveOfflineState(updatedState);
@@ -170,15 +188,18 @@ export const api = {
     name: string;
     avatarUrl?: string;
     googleId?: string;
-  }): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }> {
+  }): Promise<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }> {
     try {
-      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null }>(
+      const data = await request<{ user: UserProfile; isPro: boolean; subscription: Subscription | null; sessionToken?: string }>(
         '/api/auth/google',
         {
           method: 'POST',
           body: JSON.stringify(payload),
         }
       );
+      if (data.sessionToken) {
+        setStoredSessionToken(data.sessionToken);
+      }
       if (data.user?.id) {
         setStoredUserId(data.user.id);
         const current = getOfflineState();
@@ -295,64 +316,29 @@ export const api = {
   },
 
   async createSubscriptionOrder(): Promise<any> {
-    try {
-      return await request('/api/subscription/create-order', {
-        method: 'POST',
-      });
-    } catch {
-      // Offline fallback: returns mock Cashfree test payload
-      return {
-        orderId: 'order_cf_' + Math.random().toString(36).substring(2, 10),
-        subscriptionId: 'sub_cf_' + Math.random().toString(36).substring(2, 10),
-        paymentSessionId: 'session_cf_mock_' + Math.random().toString(36).substring(2, 12),
-        orderAmount: 299,
-        orderCurrency: 'INR',
-        environment: 'TEST',
-      };
-    }
+    return await request('/api/subscription/create-order', {
+      method: 'POST',
+    });
   },
 
   async verifySubscriptionPayment(payload: {
-    orderId?: string;
-    subscriptionId?: string;
-    paymentId?: string;
-    referenceId?: string;
-    signature?: string;
-    isMockTest?: boolean;
+    orderId: string;
   }): Promise<{ success: boolean; message: string; subscription: Subscription; isPro: boolean }> {
-    try {
-      return await request('/api/subscription/verify', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      const current = getOfflineState();
-      const mockSub: Subscription = {
-        id: payload.subscriptionId || 'sub_cf_' + Math.random().toString(36).substring(2, 10),
-        userId: current.user.id,
-        provider: 'cashfree',
-        providerCustomerId: 'cust_' + current.user.id,
-        providerSubscriptionId: payload.subscriptionId || 'cf_sub_local',
-        planCode: 'pro_monthly_299',
-        status: 'active',
-        currentPeriodStart: Date.now(),
-        currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        cancelAtPeriodEnd: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      saveOfflineState({
-        ...current,
-        isPro: true,
-        subscription: mockSub,
-      });
-      return {
-        success: true,
-        message: 'Cashfree Pro subscription activated successfully.',
-        subscription: mockSub,
-        isPro: true,
-      };
+    return await request('/api/subscription/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async adminLogin(adminKey: string): Promise<{ user: UserProfile; sessionToken: string; isPro: boolean }> {
+    const data = await request<{ user: UserProfile; sessionToken: string; isPro: boolean }>('/api/auth/admin-login', {
+      method: 'POST',
+      body: JSON.stringify({ adminKey }),
+    });
+    if (data.sessionToken) {
+      setStoredSessionToken(data.sessionToken);
     }
+    return data;
   },
 
   async cancelSubscription(): Promise<{ success: boolean; message: string; subscription: Subscription }> {

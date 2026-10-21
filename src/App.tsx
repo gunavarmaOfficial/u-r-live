@@ -140,7 +140,6 @@ export default function App() {
   const handleLogout = async () => {
     try {
       const res = await api.login({
-        role: 'user',
         displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
       });
       setUser(res.user);

@@ -1,6 +1,6 @@
 /**
  * Cashfree Payments & Subscription Entitlement Management
- * Handles order creation, payment session generation, signature verification,
+ * Handles order creation, server-to-server status verification,
  * webhook processing, and idempotency for U-R-LIVE Pro (₹299/month).
  */
 import crypto from 'crypto';
@@ -12,13 +12,9 @@ export const PRO_PLAN_CODE = 'pro_monthly_299';
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const CASHFREE_APP_ID =
-  process.env.CASHFREE_APP_ID ||
-  process.env.CASHFREE_CLIENT_ID ||
-  'TEST_CF_MOCK_APP_ID_2026';
+  process.env.CASHFREE_APP_ID || process.env.CASHFREE_CLIENT_ID || '';
 
-export const CASHFREE_SECRET_KEY =
-  process.env.CASHFREE_SECRET_KEY ||
-  'mock_cashfree_secret_key_omelive_2026';
+export const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY || '';
 
 export const CASHFREE_ENV = (process.env.CASHFREE_ENV || 'TEST').toUpperCase();
 export const CASHFREE_API_VERSION = process.env.CASHFREE_API_VERSION || '2023-08-01';
@@ -29,7 +25,8 @@ const CASHFREE_BASE_URL =
     : 'https://sandbox.cashfree.com/pg';
 
 /**
- * Verify Cashfree payment signature / order completion
+ * Verifies standard Cashfree payment signature using HMAC-SHA256.
+ * Rejects any empty, mock, or missing inputs.
  */
 export function verifyCashfreePaymentSignature(
   orderId: string,
@@ -37,35 +34,34 @@ export function verifyCashfreePaymentSignature(
   signature: string,
   secret = CASHFREE_SECRET_KEY
 ): boolean {
-  if (!orderId || !paymentId || !signature) return false;
-
-  // Accept test/mock signatures in test mode
-  if (signature.startsWith('cf_sig_') || signature.startsWith('mock_sig_')) {
-    return true;
-  }
+  if (!orderId || !paymentId || !signature || !secret) return false;
 
   try {
     const payload = `${orderId}|${paymentId}`;
     const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+    return (
+      signature.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+    );
   } catch {
     return false;
   }
 }
 
 /**
- * Verify Cashfree Webhook signature
- * Cashfree computes HMAC-SHA256 signature over timestamp + rawBody
+ * Verifies Cashfree Webhook HMAC-SHA256 signature over timestamp + rawBody.
+ * Requires timestamp and rawBody; rejects if missing.
  */
 export function verifyCashfreeWebhookSignature(
   rawBody: string,
   signature: string,
-  timestamp?: string,
+  timestamp: string,
   secret = CASHFREE_SECRET_KEY
 ): boolean {
-  if (!rawBody || !signature) return false;
+  if (!rawBody || !signature || !timestamp || !secret) return false;
+
   try {
-    const dataToSign = timestamp ? `${timestamp}${rawBody}` : rawBody;
+    const dataToSign = `${timestamp}${rawBody}`;
     const expectedBase64 = crypto
       .createHmac('sha256', secret)
       .update(dataToSign)
@@ -87,7 +83,82 @@ export function verifyCashfreeWebhookSignature(
 }
 
 /**
- * Create a new Cashfree subscription checkout session for an authenticated user
+ * Server-to-server verification of Cashfree Order status and amount.
+ * Verifies that the order exists on Cashfree, has status 'PAID', and matches the ₹299 plan price.
+ */
+export async function verifyCashfreeOrderStatus(orderId: string): Promise<{
+  success: boolean;
+  error?: string;
+  orderData?: any;
+}> {
+  if (!orderId || typeof orderId !== 'string') {
+    return { success: false, error: 'Valid order ID is required' };
+  }
+
+  const appId = CASHFREE_APP_ID;
+  const secretKey = CASHFREE_SECRET_KEY;
+
+  if (!appId || !secretKey) {
+    return {
+      success: false,
+      error: 'Cashfree API credentials are not configured on the server. Payment cannot be verified.',
+    };
+  }
+
+  try {
+    const response = await fetch(`${CASHFREE_BASE_URL}/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
+      headers: {
+        'x-client-id': appId,
+        'x-client-secret': secretKey,
+        'x-api-version': CASHFREE_API_VERSION,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return {
+        success: false,
+        error: `Cashfree order verification returned HTTP ${response.status}: ${errText}`,
+      };
+    }
+
+    const orderData: any = await response.json();
+
+    if (orderData.order_status !== 'PAID') {
+      return {
+        success: false,
+        error: `Order status is '${orderData.order_status}', expected 'PAID'`,
+      };
+    }
+
+    if (Number(orderData.order_amount) < PRO_PLAN_PRICE_INR) {
+      return {
+        success: false,
+        error: `Order amount ${orderData.order_amount} is less than required ₹${PRO_PLAN_PRICE_INR}`,
+      };
+    }
+
+    if (orderData.order_currency && orderData.order_currency !== 'INR') {
+      return {
+        success: false,
+        error: `Invalid order currency '${orderData.order_currency}', expected 'INR'`,
+      };
+    }
+
+    return { success: true, orderData };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Network error verifying Cashfree order: ${err.message}`,
+    };
+  }
+}
+
+/**
+ * Create a new Cashfree subscription checkout session for an authenticated user.
+ * Fails closed if Cashfree API credentials are not set.
  */
 export async function createSubscriptionOrder(userId: string) {
   const user = db.getUser(userId);
@@ -95,7 +166,13 @@ export async function createSubscriptionOrder(userId: string) {
     throw new Error('User not found');
   }
 
-  // Generate clean unique Cashfree order ID (alphanumeric, underscore, hyphen, max 45 chars)
+  if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
+    throw new Error(
+      'Cashfree payment gateway is not configured on the server. Please configure CASHFREE_APP_ID and CASHFREE_SECRET_KEY.'
+    );
+  }
+
+  // Generate unique order and customer references
   const orderId = 'order_cf_' + Math.random().toString(36).substring(2, 12);
   const subscriptionId = 'sub_cf_' + Math.random().toString(36).substring(2, 12);
   const customerId = user.id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 45);
@@ -103,70 +180,42 @@ export async function createSubscriptionOrder(userId: string) {
   const customerEmail = user.email || `${customerId}@user.omelive.local`;
   const customerName = user.displayName || 'Subscriber';
 
-  // If live or sandbox merchant credentials are set in environment, call Cashfree PG API
-  const hasLiveCredentials =
-    Boolean(process.env.CASHFREE_APP_ID || process.env.CASHFREE_CLIENT_ID) &&
-    Boolean(process.env.CASHFREE_SECRET_KEY);
+  const response = await fetch(`${CASHFREE_BASE_URL}/orders`, {
+    method: 'POST',
+    headers: {
+      'x-client-id': CASHFREE_APP_ID,
+      'x-client-secret': CASHFREE_SECRET_KEY,
+      'x-api-version': CASHFREE_API_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      order_id: orderId,
+      order_amount: PRO_PLAN_PRICE_INR,
+      order_currency: 'INR',
+      customer_details: {
+        customer_id: customerId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+      },
+      order_meta: {
+        notify_url: '/api/webhooks/cashfree',
+        payment_methods: 'cc,dc,upi,nb',
+      },
+      order_note: 'U-R-LIVE Pro Monthly Subscription ₹299',
+    }),
+  });
 
-  if (hasLiveCredentials) {
-    try {
-      const response = await fetch(`${CASHFREE_BASE_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'x-client-id': CASHFREE_APP_ID,
-          'x-client-secret': CASHFREE_SECRET_KEY,
-          'x-api-version': CASHFREE_API_VERSION,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          order_id: orderId,
-          order_amount: PRO_PLAN_PRICE_INR,
-          order_currency: 'INR',
-          customer_details: {
-            customer_id: customerId,
-            customer_name: customerName,
-            customer_email: customerEmail,
-            customer_phone: customerPhone,
-          },
-          order_meta: {
-            notify_url: '/api/webhooks/cashfree',
-            payment_methods: 'cc,dc,upi,nb',
-          },
-          order_note: 'U-R-LIVE Pro Monthly Subscription ₹299',
-        }),
-      });
-
-      if (response.ok) {
-        const cfData: any = await response.json();
-        return {
-          orderId: cfData.order_id || orderId,
-          paymentSessionId: cfData.payment_session_id,
-          cfOrderId: cfData.cf_order_id,
-          subscriptionId,
-          amount: PRO_PLAN_PRICE_INR,
-          currency: 'INR',
-          planName: 'U-R-LIVE Pro Monthly',
-          planCode: PRO_PLAN_CODE,
-          priceInr: PRO_PLAN_PRICE_INR,
-          environment: CASHFREE_ENV,
-          appId: CASHFREE_APP_ID,
-          gateway: 'cashfree',
-        };
-      } else {
-        const errorText = await response.text();
-        console.warn('Cashfree API order creation returned error status:', response.status, errorText);
-      }
-    } catch (err: any) {
-      console.warn('Cashfree live API call failed, falling back to simulated Cashfree session:', err.message);
-    }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Cashfree order creation failed (${response.status}): ${errorText}`);
   }
 
-  // Generate simulated Cashfree payment session for test/demo environments
-  const paymentSessionId = 'session_cf_' + Math.random().toString(36).substring(2, 16);
+  const cfData: any = await response.json();
   return {
-    orderId,
-    paymentSessionId,
-    cfOrderId: 'cf_ord_' + Math.random().toString(36).substring(2, 12),
+    orderId: cfData.order_id || orderId,
+    paymentSessionId: cfData.payment_session_id,
+    cfOrderId: cfData.cf_order_id,
     subscriptionId,
     amount: PRO_PLAN_PRICE_INR,
     currency: 'INR',
@@ -254,6 +303,20 @@ export function processCashfreeWebhook(
         const customerId = customerDetails.customer_id;
         const orderId = data.order?.order_id || data.order_id || eventId;
         const subId = 'sub_cf_' + orderId;
+        const amount = Number(
+          data.order?.order_amount || data.payment?.payment_amount || data.order_amount || 0
+        );
+
+        // Verify amount satisfies Pro pricing
+        if (amount > 0 && amount < PRO_PLAN_PRICE_INR) {
+          paymentEvent.processingStatus = 'ignored';
+          db.savePaymentEvent(paymentEvent);
+          return {
+            processed: false,
+            duplicate: false,
+            message: `Order amount ₹${amount} is less than required ₹${PRO_PLAN_PRICE_INR}`,
+          };
+        }
 
         // Extract user id from customer_id or metadata
         let userId = customerId;

@@ -87,26 +87,6 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     }
   };
 
-  const handleSwitchToAdmin = async () => {
-    try {
-      const res = await api.login({ role: 'admin' });
-      onProfileUpdated(res.user, res.isPro, res.subscription);
-      onClose();
-    } catch (err: any) {
-      alert(err.message || 'Failed to switch role');
-    }
-  };
-
-  const handleSwitchToUser = async () => {
-    try {
-      const res = await api.login({ role: 'user' });
-      onProfileUpdated(res.user, res.isPro, res.subscription);
-      onClose();
-    } catch (err: any) {
-      alert(err.message || 'Failed to switch role');
-    }
-  };
-
   const handleDeleteAccountData = () => {
     if (confirm('Delete local session data and reset identity on U-R-LIVE?')) {
       localStorage.clear();
@@ -312,25 +292,13 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
           )}
         </div>
 
-        {/* Role Switcher & Account Purge */}
+        {/* Account Controls */}
         <div className="pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-neutral-500">Demo Role:</span>
-            {user.role === 'admin' ? (
-              <button
-                onClick={handleSwitchToUser}
-                className="px-3 py-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
-              >
-                Switch to User
-              </button>
-            ) : (
-              <button
-                onClick={handleSwitchToAdmin}
-                className="px-3 py-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-amber-300"
-              >
-                Switch to Admin Demo
-              </button>
-            )}
+            <span className="text-neutral-500">Account Role:</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-300 font-mono text-[11px] uppercase">
+              {user.role}
+            </span>
           </div>
 
           <button

@@ -40,64 +40,42 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
 
       // If Cashfree JS SDK is available in window, launch official dropin modal
       const win = window as any;
-      if (
-        win.Cashfree &&
-        orderData.paymentSessionId &&
-        !orderData.paymentSessionId.startsWith('session_cf_mock_')
-      ) {
+      if (win.Cashfree && orderData.paymentSessionId) {
         const cashfreeMode = orderData.environment === 'PRODUCTION' ? 'production' : 'sandbox';
-        try {
-          const cashfree = win.Cashfree({ mode: cashfreeMode });
-          cashfree
-            .checkout({
-              paymentSessionId: orderData.paymentSessionId,
-              redirectTarget: '_modal',
-            })
-            .then(async (result: any) => {
-              if (result.error) {
-                setError(result.error.message || 'Cashfree payment was not completed');
-                setIsProcessing(false);
-              } else if (result.paymentDetails) {
-                const verificationResult = await api.verifySubscriptionPayment({
-                  orderId: orderData.orderId,
-                  paymentId: result.paymentDetails?.paymentId || 'pay_cf_' + orderData.orderId,
-                  signature: 'cf_sig_' + Math.random().toString(36).substring(2, 16),
-                  isMockTest: false,
-                });
+        const cashfree = win.Cashfree({ mode: cashfreeMode });
+        cashfree
+          .checkout({
+            paymentSessionId: orderData.paymentSessionId,
+            redirectTarget: '_modal',
+          })
+          .then(async (result: any) => {
+            if (result.error) {
+              setError(result.error.message || 'Payment was cancelled or could not be completed.');
+              setIsProcessing(false);
+              return;
+            }
 
-                if (verificationResult.success) {
-                  onSuccess(verificationResult.subscription);
-                  onClose();
-                } else {
-                  setError(verificationResult.message || 'Payment verification failed');
-                }
-                setIsProcessing(false);
+            try {
+              const verificationResult = await api.verifySubscriptionPayment({
+                orderId: orderData.orderId,
+              });
+
+              if (verificationResult.success) {
+                onSuccess(verificationResult.subscription);
+                onClose();
+              } else {
+                setError(verificationResult.message || 'Payment verification failed.');
               }
-            });
-          return;
-        } catch (sdkErr: any) {
-          console.warn('Cashfree JS SDK launch failed, falling back to simulated verification:', sdkErr);
-        }
+            } catch (verErr: any) {
+              setError(verErr.message || 'Payment verification failed.');
+            } finally {
+              setIsProcessing(false);
+            }
+          });
+        return;
       }
 
-      // Simulated Cashfree verification (for instant demo and test mode)
-      const cfPaymentId = 'pay_cf_' + Math.random().toString(36).substring(2, 12);
-      const cfSignature = 'cf_sig_' + Math.random().toString(36).substring(2, 16);
-
-      const verificationResult = await api.verifySubscriptionPayment({
-        orderId: orderData.orderId,
-        subscriptionId: orderData.subscriptionId,
-        paymentId: cfPaymentId,
-        signature: cfSignature,
-        isMockTest: true,
-      });
-
-      if (verificationResult.success) {
-        onSuccess(verificationResult.subscription);
-        onClose();
-      } else {
-        setError(verificationResult.message || 'Cashfree payment verification failed');
-      }
+      setError('Cashfree checkout could not be loaded. Please ensure you are connected to the internet.');
     } catch (err: any) {
       setError(err.message || 'Failed to initialize Cashfree subscription checkout');
     } finally {

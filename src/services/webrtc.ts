@@ -277,10 +277,12 @@ export class WebRTCManager {
       return;
     }
 
+    const sessionToken = localStorage.getItem('omelive_session_token') || undefined;
     this.sendSignalingMessage({
       type: 'join_queue',
       payload: {
         userId,
+        sessionToken,
         gender,
         country,
         preferences,
@@ -545,6 +547,7 @@ export class WebRTCManager {
         break;
       }
 
+      case 'peer_disconnected':
       case 'partner_disconnected': {
         this.cleanupPeerConnection();
         this.setState('remote_disconnected', msg.payload?.reason || 'Stranger disconnected.');

@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { matchmaker } from './matchmaker';
 import { db } from './db';
 import { SignalingMessage } from './types';
+import { verifySessionToken } from './auth';
 
 interface ClientSocket extends WebSocket {
   id: string;
@@ -60,7 +61,7 @@ export function setupSignaling(wss: WebSocketServer) {
             break;
 
           case 'join_queue': {
-            const { userId, gender, country, preferences } = msg.payload || {};
+            const { userId, sessionToken, gender, country, preferences } = msg.payload || {};
             if (!userId) {
               client.send(
                 JSON.stringify({
@@ -69,6 +70,19 @@ export function setupSignaling(wss: WebSocketServer) {
                 })
               );
               return;
+            }
+
+            if (sessionToken) {
+              const verified = verifySessionToken(sessionToken);
+              if (!verified || verified.userId !== userId) {
+                client.send(
+                  JSON.stringify({
+                    type: 'error',
+                    payload: { message: 'Authentication failed: Invalid session token' },
+                  })
+                );
+                return;
+              }
             }
 
             client.userId = userId;

@@ -190,6 +190,7 @@ export type SignalingMessageType =
   | 'skip_match'
   | 'match_ended'
   | 'peer_disconnected'
+  | 'partner_disconnected'
   | 'conversation_starter'
   | 'game_start'
   | 'game_answer'

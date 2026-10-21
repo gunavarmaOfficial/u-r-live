@@ -4,7 +4,8 @@
  */
 import http from 'http';
 import path from 'path';
-import express, { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import express, { Request, Response } from 'express';
 import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 import dotenv from 'dotenv';
@@ -14,11 +15,16 @@ import { setupSignaling } from './server/webrtc';
 import {
   PRO_PLAN_PRICE_INR,
   createSubscriptionOrder,
-  verifyCashfreePaymentSignature,
+  verifyCashfreeOrderStatus,
   verifyCashfreeWebhookSignature,
   activateProSubscription,
   processCashfreeWebhook,
 } from './server/payments';
+import {
+  resolveSessionUser,
+  createSessionToken,
+  requireAdmin,
+} from './server/auth';
 import { UserProfile, ReportCategory } from './server/types';
 
 dotenv.config();
@@ -36,40 +42,18 @@ app.use(
   })
 );
 
-// Simple session helper: checks 'x-user-id' header or auth token
-function getSessionUser(req: Request): UserProfile {
-  const userId = (req.headers['x-user-id'] as string) || (req.query.userId as string);
-  if (userId) {
-    const existing = db.getUser(userId);
-    if (existing) return existing;
-  }
-
-  // Generate ephemeral guest session
-  const guestId = 'guest_' + Math.random().toString(36).substring(2, 10);
-  const guestUser: UserProfile = {
-    id: guestId,
-    displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
-    gender: 'unspecified',
-    country: 'GLOBAL',
-    isAdultVerified: false,
-    role: 'user',
-    status: 'active',
-    createdAt: Date.now(),
-    lastActiveAt: Date.now(),
-  };
-  return db.saveUser(guestUser);
-}
-
 // -------------------------------------------------------------
 // Authentication & User Profile APIs
 // -------------------------------------------------------------
 app.get('/api/auth/session', (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const user = session.user;
   const isPro = db.isUserPro(user.id);
   const subscription = db.getSubscription(user.id);
 
   res.json({
     user,
+    sessionToken: session.sessionToken,
     isPro,
     subscription: subscription || null,
   });
@@ -77,7 +61,6 @@ app.get('/api/auth/session', (req: Request, res: Response) => {
 
 app.post('/api/auth/login', (req: Request, res: Response) => {
   const schema = z.object({
-    role: z.enum(['user', 'admin']).default('user'),
     displayName: z.string().min(2).max(30).optional(),
     gender: z.enum(['unspecified', 'male', 'female', 'non-binary']).optional(),
     country: z.string().optional(),
@@ -90,16 +73,10 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return;
   }
 
-  const { role, displayName, gender, country, isAdultVerified } = parsed.data;
+  const { displayName, gender, country, isAdultVerified } = parsed.data;
+  const session = resolveSessionUser(req);
+  const current = session.user;
 
-  if (role === 'admin') {
-    // Switch to default admin
-    const admin = db.getUser('admin-root-001')!;
-    res.json({ user: admin, isPro: true, subscription: null });
-    return;
-  }
-
-  const current = getSessionUser(req);
   const updated = db.saveUser({
     ...current,
     displayName: displayName || current.displayName,
@@ -110,8 +87,67 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
   res.json({
     user: updated,
+    sessionToken: session.sessionToken,
     isPro: db.isUserPro(updated.id),
     subscription: db.getSubscription(updated.id) || null,
+  });
+});
+
+app.post('/api/auth/admin-login', (req: Request, res: Response) => {
+  const schema = z.object({
+    adminKey: z.string().min(1, 'Admin key is required'),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Admin key is required' });
+    return;
+  }
+
+  const configuredKey = process.env.ADMIN_SECRET_KEY;
+  if (!configuredKey) {
+    res.status(503).json({
+      error: 'Admin access is disabled. ADMIN_SECRET_KEY is not configured in the server environment.',
+    });
+    return;
+  }
+
+  const providedKey = parsed.data.adminKey;
+  let isMatch = false;
+  try {
+    isMatch =
+      providedKey.length === configuredKey.length &&
+      crypto.timingSafeEqual(Buffer.from(providedKey), Buffer.from(configuredKey));
+  } catch {
+    isMatch = false;
+  }
+
+  if (!isMatch) {
+    res.status(401).json({ error: 'Invalid admin credentials' });
+    return;
+  }
+
+  let adminUser = db.getUser('admin-root-001');
+  if (!adminUser) {
+    adminUser = db.saveUser({
+      id: 'admin-root-001',
+      displayName: 'Safety Admin',
+      gender: 'unspecified',
+      country: 'IN',
+      isAdultVerified: true,
+      role: 'admin',
+      status: 'active',
+      createdAt: Date.now(),
+      lastActiveAt: Date.now(),
+    });
+  }
+
+  const sessionToken = createSessionToken(adminUser.id, 'admin');
+  res.json({
+    user: adminUser,
+    sessionToken,
+    isPro: true,
+    subscription: null,
   });
 });
 
@@ -145,7 +181,8 @@ app.post('/api/auth/google', (req: Request, res: Response) => {
       lastActiveAt: Date.now(),
     });
   } else {
-    const current = getSessionUser(req);
+    const session = resolveSessionUser(req);
+    const current = session.user;
     const newUserId = current.id.startsWith('guest_')
       ? 'usr_g_' + Math.random().toString(36).substring(2, 10)
       : current.id;
@@ -159,19 +196,25 @@ app.post('/api/auth/google', (req: Request, res: Response) => {
       googleId: gId,
       authProvider: 'google',
       isAdultVerified: true,
+      role: 'user',
       lastActiveAt: Date.now(),
     });
   }
 
+  const sessionToken = createSessionToken(user.id, user.role);
+
   res.json({
     user,
+    sessionToken,
     isPro: db.isUserPro(user.id),
     subscription: db.getSubscription(user.id) || null,
   });
 });
 
 app.post('/api/profile/update', (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const user = session.user;
+
   const schema = z.object({
     displayName: z.string().min(2).max(30).optional(),
     gender: z.enum(['unspecified', 'male', 'female', 'non-binary']).optional(),
@@ -195,6 +238,7 @@ app.post('/api/profile/update', (req: Request, res: Response) => {
 
   res.json({
     user: updated,
+    sessionToken: session.sessionToken,
     isPro: db.isUserPro(updated.id),
     subscription: db.getSubscription(updated.id) || null,
   });
@@ -242,7 +286,9 @@ app.get('/api/subscription/plans', (_req: Request, res: Response) => {
 });
 
 app.post('/api/subscription/create-order', async (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const user = session.user;
+
   try {
     const orderData = await createSubscriptionOrder(user.id);
     res.json(orderData);
@@ -251,49 +297,36 @@ app.post('/api/subscription/create-order', async (req: Request, res: Response) =
   }
 });
 
-app.post('/api/subscription/verify', (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+app.post('/api/subscription/verify', async (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  const user = session.user;
+
   const schema = z.object({
-    orderId: z.string().optional(),
-    subscriptionId: z.string().optional(),
-    paymentId: z.string().optional(),
-    referenceId: z.string().optional(),
-    signature: z.string().optional(),
-    isMockTest: z.boolean().optional(),
+    orderId: z.string().min(1, 'orderId is required'),
   });
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: 'Missing payment verification details' });
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Missing orderId' });
     return;
   }
 
-  const { orderId, subscriptionId, paymentId, signature, isMockTest } = parsed.data;
-  const effectivePaymentId = paymentId || parsed.data.referenceId || 'pay_cf_' + Math.random().toString(36).substring(2, 10);
-  const effectiveSignature = signature || 'cf_sig_' + Math.random().toString(36).substring(2, 12);
+  const { orderId } = parsed.data;
 
-  // In test/demo environment or with Cashfree tokens, verify signature
-  let isValid = false;
-  const isMockValid = Boolean(
-    isMockTest ||
-      effectiveSignature?.startsWith('cf_sig_') ||
-      effectiveSignature?.startsWith('mock_sig_')
-  );
-
-  if (orderId && effectivePaymentId && effectiveSignature) {
-    isValid = verifyCashfreePaymentSignature(orderId, effectivePaymentId, effectiveSignature) || isMockValid;
-  } else if (isMockValid) {
-    isValid = true;
-  }
-
-  if (!isValid) {
-    res.status(400).json({ error: 'Invalid Cashfree payment verification.' });
+  // Strict server-to-server verification with Cashfree API
+  const verification = await verifyCashfreeOrderStatus(orderId);
+  if (!verification.success) {
+    res.status(400).json({
+      error:
+        verification.error ||
+        'Cashfree payment verification failed. Order is not paid or invalid.',
+    });
     return;
   }
 
   const sub = activateProSubscription(
     user.id,
-    subscriptionId || 'sub_cf_' + (orderId || effectivePaymentId),
+    'sub_cf_' + orderId,
     'cust_' + user.id
   );
 
@@ -306,7 +339,9 @@ app.post('/api/subscription/verify', (req: Request, res: Response) => {
 });
 
 app.post('/api/subscription/cancel', (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const user = session.user;
+
   const sub = db.cancelSubscription(user.id);
   if (!sub) {
     res.status(404).json({ error: 'No active subscription found to cancel' });
@@ -330,6 +365,12 @@ app.post('/api/subscription/cancel', (req: Request, res: Response) => {
 
 // Cashfree Webhooks endpoint
 app.post(['/api/subscription/webhook', '/api/webhooks/cashfree'], (req: any, res: Response) => {
+  const secretKey = process.env.CASHFREE_SECRET_KEY;
+  if (!secretKey) {
+    res.status(500).json({ error: 'Server misconfiguration: CASHFREE_SECRET_KEY is not configured' });
+    return;
+  }
+
   const signature =
     (req.headers['x-webhook-signature'] as string) ||
     (req.headers['x-cashfree-signature'] as string) ||
@@ -337,22 +378,43 @@ app.post(['/api/subscription/webhook', '/api/webhooks/cashfree'], (req: any, res
   const timestamp = (req.headers['x-webhook-timestamp'] as string) || '';
   const rawBody = req.rawBody || JSON.stringify(req.body);
 
-  if (process.env.CASHFREE_SECRET_KEY && signature) {
-    const isValid = verifyCashfreeWebhookSignature(rawBody, signature, timestamp);
-    if (!isValid) {
-      res.status(400).json({ error: 'Invalid Cashfree webhook signature' });
-      return;
-    }
+  if (!signature) {
+    res.status(400).json({ error: 'Missing x-webhook-signature header' });
+    return;
+  }
+
+  if (!timestamp) {
+    res.status(400).json({ error: 'Missing x-webhook-timestamp header' });
+    return;
+  }
+
+  // Check timestamp freshness (5 minutes window to prevent replay attacks)
+  const timestampNum = Number(timestamp);
+  const tsMs = timestampNum > 1e11 ? timestampNum : timestampNum * 1000;
+  if (isNaN(timestampNum) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
+    res.status(400).json({ error: 'Webhook timestamp expired or outside tolerance window' });
+    return;
+  }
+
+  // Cryptographically verify HMAC-SHA256 signature
+  const isValid = verifyCashfreeWebhookSignature(rawBody, signature, timestamp, secretKey);
+  if (!isValid) {
+    res.status(401).json({ error: 'Invalid Cashfree webhook signature' });
+    return;
   }
 
   const event = req.body;
   const eventId =
     event?.event_id ||
     event?.data?.order?.order_id ||
-    event?.id ||
-    'evt_cf_' + Math.random().toString(36).substring(2, 10);
-  const eventType = event?.type || event?.event || 'ORDER_PAID';
+    event?.id;
 
+  if (!eventId) {
+    res.status(400).json({ error: 'Missing event ID in webhook payload' });
+    return;
+  }
+
+  const eventType = event?.type || event?.event || 'ORDER_PAID';
   const result = processCashfreeWebhook(eventId, eventType, event?.payload || req.body);
   res.json(result);
 });
@@ -361,7 +423,9 @@ app.post(['/api/subscription/webhook', '/api/webhooks/cashfree'], (req: any, res
 // Safety & Moderation APIs
 // -------------------------------------------------------------
 app.post('/api/safety/report', (req: Request, res: Response) => {
-  const reporter = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const reporter = session.user;
+
   const schema = z.object({
     reportedUserId: z.string(),
     reportedUserName: z.string().optional(),
@@ -413,7 +477,9 @@ app.post('/api/safety/report', (req: Request, res: Response) => {
 });
 
 app.post('/api/safety/block', (req: Request, res: Response) => {
-  const blocker = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const blocker = session.user;
+
   const schema = z.object({
     blockedUserId: z.string(),
   });
@@ -434,7 +500,9 @@ app.post('/api/safety/block', (req: Request, res: Response) => {
 });
 
 app.post('/api/safety/unblock', (req: Request, res: Response) => {
-  const blocker = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const blocker = session.user;
+
   const schema = z.object({
     blockedUserId: z.string(),
   });
@@ -450,23 +518,15 @@ app.post('/api/safety/unblock', (req: Request, res: Response) => {
 });
 
 app.get('/api/safety/blocks', (req: Request, res: Response) => {
-  const user = getSessionUser(req);
+  const session = resolveSessionUser(req);
+  const user = session.user;
   const blockedIds = db.getBlockedUsers(user.id);
   res.json({ blockedUserIds: blockedIds });
 });
 
 // -------------------------------------------------------------
-// Admin APIs (Protected by role check)
+// Admin APIs (Protected by requireAdmin middleware)
 // -------------------------------------------------------------
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const user = getSessionUser(req);
-  if (user.role !== 'admin') {
-    res.status(403).json({ error: 'Unauthorized. Admin privileges required.' });
-    return;
-  }
-  next();
-}
-
 app.get('/api/admin/overview', requireAdmin, (_req: Request, res: Response) => {
   const users = db.getAllUsers();
   const reports = db.getReports();
@@ -495,7 +555,7 @@ app.get('/api/admin/reports', requireAdmin, (_req: Request, res: Response) => {
 });
 
 app.post('/api/admin/reports/:reportId/action', requireAdmin, (req: Request, res: Response) => {
-  const admin = getSessionUser(req);
+  const admin = (req as any).user;
   const { reportId } = req.params;
   const schema = z.object({
     status: z.enum(['pending', 'reviewed', 'resolved', 'dismissed', 'escalated']),
@@ -549,7 +609,7 @@ app.get('/api/admin/users', requireAdmin, (_req: Request, res: Response) => {
 });
 
 app.post('/api/admin/users/:userId/status', requireAdmin, (req: Request, res: Response) => {
-  const admin = getSessionUser(req);
+  const admin = (req as any).user;
   const { userId } = req.params;
   const schema = z.object({
     status: z.enum(['active', 'suspended', 'banned']),
@@ -591,7 +651,7 @@ app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
     { urls: 'stun:stun2.l.google.com:19302' },
   ];
 
-  // Optional managed TURN credentials from env
+  // Managed TURN credentials from env if set
   if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
     iceServers.push({
       urls: process.env.TURN_URL,
@@ -642,4 +702,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the HTTP listener when run directly, not when imported by test suites
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { app, server };

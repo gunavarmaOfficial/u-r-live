@@ -48,7 +48,7 @@ const RouteFallback: React.FC = () => (
       <span className="absolute inset-0 rounded-full border-2 border-white/10" />
       <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#8b5cf6] border-r-[#22d3ee]" />
     </div>
-    <span className="sr-only">Loading.</span>
+    <span className="sr-only">Loading..</span>
   </div>
 );
 

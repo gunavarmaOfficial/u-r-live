@@ -16,3 +16,4 @@ services:
         generateValue: true
       - key: CORS_ORIGINS
         value: https://u-r-live.vercel.app
+

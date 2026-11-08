@@ -80,16 +80,37 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const res = await fetch(endpoint, { ...options, headers });
 
+  const text = await res.text();
+  let body: { error?: string; code?: string } | null = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+  }
+
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
     throw new ApiError(
-      errorBody.error || `Request failed with status ${res.status}`,
+      body?.error ||
+        (text.trimStart().startsWith('<')
+          ? 'The server returned a web page instead of a JSON response. Is the API server running?'
+          : `Request failed with status ${res.status}`),
       res.status,
-      errorBody.code
+      body?.code
     );
   }
 
-  return res.json() as Promise<T>;
+  if (body === null) {
+    throw new ApiError(
+      text.trimStart().startsWith('<')
+        ? 'The server returned a web page instead of a JSON response. Is the API server running?'
+        : 'The server returned an unreadable response.',
+      res.status
+    );
+  }
+
+  return body as T;
 }
 
 function persistSession(data: {

@@ -1136,6 +1136,13 @@ app.get('/readyz', async (_req: Request, res: Response) => {
 const wss = new WebSocketServer({ server, path: '/ws' });
 setupSignaling(wss);
 
+// Unknown API routes must return JSON, never the SPA HTML document —
+// the client parses every /api response as JSON and a doctype page
+// surfaces as a confusing "Unexpected token '<'" error.
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 // -------------------------------------------------------------
 // Frontend Integration (Vite Middleware in dev / Static in prod)
 // -------------------------------------------------------------

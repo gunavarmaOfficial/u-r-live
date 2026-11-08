@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight01Icon, Home01Icon } from 'hugeicons-react';
 import { Seo } from '../components/Seo';
+import { Logo } from '../components/Logo';
 
 export const NotFoundPage: React.FC = () => {
   const location = useLocation();
@@ -10,7 +11,10 @@ export const NotFoundPage: React.FC = () => {
     <>
       <Seo path={location.pathname} />
       <section className="mx-auto flex min-h-[70dvh] w-full max-w-2xl flex-col items-center justify-center px-4 py-16 text-center">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[#a78bfa]">Error 404</p>
+        <Link to="/" className="mb-6 block transition-transform hover:scale-105 active:scale-95" aria-label="Go home">
+          <Logo size="lg" />
+        </Link>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-red-400">Error 404</p>
         <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           This page has left the chat.
         </h1>

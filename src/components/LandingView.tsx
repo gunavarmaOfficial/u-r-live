@@ -225,10 +225,17 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 <div className="overflow-hidden rounded-[1.6rem] bg-[#08070f]">
                   {/* window chrome */}
                   <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-[#fb7185]/80" />
-                      <span className="h-2 w-2 rounded-full bg-[#fbbf24]/80" />
-                      <span className="h-2 w-2 rounded-full bg-[#34d399]/80" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#fb7185]/80" />
+                        <span className="h-2 w-2 rounded-full bg-[#fbbf24]/80" />
+                        <span className="h-2 w-2 rounded-full bg-[#34d399]/80" />
+                      </div>
+                      <span className="h-3 w-px bg-white/10" />
+                      <div className="flex items-center gap-1.5">
+                        <img src="/logo-icon.png" alt="UR Live" className="h-3.5 w-3.5 object-contain" />
+                        <span className="font-display text-[11px] font-bold tracking-tight text-white/90">UR LIVE</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-semibold text-neutral-500">
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-emerald-300">

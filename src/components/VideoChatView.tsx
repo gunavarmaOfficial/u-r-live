@@ -1053,11 +1053,11 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             {isSearching && !remoteStream && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#08060f]/85 px-6 text-center">
                 <div className="relative flex h-32 w-32 items-center justify-center">
-                  <span className="absolute inset-0 rounded-full border border-[#22d3ee]/25 animate-radar-1" />
-                  <span className="absolute inset-0 rounded-full border border-[#8b5cf6]/25 animate-radar-2" />
-                  <span className="absolute inset-0 rounded-full border border-[#f472b6]/20 animate-radar-3" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed] to-[#06b6d4] shadow-[0_0_50px_-10px_rgba(139,92,246,0.8)]">
-                    <ThreeDGlobeIcon className="h-9 w-9" />
+                  <span className="absolute inset-0 rounded-full border border-red-500/25 animate-radar-1" />
+                  <span className="absolute inset-0 rounded-full border border-rose-500/25 animate-radar-2" />
+                  <span className="absolute inset-0 rounded-full border border-red-400/20 animate-radar-3" />
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0b0914] border border-white/10 shadow-[0_0_40px_-5px_rgba(239,68,68,0.7)] p-2">
+                    <img src="/logo-icon.png" alt="UR Live" className="h-full w-full object-contain" />
                   </div>
                 </div>
                 <div>
@@ -1110,8 +1110,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
             {(state === 'idle' || state === 'local_disconnected') && !remoteStream && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#08060f]/80 px-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed]/25 to-[#06b6d4]/20 ring-1 ring-white/10">
-                  <ThreeDGlobeIcon className="h-10 w-10" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0b0914] border border-white/10 shadow-[0_0_35px_-8px_rgba(239,68,68,0.5)] p-2.5">
+                  <img src="/logo-icon.png" alt="UR Live" className="h-full w-full object-contain" />
                 </div>
                 <div>
                   <p className="text-base font-semibold text-white">Meet someone new</p>

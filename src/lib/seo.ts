@@ -26,7 +26,7 @@ const ORGANIZATION_LD = {
   '@type': 'Organization',
   name: SITE.name,
   url: SITE.url,
-  logo: `${SITE.url}/logo.svg`,
+  logo: `${SITE.url}/logo.png`,
   email: LEGAL.supportEmail,
   contactPoint: [
     {

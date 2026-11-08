@@ -43,12 +43,15 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
 
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-400/25 bg-emerald-500/12 text-emerald-300 shadow-[0_0_24px_-10px_rgba(52,211,153,0.9)]">
-              <WebProtectionIcon className="h-5 w-5" />
+            <span className="mt-0.5 relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/25 bg-gradient-to-br from-red-500/15 to-transparent p-1.5 shadow-[0_0_24px_-8px_rgba(239,68,68,0.7)]">
+              <img src="/logo-icon.png" alt="UR Live" className="h-full w-full object-contain" />
             </span>
             <div>
-              <h2 className="font-display text-lg font-bold tracking-tight">Adult-only checkpoint</h2>
-              <p className="mt-0.5 text-[11px] text-white/45">Strictly 18+ · takes a few seconds</p>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-display text-lg font-bold tracking-tight">Adult-only checkpoint</h2>
+                <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold text-red-300 uppercase tracking-wider">18+</span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-white/45">U-R-LIVE verification · takes a few seconds</p>
             </div>
           </div>
           <button

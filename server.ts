@@ -7,7 +7,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { WebSocketServer } from 'ws';
@@ -102,6 +102,37 @@ app.use(
   })
 );
 app.use(compression());
+
+// CORS for split deploys: static frontend on one origin (e.g. Vercel) calling
+// this API from another. Same-origin requests are unaffected; only origins
+// listed in CORS_ORIGINS (comma-separated) get cross-origin access.
+const corsAllowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  const allowed = !origin || corsAllowedOrigins.includes(origin.replace(/\/+$/, ''));
+  if (allowed) {
+    if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type,Authorization,x-session-token,x-user-id'
+    );
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(allowed ? 204 : 403).end();
+    return;
+  }
+  if (origin && !allowed) {
+    res.status(403).json({ error: 'Origin not allowed' });
+    return;
+  }
+  next();
+});
+
 const server = http.createServer(app);
 
 // Webhook raw-body preservation for HMAC signature checks

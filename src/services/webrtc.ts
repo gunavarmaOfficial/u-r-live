@@ -7,6 +7,7 @@ import {
   getStoredSessionToken,
   ensureSessionToken,
   clearStoredSessionToken,
+  API_BASE_URL,
 } from './api';
 
 export type NetworkQuality = 'excellent' | 'good' | 'fair' | 'poor';
@@ -296,8 +297,10 @@ export class WebRTCManager {
       }
 
       this.intentionalClose = false;
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      // Split deploys signal through the configured API origin; same-origin otherwise.
+      const wsUrl = API_BASE_URL
+        ? `${API_BASE_URL.replace(/^http/, 'ws')}/ws`
+        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
       let hasResolved = false;
       let stallTimer = 0;

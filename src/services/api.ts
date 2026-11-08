@@ -3,6 +3,16 @@ import { UserProfile, Subscription, PlanInfo, UserReport } from '../types';
 const STORAGE_USER_ID_KEY = 'omelive_session_user_id';
 const STORAGE_SESSION_TOKEN_KEY = 'omelive_session_token';
 
+/**
+ * Optional backend origin for split deploys: static frontend on a host like
+ * Vercel/Netlify + the Express/WebSocket server elsewhere. Empty string means
+ * same-origin (the default, e.g. npm run dev or the full server deployment).
+ * Set VITE_API_URL at build time, e.g. https://api.u-r-live.com
+ */
+export const API_BASE_URL = (
+  (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+).replace(/\/+$/, '');
+
 export function getStoredUserId(): string | null {
   try {
     return sessionStorage.getItem(STORAGE_USER_ID_KEY) || localStorage.getItem(STORAGE_USER_ID_KEY);
@@ -78,7 +88,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
   if (userId) headers.set('x-user-id', userId);
 
-  const res = await fetch(endpoint, { ...options, headers });
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
 
   const text = await res.text();
   let body: { error?: string; code?: string } | null = null;

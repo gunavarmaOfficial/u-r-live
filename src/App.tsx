@@ -1,317 +1,274 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { LandingView } from './components/LandingView';
-import { VideoChatView } from './components/VideoChatView';
-import { OnboardingView } from './components/OnboardingView';
-import { SafetyCentreView } from './components/SafetyCentreView';
-import { AdminDashboardView } from './components/AdminDashboardView';
-import { AgeVerificationModal } from './components/AgeVerificationModal';
-import { ReportModal } from './components/ReportModal';
+import { HomePage } from './pages/HomePage';
+import { SafetyPage } from './pages/SafetyPage';
+import { LegalPage } from './pages/LegalPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { ProUpgradeModal } from './components/ProUpgradeModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { GoogleAuthModal } from './components/GoogleAuthModal';
-import { UserProfile, Subscription, UserGender } from './types';
-import { api } from './services/api';
+import { ReportModal } from './components/ReportModal';
+import { AppContext, PreferredGender, SessionStatus } from './context/AppContext';
+import { useVisibility } from './hooks/useVisibility';
+import { Subscription, UserProfile } from './types';
+import {
+  api,
+  clearStoredSessionToken,
+  clearStoredUserId,
+  hasStoredSessionToken,
+} from './services/api';
+
+const LivePage = lazy(() => import('./pages/LivePage').then((module) => ({ default: module.LivePage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
+
+const RouteFallback: React.FC = () => (
+  <div className="flex flex-1 items-center justify-center p-12" role="status" aria-live="polite">
+    <div className="relative flex h-12 w-12 items-center justify-center">
+      <span className="absolute inset-0 rounded-full border-2 border-white/10" />
+      <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[#8b5cf6] border-r-[#22d3ee]" />
+    </div>
+    <span className="sr-only">Loading</span>
+  </div>
+);
 
 export default function App() {
-  // Navigation views: 'onboarding' is now a dedicated full-page screen!
-  const [currentView, setCurrentView] = useState<'video' | 'safety' | 'admin' | 'landing' | 'onboarding'>('onboarding');
-  const [user, setUser] = useState<UserProfile>(() => ({
-    id: 'guest_' + Math.random().toString(36).substring(2, 10),
-    displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
-    gender: 'unspecified',
-    country: 'GLOBAL',
-    isAdultVerified: false,
-    role: 'user',
-    status: 'active',
-    createdAt: Date.now(),
-    lastActiveAt: Date.now(),
-  }));
-  
+  const location = useLocation();
+  useVisibility();
+
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [preferredGender, setPreferredGender] = useState<PreferredGender>('any');
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('idle');
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
-  // Preferred partner matching filter
-  const [preferredGender, setPreferredGender] = useState<'any' | 'male' | 'female'>('any');
-
-  // Modals (Checkout & Safety only, onboarding is on-page)
-  const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string>('');
+  const [upgradeReason, setUpgradeReason] = useState('');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
 
+  const sessionInFlight = useRef(false);
+
+  const applySession = useCallback(
+    (payload: { user: UserProfile; isPro?: boolean; subscription?: Subscription | null }) => {
+      setUser(payload.user);
+      setIsPro(Boolean(payload.isPro));
+      setSubscription(payload.subscription ?? null);
+      setSessionError(null);
+    },
+    []
+  );
+
+  const loadSession = useCallback(async () => {
+    if (sessionInFlight.current) return;
+    sessionInFlight.current = true;
+    setSessionStatus('loading');
+    setSessionError(null);
+    try {
+      const data = await api.getSession();
+      applySession(data);
+      setSessionStatus('ready');
+    } catch (err) {
+      setSessionError(err instanceof Error ? err.message : 'Could not reach the server.');
+      setSessionStatus('error');
+    } finally {
+      sessionInFlight.current = false;
+    }
+  }, [applySession]);
+
   useEffect(() => {
-    // Safety timeout: If server does not respond within 1.5s, continue with local guest user
-    const timer = setTimeout(() => {
-      setIsLoadingSession(false);
-    }, 1500);
+    let cancelled = false;
 
     api
-      .getSession()
-      .then((data) => {
-        clearTimeout(timer);
-        if (data.user) {
-          setUser(data.user);
-        }
-        setIsPro(data.isPro);
-        setSubscription(data.subscription);
-
-        // If gender is unspecified or age verification is not completed, show onboarding directly on page!
-        if (!data.user?.isAdultVerified || data.user?.gender === 'unspecified') {
-          setCurrentView('onboarding');
-        } else {
-          setCurrentView('video');
+      .getPublicConfig()
+      .then((config) => {
+        if (!cancelled) {
+          setGoogleClientId(config.googleClientId);
+          setGoogleEnabled(Boolean(config.googleClientId));
         }
       })
-      .catch((err) => {
-        console.warn('Session loading fallback:', err);
-        setCurrentView('onboarding');
-      })
-      .finally(() => {
-        clearTimeout(timer);
-        setIsLoadingSession(false);
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleClientId(null);
+          setGoogleEnabled(false);
+        }
       });
 
-    return () => clearTimeout(timer);
+    if (hasStoredSessionToken()) {
+      void loadSession();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSession]);
+
+  const openUpgrade = useCallback((reason?: string) => {
+    setUpgradeReason(
+      reason || 'Upgrade to U-R-LIVE Pro to unlock priority queue, country filters and verified badge.'
+    );
+    setIsUpgradeModalOpen(true);
   }, []);
 
-  const handleStartChatClicked = () => {
-    if (!user?.isAdultVerified || user?.gender === 'unspecified') {
-      setCurrentView('onboarding');
-    } else {
-      setCurrentView('video');
-    }
-  };
+  const updateUser = useCallback((next: UserProfile) => {
+    setUser(next);
+  }, []);
 
-  const handleOnboardingComplete = (gender: UserGender, prefGender: 'any' | 'male' | 'female') => {
-    setPreferredGender(prefGender);
-    if (user) {
-      setUser({ ...user, gender, isAdultVerified: true });
+  const signOut = useCallback(() => {
+    clearStoredSessionToken();
+    clearStoredUserId();
+    setUser(null);
+    setIsPro(false);
+    setSubscription(null);
+    setSessionStatus('idle');
+    setSessionError(null);
+    if (window.location.pathname === '/live') {
+      void loadSession();
     }
-    // Smoothly transition straight into video chat on page!
-    setCurrentView('video');
-  };
-
-  const handleAgeVerified = async () => {
-    setIsAgeModalOpen(false);
-    try {
-      const res = await api.updateProfile({ isAdultVerified: true });
-      setUser(res.user);
-      setIsPro(res.isPro);
-      setSubscription(res.subscription);
-      setCurrentView('video');
-    } catch (err) {
-      console.error('Failed to update adult verification:', err);
-      if (user) {
-        setUser({ ...user, isAdultVerified: true });
-      }
-      setCurrentView('video');
-    }
-  };
-
-  const handleProSuccess = (sub: Subscription) => {
-    setSubscription(sub);
-    setIsPro(true);
-    // If the reason was female filter, automatically set female matching!
-    if (upgradeReason.includes('Female')) {
-      setPreferredGender('female');
-    } else if (upgradeReason.includes('Male')) {
-      setPreferredGender('male');
-    }
-  };
-
-  const handleGoogleSuccess = (
-    googleUser: UserProfile,
-    googleIsPro: boolean,
-    googleSub: Subscription | null
-  ) => {
-    setUser(googleUser);
-    setIsPro(googleIsPro);
-    setSubscription(googleSub);
-    if (!googleUser.isAdultVerified || googleUser.gender === 'unspecified') {
-      setCurrentView('onboarding');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const res = await api.login({
-        displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
-      });
-      setUser(res.user);
-      setIsPro(res.isPro);
-      setSubscription(res.subscription);
-      setPreferredGender('any');
-      setCurrentView('onboarding');
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
-  };
+  }, [loadSession]);
 
   const isGoogleUser = user?.authProvider === 'google';
+  const isLiveRoute = location.pathname === '/live';
+  const showFooter = !isLiveRoute && location.pathname !== '/admin';
+
+  const contextValue = React.useMemo(
+    () => ({
+      user,
+      isPro,
+      subscription,
+      preferredGender,
+      sessionStatus,
+      sessionError,
+      googleEnabled,
+      isGoogleUser,
+      loadSession,
+      applySession,
+      updateUser,
+      setPreferredGender,
+      signOut,
+      openUpgrade,
+      openSettings: () => setIsSettingsModalOpen(true),
+      openGoogle: () => {
+        if (googleEnabled) setIsGoogleModalOpen(true);
+      },
+      openReport: (userId: string, userName: string) => setReportTarget({ id: userId, name: userName }),
+    }),
+    [
+      user,
+      isPro,
+      subscription,
+      preferredGender,
+      sessionStatus,
+      sessionError,
+      googleEnabled,
+      isGoogleUser,
+      loadSession,
+      applySession,
+      updateUser,
+      signOut,
+      openUpgrade,
+    ]
+  );
 
   return (
-    <div
-      className={`flex flex-col bg-[#111215] text-neutral-100 font-sans ${
-        currentView === 'video' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
-      }`}
-    >
-      <Header
-        currentView={currentView}
-        onNavigate={(view) => setCurrentView(view)}
-        user={user}
-        isPro={isPro}
-        onOpenUpgradeModal={() => {
-          setUpgradeReason('Upgrade to U-R-LIVE Pro to unlock priority queue, location filter, and verified badge.');
-          setIsUpgradeModalOpen(true);
-        }}
-        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
-        onOpenGoogleModal={() => setIsGoogleModalOpen(true)}
-        onOpenOnboarding={() => setCurrentView('onboarding')}
-        onLogout={handleLogout}
-      />
+    <AppContext.Provider value={contextValue}>
+      <div
+        className={`relative flex flex-col bg-[#07060d] font-sans text-neutral-100 ${
+          isLiveRoute ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
+        }`}
+      >
+        <a
+          href="#main-content"
+          className="sr-only z-[100] rounded-lg bg-white px-4 py-2 text-sm font-bold text-black focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
+        >
+          Skip to content
+        </a>
 
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {isLoadingSession ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-xs text-neutral-400 font-sans space-y-3">
-            <div className="w-8 h-8 rounded-full border-2 border-neutral-700 border-t-emerald-500 animate-spin" />
-            <p>Connecting to U-R-LIVE server...</p>
-          </div>
-        ) : (
-          <>
-            {/* 1. Dedicated On-Page Onboarding Screen (Step 1 Gender -> Step 2 Target Partner) */}
-            {currentView === 'onboarding' && user && (
-              <OnboardingView
-                user={user}
-                isPro={isPro}
-                onComplete={handleOnboardingComplete}
-                onOpenUpgradeModal={() => {
-                  setUpgradeReason('Connecting with Female partners alone requires U-R-LIVE Pro (₹299/month).');
-                  setIsUpgradeModalOpen(true);
-                }}
-              />
-            )}
+        <Header />
 
-            {/* 2. Live Random Video Chat Screen */}
-            {currentView === 'video' && user && (
-              <VideoChatView
-                user={user}
-                isPro={isPro}
-                preferredGender={preferredGender}
-                onChangePreferredGender={(g) => setPreferredGender(g)}
-                onOpenUpgradeModal={(reason) => {
-                  setUpgradeReason(
-                    reason || 'Connecting with Female partners alone requires U-R-LIVE Pro (₹299/month).'
-                  );
-                  setIsUpgradeModalOpen(true);
-                }}
-                onOpenReportModal={(partnerId, partnerName) => {
-                  setReportTarget({ id: partnerId, name: partnerName });
-                }}
-                onRequireAgeVerification={() => setCurrentView('onboarding')}
-                onOpenOnboarding={() => setCurrentView('onboarding')}
-              />
-            )}
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={`flex min-h-0 flex-1 flex-col outline-none ${
+            isLiveRoute ? 'overflow-hidden' : 'overflow-visible'
+          }`}
+        >
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/safety" element={<SafetyPage />} />
+              <Route path="/terms" element={<LegalPage slug="terms" />} />
+              <Route path="/privacy" element={<LegalPage slug="privacy" />} />
+              <Route path="/cookies" element={<LegalPage slug="cookies" />} />
+              <Route path="/community-rules" element={<LegalPage slug="community-rules" />} />
+              <Route path="/live" element={<LivePage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </main>
 
-            {/* 3. Safety Center */}
-            {currentView === 'safety' && (
-              <div className="flex-1 overflow-y-auto">
-                <SafetyCentreView />
-              </div>
-            )}
+        {showFooter && <Footer />}
 
-            {/* 4. Admin Dashboard */}
-            {currentView === 'admin' && (
-              <div className="flex-1 overflow-y-auto">
-                <AdminDashboardView />
-              </div>
-            )}
-
-            {/* 5. Landing / About */}
-            {currentView === 'landing' && (
-              <div className="flex-1 overflow-y-auto">
-                <LandingView
-                  onStartChat={() => {
-                    handleStartChatClicked();
-                  }}
-                  onOpenUpgradeModal={() => {
-                    setUpgradeReason('Upgrade to U-R-LIVE Pro to unlock female matching and priority queue.');
-                    setIsUpgradeModalOpen(true);
-                  }}
-                  onOpenGoogleModal={() => setIsGoogleModalOpen(true)}
-                  onNavigateToSafety={() => setCurrentView('safety')}
-                  isPro={isPro}
-                  isGoogleUser={isGoogleUser}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Footer only on non-video, non-onboarding scrollable pages */}
-      {currentView !== 'video' && currentView !== 'onboarding' && (
-        <Footer onNavigate={(view) => setCurrentView(view)} />
-      )}
-
-      {/* Google Authentication Modal */}
-      <GoogleAuthModal
-        isOpen={isGoogleModalOpen}
-        onClose={() => setIsGoogleModalOpen(false)}
-        onSuccess={handleGoogleSuccess}
-      />
-
-      {/* Age 18+ Verification Gate Modal (Fallback) */}
-      <AgeVerificationModal
-        isOpen={isAgeModalOpen}
-        onConfirm={handleAgeVerified}
-        onCancel={() => setIsAgeModalOpen(false)}
-      />
-
-      {/* Pro Upgrade ₹299/mo Modal */}
-      <ProUpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        onSuccess={handleProSuccess}
-        activeSubscription={subscription}
-        upgradeReason={upgradeReason}
-      />
-
-      {/* Report Modal */}
-      {reportTarget && (
-        <ReportModal
-          isOpen={true}
-          reportedUserId={reportTarget.id}
-          reportedUserName={reportTarget.name}
-          onClose={() => setReportTarget(null)}
-          onSubmitted={() => setReportTarget(null)}
+        <GoogleAuthModal
+          isOpen={isGoogleModalOpen}
+          clientId={googleClientId}
+          onClose={() => setIsGoogleModalOpen(false)}
+          onSuccess={(googleUser, googleIsPro, googleSub) => {
+            applySession({ user: googleUser, isPro: googleIsPro, subscription: googleSub });
+            setSessionStatus('ready');
+          }}
         />
-      )}
 
-      {/* Account Settings Modal */}
-      {user && (
-        <AccountSettingsModal
-          isOpen={isSettingsModalOpen}
-          onClose={() => setIsSettingsModalOpen(false)}
-          user={user}
-          isPro={isPro}
-          subscription={subscription}
-          onProfileUpdated={(updated, pro, sub) => {
-            setUser(updated);
-            setIsPro(pro);
+        <ProUpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          onSuccess={(sub: Subscription) => {
             setSubscription(sub);
+            setIsPro(true);
+            if (upgradeReason.includes('Female')) setPreferredGender('female');
+            else if (upgradeReason.includes('Male')) setPreferredGender('male');
           }}
-          onOpenUpgradeModal={() => {
-            setUpgradeReason('Upgrade to U-R-LIVE Pro to unlock gender filters and priority queue.');
-            setIsUpgradeModalOpen(true);
-          }}
-          onOpenGoogleModal={() => setIsGoogleModalOpen(true)}
+          activeSubscription={subscription}
+          upgradeReason={upgradeReason}
         />
-      )}
-    </div>
+
+        {reportTarget && (
+          <ReportModal
+            isOpen={true}
+            reportedUserId={reportTarget.id}
+            reportedUserName={reportTarget.name}
+            onClose={() => setReportTarget(null)}
+            onSubmitted={() => setReportTarget(null)}
+          />
+        )}
+
+        {user && (
+          <AccountSettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
+            user={user}
+            isPro={isPro}
+            subscription={subscription}
+            onProfileUpdated={(updated, pro, sub) => {
+              setUser(updated);
+              setIsPro(pro);
+              setSubscription(sub);
+            }}
+            onOpenUpgradeModal={() =>
+              openUpgrade('Upgrade to U-R-LIVE Pro to unlock gender filters and priority queue.')
+            }
+            onOpenGoogleModal={() => {
+              if (googleEnabled) setIsGoogleModalOpen(true);
+            }}
+          />
+        )}
+      </div>
+    </AppContext.Provider>
   );
 }

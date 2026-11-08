@@ -2,45 +2,192 @@
  * OmeLive Full-Stack Application Server
  * Serves Express REST APIs, WebRTC WebSocket Signaling, and Vite frontend middleware
  */
+import 'dotenv/config';
 import http from 'http';
+import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import express, { Request, Response } from 'express';
+import helmet from 'helmet';
+import compression from 'compression';
 import { WebSocketServer } from 'ws';
 import { z } from 'zod';
-import dotenv from 'dotenv';
 import { db } from './server/db';
-import { matchmaker } from './server/matchmaker';
+import { getMatchmaking, syncBlock } from './server/matchmaking';
+import { pingRedis, getRedisStatus, closeRedis, isRedisConfigured } from './server/redis';
 import { setupSignaling } from './server/webrtc';
 import {
   PRO_PLAN_PRICE_INR,
   createSubscriptionOrder,
   verifyCashfreeOrderStatus,
   verifyCashfreeWebhookSignature,
-  activateProSubscription,
+  activateProSubscriptionPersisted,
   processCashfreeWebhook,
 } from './server/payments';
 import {
   resolveSessionUser,
+  peekSessionUser,
   createSessionToken,
+  extractSessionToken,
+  hashAuditValue,
   requireAdmin,
 } from './server/auth';
 import { UserProfile, ReportCategory } from './server/types';
+import { verifyGoogleIdToken } from './server/googleAuth';
+import {
+  distributedApiRateLimit,
+  guestSessionRateLimit,
+  adminLoginRateLimit,
+  reportRateLimit,
+} from './server/rateLimit';
+import { requireTurnstile } from './server/turnstile';
 
-dotenv.config();
+const PORT = Number(process.env.PORT) || 3000;
+const LEGAL_TERMS_VERSION = process.env.LEGAL_TERMS_VERSION || '2026-10-28';
 
-const PORT = 3000;
+/** Revokes the session token presented on this request (used when identity or role changes). */
+function revokePresentedSession(req: Request): void {
+  const token = extractSessionToken(req);
+  if (!token) return;
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  db.revokeSession(tokenHash);
+}
+
 const app = express();
+// Enable reverse-proxy trust for Cloudflare / Nginx / Render / Railway reverse proxies
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+app.use(
+  helmet({
+    contentSecurityPolicy:
+      process.env.NODE_ENV === 'production'
+        ? {
+            useDefaults: false,
+            directives: {
+              defaultSrc: ["'self'"],
+              baseUri: ["'self'"],
+              objectSrc: ["'none'"],
+              scriptSrc: [
+                "'self'",
+                // Inline JSON-LD + Google Identity Services + Cashfree checkout bootstrap
+                "'unsafe-inline'",
+                'https://accounts.google.com',
+                'https://www.gstatic.com',
+                'https://sdk.cashfree.com',
+              ],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+              fontSrc: ["'self'", 'data:'],
+              connectSrc: ["'self'", 'https:', 'wss:', 'ws:'],
+              mediaSrc: ["'self'", 'blob:'],
+              frameSrc: [
+                'https://accounts.google.com',
+                'https://sdk.cashfree.com',
+                'https://api.cashfree.com',
+                'https://sandbox.cashfree.com',
+              ],
+              workerSrc: ["'self'", 'blob:'],
+              formAction: ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
+              frameAncestors: ["'none'"],
+              upgradeInsecureRequests: [],
+            },
+          }
+        : false,
+    // Google Identity Services opens its own popup and posts back to the opener
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+app.use(compression());
 const server = http.createServer(app);
 
 // Webhook raw-body preservation for HMAC signature checks
 app.use(
   express.json({
+    limit: '256kb',
     verify: (req: any, _res, buf) => {
       req.rawBody = buf.toString('utf-8');
     },
   })
 );
+
+// Global API rate limiting (cluster-wide when Redis is configured)
+app.use('/api', distributedApiRateLimit);
+
+// -------------------------------------------------------------
+// Public runtime config & versioned legal consent
+// -------------------------------------------------------------
+app.get('/api/config', (_req: Request, res: Response) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    termsVersion: LEGAL_TERMS_VERSION,
+    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || null,
+    siteUrl: process.env.PUBLIC_URL || null,
+  });
+});
+
+app.get('/api/legal/status', (req: Request, res: Response) => {
+  const user = peekSessionUser(req);
+  res.json({
+    currentVersion: LEGAL_TERMS_VERSION,
+    acceptedVersion: user?.termsVersion ?? null,
+    needsAcceptance: user?.termsVersion !== LEGAL_TERMS_VERSION,
+  });
+});
+
+app.post('/api/legal/accept', async (req: Request, res: Response) => {
+  const schema = z.object({
+    termsVersion: z.string().min(1).max(32),
+    ageConfirmed: z.boolean(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid consent payload' });
+    return;
+  }
+
+  if (!parsed.data.ageConfirmed) {
+    res.status(400).json({ error: 'You must confirm you are at least 18 years old.', code: 'AGE_NOT_CONFIRMED' });
+    return;
+  }
+
+  if (parsed.data.termsVersion !== LEGAL_TERMS_VERSION) {
+    res.status(409).json({
+      error: 'Our Terms have been updated. Reload the page to review and accept the current version.',
+      code: 'TERMS_VERSION_MISMATCH',
+      currentVersion: LEGAL_TERMS_VERSION,
+    });
+    return;
+  }
+
+  const session = resolveSessionUser(req);
+  try {
+    const updated = await db.acceptLegalConsent(session.user.id, LEGAL_TERMS_VERSION, {
+      ipHash: hashAuditValue(req.ip),
+      userAgentHash: hashAuditValue(req.get('user-agent')),
+    });
+
+    if (!updated) {
+      res.status(404).json({ error: 'Session not found. Please reload the page.' });
+      return;
+    }
+
+    res.json({
+      user: updated,
+      sessionToken: session.sessionToken,
+      isPro: db.isUserPro(updated.id),
+      subscription: db.getSubscription(updated.id) || null,
+      acceptedAt: updated.termsAcceptedAt,
+    });
+  } catch (err: any) {
+    console.error('[Legal] Failed to record consent:', err.message);
+    res.status(503).json({ error: 'Could not record your consent. Please try again.' });
+  }
+});
 
 // -------------------------------------------------------------
 // Authentication & User Profile APIs
@@ -59,7 +206,7 @@ app.get('/api/auth/session', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/auth/login', (req: Request, res: Response) => {
+app.post('/api/auth/login', guestSessionRateLimit, (req: Request, res: Response) => {
   const schema = z.object({
     displayName: z.string().min(2).max(30).optional(),
     gender: z.enum(['unspecified', 'male', 'female', 'non-binary']).optional(),
@@ -93,7 +240,100 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/auth/admin-login', (req: Request, res: Response) => {
+// -------------------------------------------------------------
+// User Preferences & Filter APIs
+// -------------------------------------------------------------
+app.get('/api/user/preferences', (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  const isPro = db.isUserPro(session.user.id);
+  const preferences = db.getUserPreferences(session.user.id);
+
+  res.json({
+    preferences: preferences || null,
+    isPro,
+  });
+});
+
+app.post('/api/user/preferences', (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  const isPro = db.isUserPro(session.user.id);
+
+  const schema = z.object({
+    preferredCountry: z.string().optional(),
+    preferredCountries: z.array(z.string()).optional(),
+    isMultipleCountries: z.boolean().optional(),
+    languages: z.array(z.string()).optional(),
+    preferredLanguages: z.array(z.string()).optional(),
+    preferredGender: z.enum(['any', 'male', 'female']).optional(),
+    chatMode: z.enum(['video', 'text']).optional(),
+    interests: z.array(z.string()).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid parameters' });
+    return;
+  }
+
+  const data = parsed.data;
+
+  // Strict server-side Pro entitlement check
+  const hasRestrictedCountry =
+    (data.preferredCountry && data.preferredCountry !== 'GLOBAL' && data.preferredCountry !== 'any') ||
+    (Array.isArray(data.preferredCountries) && data.preferredCountries.some((c) => c !== 'GLOBAL' && c !== 'any'));
+  const hasRestrictedLanguage =
+    (Array.isArray(data.languages) && data.languages.some((l) => l !== 'en')) ||
+    (Array.isArray(data.preferredLanguages) && data.preferredLanguages.some((l) => l !== 'en'));
+  const hasRestrictedGender = data.preferredGender && data.preferredGender !== 'any';
+  const hasMultiple = Boolean(data.isMultipleCountries);
+
+  if (!isPro && (hasRestrictedCountry || hasRestrictedLanguage || hasRestrictedGender || hasMultiple)) {
+    res.status(403).json({
+      error: 'Country and language filters are exclusive to U-R-LIVE Pro.',
+      code: 'PRO_REQUIRED',
+      requiresUpgrade: true,
+    });
+    return;
+  }
+
+  const updated = db.saveUserPreferences(session.user.id, {
+    chatMode: data.chatMode || 'video',
+    preferredGender: isPro ? (data.preferredGender || 'any') : 'any',
+    preferredCountry: isPro ? (data.preferredCountry || 'GLOBAL') : 'GLOBAL',
+    preferredCountries: isPro && data.preferredCountries ? data.preferredCountries : ['GLOBAL'],
+    isMultipleCountries: isPro && Boolean(data.isMultipleCountries),
+    languages: isPro && data.languages ? data.languages : (data.preferredLanguages || []),
+    preferredLanguages: isPro && data.preferredLanguages ? data.preferredLanguages : (data.languages || []),
+    interests: data.interests || [],
+  });
+
+  res.json({
+    success: true,
+    preferences: updated,
+    isPro,
+  });
+});
+
+app.post('/api/user/preferences/reset', (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  const reset = db.saveUserPreferences(session.user.id, {
+    preferredCountry: 'GLOBAL',
+    preferredCountries: ['GLOBAL'],
+    isMultipleCountries: false,
+    languages: ['en'],
+    preferredLanguages: ['en'],
+    preferredGender: 'any',
+    interests: [],
+    interestMatchingEnabled: false,
+  });
+
+  res.json({
+    success: true,
+    preferences: reset,
+  });
+});
+
+app.post('/api/auth/admin-login', adminLoginRateLimit, (req: Request, res: Response) => {
   const schema = z.object({
     adminKey: z.string().min(1, 'Admin key is required'),
   });
@@ -142,6 +382,9 @@ app.post('/api/auth/admin-login', (req: Request, res: Response) => {
     });
   }
 
+  // Admin login always replaces the presented token (privilege escalation rotation)
+  revokePresentedSession(req);
+
   const sessionToken = createSessionToken(adminUser.id, 'admin');
   res.json({
     user: adminUser,
@@ -151,55 +394,99 @@ app.post('/api/auth/admin-login', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/auth/google', (req: Request, res: Response) => {
+app.post('/api/auth/google', async (req: Request, res: Response) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    res.status(503).json({
+      error: 'Google sign-in is not enabled on this server.',
+      code: 'GOOGLE_NOT_CONFIGURED',
+    });
+    return;
+  }
+
   const schema = z.object({
-    email: z.string().email(),
-    name: z.string().min(1),
-    avatarUrl: z.string().url().optional(),
-    googleId: z.string().optional(),
+    credential: z.string().min(40).max(8192),
+    termsVersion: z.string().min(1).max(32),
+    ageConfirmed: z.boolean(),
   });
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid Google profile payload' });
+    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid Google sign-in payload' });
     return;
   }
 
-  const { email, name, avatarUrl, googleId } = parsed.data;
-  const gId = googleId || 'g_' + Buffer.from(email).toString('base64url');
+  if (!parsed.data.ageConfirmed) {
+    res.status(400).json({ error: 'You must confirm you are at least 18 years old.', code: 'AGE_NOT_CONFIRMED' });
+    return;
+  }
 
-  let user = db.findUserByGoogleId(gId) || db.findUserByEmail(email);
+  if (parsed.data.termsVersion !== LEGAL_TERMS_VERSION) {
+    res.status(409).json({
+      error: 'Our Terms have been updated. Reload the page to review and accept the current version.',
+      code: 'TERMS_VERSION_MISMATCH',
+      currentVersion: LEGAL_TERMS_VERSION,
+    });
+    return;
+  }
+
+  let claims;
+  try {
+    claims = await verifyGoogleIdToken(parsed.data.credential, clientId);
+  } catch (err: any) {
+    res.status(401).json({ error: 'Google sign-in could not be verified. Please try again.', code: 'GOOGLE_TOKEN_INVALID' });
+    return;
+  }
+
+  let user = db.findUserByGoogleId(claims.sub) || db.findUserByEmail(claims.email);
 
   if (user) {
-    user = db.saveUser({
+    if (user.status !== 'active') {
+      res.status(403).json({ error: 'This account is not available. Contact support.' });
+      return;
+    }
+    user = await db.saveUserAwait({
       ...user,
-      displayName: user.displayName || name,
-      avatarUrl: avatarUrl || user.avatarUrl,
-      googleId: gId,
-      email,
+      displayName: user.displayName || claims.name,
+      avatarUrl: claims.picture || user.avatarUrl,
+      googleId: claims.sub,
+      email: claims.email,
       authProvider: 'google',
       lastActiveAt: Date.now(),
     });
   } else {
-    const session = resolveSessionUser(req);
-    const current = session.user;
-    const newUserId = current.id.startsWith('guest_')
-      ? 'usr_g_' + Math.random().toString(36).substring(2, 10)
-      : current.id;
-
-    user = db.saveUser({
-      ...current,
-      id: newUserId,
-      displayName: name,
-      email,
-      avatarUrl,
-      googleId: gId,
+    const now = Date.now();
+    user = await db.saveUserAwait({
+      id: 'usr_g_' + crypto.randomBytes(8).toString('hex'),
+      displayName: claims.name.slice(0, 100),
+      email: claims.email,
+      avatarUrl: claims.picture,
+      googleId: claims.sub,
       authProvider: 'google',
-      isAdultVerified: true,
+      gender: 'unspecified',
+      country: 'GLOBAL',
+      isAdultVerified: false,
       role: 'user',
-      lastActiveAt: Date.now(),
+      status: 'active',
+      createdAt: now,
+      lastActiveAt: now,
     });
   }
+
+  try {
+    const consented = await db.acceptLegalConsent(user.id, LEGAL_TERMS_VERSION, {
+      ipHash: hashAuditValue(req.ip),
+      userAgentHash: hashAuditValue(req.get('user-agent')),
+    });
+    if (consented) user = consented;
+  } catch (err: any) {
+    console.error('[Auth] Failed to record Google consent:', err.message);
+    res.status(503).json({ error: 'Could not record your consent. Please try again.' });
+    return;
+  }
+
+  // Rotate the token when identity/privilege changes (guest -> Google account)
+  revokePresentedSession(req);
 
   const sessionToken = createSessionToken(user.id, user.role);
 
@@ -289,6 +576,17 @@ app.post('/api/subscription/create-order', async (req: Request, res: Response) =
   const session = resolveSessionUser(req);
   const user = session.user;
 
+  // Enforce account verification before purchasing Pro
+  if (user.authProvider === 'guest' || !user.email) {
+    res.status(403).json({
+      error:
+        'A verified account (Google or email login) is required before purchasing Pro so your subscription can be safely restored.',
+      code: 'ACCOUNT_VERIFICATION_REQUIRED',
+      requiresAuth: true,
+    });
+    return;
+  }
+
   try {
     const orderData = await createSubscriptionOrder(user.id);
     res.json(orderData);
@@ -324,25 +622,68 @@ app.post('/api/subscription/verify', async (req: Request, res: Response) => {
     return;
   }
 
-  const sub = activateProSubscription(
-    user.id,
-    'sub_cf_' + orderId,
-    'cust_' + user.id
-  );
+  // A repeated verify for the same order must not extend the entitlement again
+  const verifyEvent = {
+    id: 'evt_cf_' + crypto.randomBytes(6).toString('hex'),
+    provider: 'cashfree' as const,
+    providerEventId: `verify:${orderId}`,
+    eventType: 'ORDER_VERIFIED',
+    processingStatus: 'processing' as const,
+    receivedAt: Date.now(),
+    payload: { orderId, userId: user.id },
+  };
 
-  res.json({
-    success: true,
-    message: 'Pro subscription activated successfully via Cashfree',
-    subscription: sub,
-    isPro: true,
-  });
+  let claimed = true;
+  try {
+    claimed = await db.claimPaymentEvent(verifyEvent);
+  } catch (err: any) {
+    console.error('[Payments] Failed to record verification attempt:', err.message);
+    res.status(503).json({ error: 'Could not record payment verification. Please retry.' });
+    return;
+  }
+
+  if (!claimed) {
+    res.json({
+      success: true,
+      message: 'This order was already verified. Pro remains active.',
+      subscription: db.getSubscription(user.id) || null,
+      isPro: db.isUserPro(user.id),
+    });
+    return;
+  }
+
+  try {
+    const sub = await activateProSubscriptionPersisted(user.id, 'sub_cf_' + orderId, 'cust_' + user.id);
+    await db.updatePaymentEvent({ ...verifyEvent, processingStatus: 'processed' });
+
+    res.json({
+      success: true,
+      message: 'Pro subscription activated successfully via Cashfree',
+      subscription: sub,
+      isPro: true,
+    });
+  } catch (err: any) {
+    console.error('[Payments] Failed to activate subscription:', err.message);
+    await db
+      .updatePaymentEvent({ ...verifyEvent, processingStatus: 'failed' })
+      .catch(() => {});
+    res.status(503).json({ error: 'Payment verified but activation failed. Our team will reconcile it.' });
+  }
 });
 
-app.post('/api/subscription/cancel', (req: Request, res: Response) => {
+app.post('/api/subscription/cancel', async (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
   const user = session.user;
 
-  const sub = db.cancelSubscription(user.id);
+  let sub;
+  try {
+    sub = await db.cancelSubscriptionAwait(user.id);
+  } catch (err: any) {
+    console.error('[Payments] Failed to cancel subscription:', err.message);
+    res.status(503).json({ error: 'Could not cancel the subscription right now. Please retry.' });
+    return;
+  }
+
   if (!sub) {
     res.status(404).json({ error: 'No active subscription found to cancel' });
     return;
@@ -364,70 +705,76 @@ app.post('/api/subscription/cancel', (req: Request, res: Response) => {
 });
 
 // Cashfree Webhooks endpoint
-app.post(['/api/subscription/webhook', '/api/webhooks/cashfree'], (req: any, res: Response) => {
-  const secretKey = process.env.CASHFREE_SECRET_KEY;
-  if (!secretKey) {
-    res.status(500).json({ error: 'Server misconfiguration: CASHFREE_SECRET_KEY is not configured' });
-    return;
+app.post(
+  ['/api/subscription/webhook', '/api/webhooks/cashfree'],
+  async (req: any, res: Response) => {
+    const secretKey = process.env.CASHFREE_SECRET_KEY;
+    if (!secretKey) {
+      res.status(500).json({ error: 'Server misconfiguration: CASHFREE_SECRET_KEY is not configured' });
+      return;
+    }
+
+    const signature =
+      (req.headers['x-webhook-signature'] as string) ||
+      (req.headers['x-cashfree-signature'] as string) ||
+      '';
+    const timestamp = (req.headers['x-webhook-timestamp'] as string) || '';
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+
+    if (!signature) {
+      res.status(400).json({ error: 'Missing x-webhook-signature header' });
+      return;
+    }
+
+    if (!timestamp) {
+      res.status(400).json({ error: 'Missing x-webhook-timestamp header' });
+      return;
+    }
+
+    // Check timestamp freshness (5 minutes window to prevent replay attacks)
+    const timestampNum = Number(timestamp);
+    const tsMs = timestampNum > 1e11 ? timestampNum : timestampNum * 1000;
+    if (isNaN(timestampNum) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
+      res.status(400).json({ error: 'Webhook timestamp expired or outside tolerance window' });
+      return;
+    }
+
+    // Cryptographically verify HMAC-SHA256 signature BEFORE any state mutation
+    const isValid = verifyCashfreeWebhookSignature(rawBody, signature, timestamp, secretKey);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid Cashfree webhook signature' });
+      return;
+    }
+
+    const event = req.body;
+    const eventId = event?.event_id || event?.data?.order?.order_id || event?.id;
+
+    if (!eventId || typeof eventId !== 'string' || eventId.length > 128) {
+      res.status(400).json({ error: 'Missing or invalid event ID in webhook payload' });
+      return;
+    }
+
+    const eventType = event?.type || event?.event || 'ORDER_PAID';
+    try {
+      const result = await processCashfreeWebhook(eventId, eventType, event?.payload || req.body);
+      // Ask Cashfree to retry transient processing failures instead of dropping them
+      res.status(result.processed || result.duplicate ? 200 : 500).json(result);
+    } catch (err: any) {
+      console.error('[Payments] Webhook processing error:', err.message);
+      res.status(500).json({ processed: false, duplicate: false, message: 'Webhook processing error' });
+    }
   }
-
-  const signature =
-    (req.headers['x-webhook-signature'] as string) ||
-    (req.headers['x-cashfree-signature'] as string) ||
-    '';
-  const timestamp = (req.headers['x-webhook-timestamp'] as string) || '';
-  const rawBody = req.rawBody || JSON.stringify(req.body);
-
-  if (!signature) {
-    res.status(400).json({ error: 'Missing x-webhook-signature header' });
-    return;
-  }
-
-  if (!timestamp) {
-    res.status(400).json({ error: 'Missing x-webhook-timestamp header' });
-    return;
-  }
-
-  // Check timestamp freshness (5 minutes window to prevent replay attacks)
-  const timestampNum = Number(timestamp);
-  const tsMs = timestampNum > 1e11 ? timestampNum : timestampNum * 1000;
-  if (isNaN(timestampNum) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
-    res.status(400).json({ error: 'Webhook timestamp expired or outside tolerance window' });
-    return;
-  }
-
-  // Cryptographically verify HMAC-SHA256 signature
-  const isValid = verifyCashfreeWebhookSignature(rawBody, signature, timestamp, secretKey);
-  if (!isValid) {
-    res.status(401).json({ error: 'Invalid Cashfree webhook signature' });
-    return;
-  }
-
-  const event = req.body;
-  const eventId =
-    event?.event_id ||
-    event?.data?.order?.order_id ||
-    event?.id;
-
-  if (!eventId) {
-    res.status(400).json({ error: 'Missing event ID in webhook payload' });
-    return;
-  }
-
-  const eventType = event?.type || event?.event || 'ORDER_PAID';
-  const result = processCashfreeWebhook(eventId, eventType, event?.payload || req.body);
-  res.json(result);
-});
+);
 
 // -------------------------------------------------------------
 // Safety & Moderation APIs
 // -------------------------------------------------------------
-app.post('/api/safety/report', (req: Request, res: Response) => {
+const reportHandler = async (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
   const reporter = session.user;
 
   const schema = z.object({
-    reportedUserId: z.string(),
+    reportedUserId: z.string().min(1, 'reportedUserId is required'),
     reportedUserName: z.string().optional(),
     category: z.enum([
       'harassment',
@@ -440,6 +787,7 @@ app.post('/api/safety/report', (req: Request, res: Response) => {
     ]),
     description: z.string().max(1000).default(''),
     sessionId: z.string().optional(),
+    turnstileToken: z.string().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -456,11 +804,36 @@ app.post('/api/safety/report', (req: Request, res: Response) => {
     return;
   }
 
+  // Validate reported user exists
+  const targetUser = db.getUser(reportedUserId);
+  if (!targetUser) {
+    res.status(404).json({ error: 'Reported user does not exist or has been deleted' });
+    return;
+  }
+
+  // Prevent duplicate reports for the same user while one is already pending
+  const existingReports = db.getReports();
+  const hasDuplicate = existingReports.some(
+    (r) =>
+      r.reporterId === reporter.id &&
+      r.reportedUserId === reportedUserId &&
+      r.status === 'pending' &&
+      Date.now() - r.createdAt < 24 * 60 * 60 * 1000
+  );
+
+  if (hasDuplicate) {
+    res.status(409).json({
+      error: 'You have already submitted a report for this user that is currently under review.',
+      code: 'DUPLICATE_REPORT',
+    });
+    return;
+  }
+
   const report = db.createReport({
     reporterId: reporter.id,
     reporterName: reporter.displayName,
     reportedUserId,
-    reportedUserName: reportedUserName || 'Anonymous User',
+    reportedUserName: targetUser.displayName || reportedUserName || 'Anonymous User',
     category: category as ReportCategory,
     description,
     sessionId,
@@ -468,20 +841,37 @@ app.post('/api/safety/report', (req: Request, res: Response) => {
 
   // Automatically block reported user from future matchmaking
   db.blockUser(reporter.id, reportedUserId);
+  syncBlock(reporter.id, reportedUserId, true);
+
+  // Moderation audit trail
+  db.addAuditLog({
+    adminUserId: 'system',
+    action: 'report_created',
+    targetType: 'report',
+    targetId: report.id,
+    details: {
+      reporterId: reporter.id,
+      reportedUserId,
+      category,
+    },
+  });
 
   res.json({
     success: true,
     message: 'Report submitted successfully. Thank you for keeping our community safe.',
     reportId: report.id,
   });
-});
+};
+
+app.post('/api/safety/report', reportRateLimit, requireTurnstile(), reportHandler);
+app.post('/api/reports', reportRateLimit, requireTurnstile(), reportHandler);
 
 app.post('/api/safety/block', (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
   const blocker = session.user;
 
   const schema = z.object({
-    blockedUserId: z.string(),
+    blockedUserId: z.string().min(1, 'blockedUserId is required'),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -495,7 +885,22 @@ app.post('/api/safety/block', (req: Request, res: Response) => {
     return;
   }
 
+  const target = db.getUser(parsed.data.blockedUserId);
+  if (!target) {
+    res.status(404).json({ error: 'User to block not found' });
+    return;
+  }
+
   const block = db.blockUser(blocker.id, parsed.data.blockedUserId);
+  syncBlock(blocker.id, parsed.data.blockedUserId, true);
+  db.addAuditLog({
+    adminUserId: blocker.id,
+    action: 'user_blocked',
+    targetType: 'user',
+    targetId: parsed.data.blockedUserId,
+    details: { blockerId: blocker.id },
+  });
+
   res.json({ success: true, block });
 });
 
@@ -514,6 +919,7 @@ app.post('/api/safety/unblock', (req: Request, res: Response) => {
   }
 
   const unblocked = db.unblockUser(blocker.id, parsed.data.blockedUserId);
+  if (unblocked) syncBlock(blocker.id, parsed.data.blockedUserId, false);
   res.json({ success: unblocked });
 });
 
@@ -524,14 +930,36 @@ app.get('/api/safety/blocks', (req: Request, res: Response) => {
   res.json({ blockedUserIds: blockedIds });
 });
 
+app.post('/api/blocks', (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  const blocker = session.user;
+  const { blockedUserId } = req.body || {};
+  if (!blockedUserId) {
+    res.status(400).json({ error: 'blockedUserId is required' });
+    return;
+  }
+  if (blocker.id === blockedUserId) {
+    res.status(400).json({ error: 'You cannot block yourself' });
+    return;
+  }
+  const block = db.blockUser(blocker.id, blockedUserId);
+  syncBlock(blocker.id, blockedUserId, true);
+  res.json({ success: true, block });
+});
+
+app.get('/api/blocks', (req: Request, res: Response) => {
+  const session = resolveSessionUser(req);
+  res.json({ blockedUserIds: db.getBlockedUsers(session.user.id) });
+});
+
 // -------------------------------------------------------------
 // Admin APIs (Protected by requireAdmin middleware)
 // -------------------------------------------------------------
 app.get('/api/admin/overview', requireAdmin, (_req: Request, res: Response) => {
   const users = db.getAllUsers();
   const reports = db.getReports();
-  const queueLength = matchmaker.getQueueLength();
-  const activeMatches = matchmaker.getActiveMatchesCount();
+  const queueLength = getMatchmaking().getQueueLength();
+  const activeMatches = getMatchmaking().getActiveMatchesCount();
   const paymentEvents = db.getAllPaymentEvents();
 
   const proCount = users.filter((u) => db.isUserPro(u.id)).length;
@@ -663,14 +1091,44 @@ app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
   res.json({ iceServers });
 });
 
-app.get('/api/system/health', (_req: Request, res: Response) => {
+app.get('/api/system/health', async (_req: Request, res: Response) => {
+  // Short shared cache so polling clients and the CDN do not stampede the origin
+  res.setHeader('Cache-Control', 'public, max-age=3, stale-while-revalidate=10');
   res.json({
     status: 'healthy',
     timestamp: Date.now(),
     uptimeSeconds: Math.floor(process.uptime()),
-    queueLength: matchmaker.getQueueLength(),
-    activeMatches: matchmaker.getActiveMatchesCount(),
+    queueLength: await getMatchmaking().queueLength(),
+    activeMatches: getMatchmaking().getActiveMatchesCount(),
     turnConfigured: !!process.env.TURN_URL,
+    presence: getRedisStatus(),
+  });
+});
+
+// Liveness: the process is up and serving.
+app.get('/healthz', (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', uptimeSeconds: Math.floor(process.uptime()) });
+});
+
+// Readiness: dependencies required to serve traffic are reachable.
+app.get('/readyz', async (_req: Request, res: Response) => {
+  const [dbReady, redisReachable] = await Promise.all([db.ping(), pingRedis()]);
+  // Horizontally scaled deployments need the shared queue; without REDIS_URL a
+  // second instance would silently run its own matchmaker.
+  const redisRequired = process.env.NODE_ENV === 'production' && !isRedisConfigured();
+  const redisReady = redisReachable && !redisRequired;
+  if (!dbReady || !redisReady) {
+    res.status(503).json({
+      status: 'unavailable',
+      database: dbReady ? 'ok' : 'unreachable',
+      redis: redisRequired ? 'not_configured' : redisReachable ? getRedisStatus() : 'unreachable',
+    });
+    return;
+  }
+  res.status(200).json({
+    status: 'ready',
+    database: db.isPostgresConnected() ? 'postgres' : 'memory',
+    redis: getRedisStatus(),
   });
 });
 
@@ -685,26 +1143,120 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        watch: {
+          ignored: ['**/.data/**', '**/.git/**', '**/*.json', '**/server/tests/**', '**/*.log'],
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    const sendHtml = (res: Response, file: string, status = 200) => {
+      res.status(status).sendFile(file, {
+        headers: { 'Cache-Control': 'public, max-age=0, must-revalidate' },
+      });
+    };
+
+    app.use(
+      '/assets',
+      express.static(path.join(distPath, 'assets'), {
+        immutable: true,
+        maxAge: '1y',
+        fallthrough: false,
+      })
+    );
+    // `redirect: false` keeps /terms at 200 instead of 301-ing to /terms/, so the
+    // served URL matches the canonical tag emitted during prerender.
+    app.use(express.static(distPath, { index: false, maxAge: '1h', redirect: false }));
+
+    app.get('*', (req: Request, res: Response) => {
+      let pathname: string;
+      try {
+        pathname = decodeURIComponent(req.path);
+      } catch {
+        pathname = req.path;
+      }
+
+      // Collapse duplicate trailing-slash URLs onto the canonical path.
+      if (pathname.length > 1 && pathname.endsWith('/')) {
+        res.redirect(301, pathname.replace(/\/+$/, ''));
+        return;
+      }
+
+      // Client-only SPA routes ship a static document with noindex metadata.
+      if (pathname === '/live' || pathname === '/admin') {
+        sendHtml(res, path.join(distPath, pathname.slice(1), 'index.html'));
+        return;
+      }
+
+      const cleanPath = pathname.replace(/\/+$/, '') || '/';
+      if (cleanPath.includes('..') || cleanPath.includes('\0')) {
+        sendHtml(res, path.join(distPath, '404.html'), 404);
+        return;
+      }
+
+      const prerendered =
+        cleanPath === '/' ? path.join(distPath, 'index.html') : path.join(distPath, cleanPath, 'index.html');
+
+      if (fs.existsSync(prerendered)) {
+        sendHtml(res, prerendered);
+        return;
+      }
+
+      sendHtml(res, path.join(distPath, '404.html'), 404);
     });
   }
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`OmeLive server running on port ${PORT}`);
+    console.log(`U-R-LIVE server listening on port ${PORT}`);
   });
+}
+
+/** Drain in-flight work on SIGTERM so Cloud Run rolling deploys drop no one silently. */
+async function shutdown(signal: string): Promise<void> {
+  console.log(`[Server] ${signal} received. Draining connections...`);
+
+  for (const client of wss.clients) {
+    try {
+      client.close(1001, 'Server restarting');
+    } catch {
+      // socket already gone
+    }
+  }
+
+  wss.close();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await closeRedis().catch(() => {});
+  await db.close().catch(() => {});
+  console.log('[Server] Shutdown complete.');
+  process.exit(0);
 }
 
 // Only start the HTTP listener when run directly, not when imported by test suites
 if (process.env.NODE_ENV !== 'test') {
   startServer();
+
+  let shuttingDown = false;
+  const handleSignal = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const forcedExit = setTimeout(() => {
+      console.error('[Server] Forced exit after shutdown timeout.');
+      process.exit(1);
+    }, 15_000);
+    forcedExit.unref();
+
+    shutdown(signal).catch((err) => {
+      console.error('[Server] Shutdown failed:', err);
+      process.exit(1);
+    });
+  };
+
+  process.on('SIGTERM', () => handleSignal('SIGTERM'));
+  process.on('SIGINT', () => handleSignal('SIGINT'));
 }
 
-export { app, server };
+export { app, server, wss };

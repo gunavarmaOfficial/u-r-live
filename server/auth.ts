@@ -25,6 +25,9 @@ export interface SessionPayload {
 }
 
 const DEFAULT_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+// Guests are disposable identities: keep the window short so abandoned sessions
+// (and their rows) age out quickly under public traffic.
+const GUEST_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Creates a cryptographically signed session token:
@@ -89,6 +92,13 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
       return null;
     }
 
+    // Check if session has been revoked or has aged out in the database
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const sessionRecord = db.getSession(tokenHash);
+    if (sessionRecord && (sessionRecord.revoked || sessionRecord.expiresAt <= Date.now())) {
+      return null;
+    }
+
     return payload;
   } catch {
     return null;
@@ -119,6 +129,26 @@ export interface ResolvedSession {
   isNew: boolean;
 }
 
+/** One-way hash for low-sensitivity audit fields (IP, user agent). */
+export function hashAuditValue(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
+}
+
+/**
+ * Resolves the user for an existing, valid session token without creating a
+ * guest. Used by status endpoints that must not mint accounts for crawlers.
+ */
+export function peekSessionUser(req: Request): UserProfile | null {
+  const token = extractSessionToken(req);
+  if (!token) return null;
+  const payload = verifySessionToken(token);
+  if (!payload) return null;
+  const user = db.getUser(payload.userId);
+  if (!user || user.role !== payload.role) return null;
+  return user;
+}
+
 /**
  * Resolves an authenticated user session from the request token.
  * Never trusts raw, unauthenticated 'x-user-id' headers.
@@ -134,8 +164,20 @@ export function resolveSessionUser(req: Request): ResolvedSession {
       if (existing) {
         // Enforce that token role matches user's current role in database
         if (existing.role === payload.role) {
-          existing.lastActiveAt = Date.now();
-          db.saveUser(existing);
+          // Throttle lastActiveAt updates to once every 2 minutes to avoid database write thrashing
+          const now = Date.now();
+          if (now - (existing.lastActiveAt || 0) > 2 * 60 * 1000) {
+            existing.lastActiveAt = now;
+            db.saveUser(existing);
+
+            const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+            const sess = db.getSession(tokenHash);
+            if (sess) {
+              sess.lastActiveAt = now;
+              db.saveSession(sess);
+            }
+          }
+
           return { user: existing, sessionToken: token, isNew: false };
         }
       }
@@ -143,21 +185,37 @@ export function resolveSessionUser(req: Request): ResolvedSession {
   }
 
   // Generate a fresh authenticated guest session
+  const now = Date.now();
   const guestId = 'guest_' + crypto.randomBytes(6).toString('hex');
   const guestUser: UserProfile = {
     id: guestId,
     displayName: 'Stranger ' + Math.floor(1000 + Math.random() * 9000),
+    authProvider: 'guest',
     gender: 'unspecified',
     country: 'GLOBAL',
     isAdultVerified: false,
     role: 'user',
     status: 'active',
-    createdAt: Date.now(),
-    lastActiveAt: Date.now(),
+    createdAt: now,
+    lastActiveAt: now,
   };
 
   db.saveUser(guestUser);
-  const sessionToken = createSessionToken(guestUser.id, 'user');
+  const sessionToken = createSessionToken(guestUser.id, 'user', GUEST_SESSION_DURATION_MS);
+  const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+
+  db.saveSession({
+    id: 'sess_' + crypto.randomBytes(8).toString('hex'),
+    userId: guestUser.id,
+    tokenHash,
+    role: 'user',
+    isGuest: true,
+    createdAt: now,
+    expiresAt: now + GUEST_SESSION_DURATION_MS,
+    revoked: false,
+    lastActiveAt: now,
+  });
+
   return { user: guestUser, sessionToken, isNew: true };
 }
 

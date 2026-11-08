@@ -1,0 +1,20 @@
+{
+  "name": "U-R-LIVE — Live Random Video Chat",
+  "short_name": "U-R-LIVE",
+  "description": "18+ live random video chat with instant server-side matching and encrypted peer-to-peer video.",
+  "start_url": "/live",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07060d",
+  "theme_color": "#07060d",
+  "categories": ["social", "communication"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

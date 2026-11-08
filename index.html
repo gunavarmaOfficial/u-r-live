@@ -1,67 +1,42 @@
 <!doctype html>
 <html lang="en" class="dark">
   <head>
-    <script>
-      (function() {
-        function patchTarget(target) {
-          if (!target) return;
-          try {
-            var desc = Object.getOwnPropertyDescriptor(target, 'fetch');
-            var original = target.fetch;
-            var active = original ? (typeof original === 'function' ? original.bind(target) : original) : null;
-            Object.defineProperty(target, 'fetch', {
-              configurable: true,
-              enumerable: true,
-              get: function() {
-                return active || (desc && desc.get ? desc.get.call(this) : original);
-              },
-              set: function(fn) {
-                active = fn;
-              }
-            });
-          } catch (e) {
-            try {
-              Object.defineProperty(target, 'fetch', {
-                configurable: true,
-                writable: true,
-                value: target.fetch
-              });
-            } catch (e2) {}
-          }
-        }
-
-        if (typeof Window !== 'undefined' && Window.prototype) {
-          patchTarget(Window.prototype);
-        }
-        if (typeof window !== 'undefined') {
-          patchTarget(window);
-          try {
-            var p = Object.getPrototypeOf(window);
-            while (p && p !== Object.prototype) {
-              patchTarget(p);
-              p = Object.getPrototypeOf(p);
-            }
-          } catch (err) {}
-        }
-      })();
-    </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07060d" />
+    <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>U-R-LIVE — Live Random Video Chat</title>
-    <meta name="description" content="U-R-LIVE: Adult-only 18+ live random video chat platform featuring real-time WebRTC connections, Airbnb-style matching, and safety moderation." />
-    <meta property="og:title" content="U-R-LIVE — Live Random Video Chat" />
-    <meta property="og:description" content="U-R-LIVE: Adult-only 18+ live random video chat platform featuring real-time WebRTC connections, Airbnb-style matching, and safety moderation." />
-    <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link
+      rel="preload"
+      href="/fonts/plus-jakarta-sans-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      html,
+      body {
+        background-color: #07060d;
+        color: #f6f5ff;
+      }
+    </style>
+    <!--app-head-->
+    <title>U-R-LIVE — Live Random Video Chat for Adults (18+)</title>
+    <meta
+      name="description"
+      content="Meet someone new face to face. U-R-LIVE is an 18+ live random video chat with instant server-side matching, encrypted peer-to-peer video and zero recordings."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://u-r-live.com/" />
+    <!--/app-head-->
   </head>
-  <body class="bg-neutral-950 text-neutral-100 antialiased selection:bg-neutral-800 selection:text-white min-h-screen">
+  <body class="bg-[#07060d] text-neutral-100 antialiased min-h-screen">
     <div id="root"></div>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

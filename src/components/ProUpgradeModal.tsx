@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SparklesIcon,
   CheckmarkCircle01Icon,
@@ -9,6 +9,7 @@ import {
 } from 'hugeicons-react';
 import { api } from '../services/api';
 import { Subscription } from '../types';
+import { ModalShell } from './ModalShell';
 
 interface ProUpgradeModalProps {
   isOpen: boolean;
@@ -16,6 +17,46 @@ interface ProUpgradeModalProps {
   onSuccess: (sub: Subscription) => void;
   activeSubscription?: Subscription | null;
   upgradeReason?: string;
+}
+
+const REASON_COPY: Record<string, string> = {
+  country_filter: 'Country matching is a Pro feature. Upgrade to meet people from specific places.',
+  language_filter: 'Language matching is a Pro feature. Upgrade to be paired with speakers you understand.',
+  country_filter_multiple: 'Selecting multiple countries is a Pro feature.',
+  country_filter_banner: 'Unlock country and language filters with U-R-LIVE Pro.',
+  gender_filter: 'Preferred gender matching is a Pro feature.',
+};
+
+const PRO_FEATURES = [
+  'Preferred gender matching — male, female or anyone',
+  'Country filters with multi-country selection',
+  'Language filters across 20+ languages',
+  'Priority placement in the matchmaking queue',
+  '100% ad-free, uninterrupted video chat',
+];
+
+// The Cashfree SDK is ~100 KB of third-party JS; load it only when someone opens
+// the Pro modal instead of blocking the landing page.
+const CASHFREE_SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+let cashfreeSdkPromise: Promise<void> | null = null;
+
+function loadCashfreeSdk(): Promise<void> {
+  if ((window as any).Cashfree) return Promise.resolve();
+  if (!cashfreeSdkPromise) {
+    cashfreeSdkPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = CASHFREE_SDK_URL;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        cashfreeSdkPromise = null;
+        script.remove();
+        reject(new Error('Cashfree checkout could not be loaded. Please check your connection and try again.'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return cashfreeSdkPromise;
 }
 
 export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
@@ -29,6 +70,11 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
   const [error, setError] = useState('');
   const [cancelSuccess, setCancelSuccess] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    void loadCashfreeSdk().catch(() => {});
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleStartCheckout = async () => {
@@ -36,6 +82,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
     setError('');
 
     try {
+      await loadCashfreeSdk();
       const orderData = await api.createSubscriptionOrder();
 
       // If Cashfree JS SDK is available in window, launch official dropin modal
@@ -99,134 +146,171 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
   };
 
   const isAlreadyPro = activeSubscription?.status === 'active';
+  const reasonText = upgradeReason
+    ? REASON_COPY[upgradeReason] || upgradeReason.replace(/_/g, ' ')
+    : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#161618] p-6 shadow-2xl space-y-6">
-        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-full bg-[#FF385C]/15 text-[#FF385C]">
-              <SparklesIcon className="w-5 h-5" />
-            </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabel="U-R-LIVE Pro"
+      overlayClassName="z-[90]"
+      panelClassName="max-w-md rounded-t-[28px] border border-white/10 bg-[#0b0914]/95 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:rounded-[28px]"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent"
+      />
+
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-cyan-400/15 border border-violet-400/30 text-violet-200 shadow-[0_0_28px_-10px_rgba(139,92,246,0.9)]">
+              <SparklesIcon className="h-5 w-5" />
+            </span>
             <div>
-              <h2 className="text-base font-bold text-white">U-R-LIVE Pro</h2>
-              <p className="text-xs text-neutral-400">Unlock Preferred Matching</p>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display text-lg font-bold tracking-tight">U-R-LIVE Pro</h2>
+                <span className="rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.14em] text-white">
+                  Pro
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-white/45">Unlock preferred matching</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full text-neutral-400 hover:text-white">
-            <Cancel01Icon className="w-4 h-4" />
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+            aria-label="Close"
+          >
+            <Cancel01Icon className="h-4.5 w-4.5" />
           </button>
         </div>
 
-        {isAlreadyPro ? (
-          <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white">Active Pro Subscription</span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-mono">
-                  ACTIVE
-                </span>
-              </div>
-              <p className="text-xs text-neutral-300">
-                Plan: ₹299/month · Renews on{' '}
-                {new Date(activeSubscription.currentPeriodEnd).toLocaleDateString()}
-              </p>
-              {activeSubscription.cancelAtPeriodEnd && (
-                <p className="text-xs text-amber-400">
-                  Scheduled to expire at the end of the current billing cycle.
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          {isAlreadyPro ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-white">Active Pro subscription</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.14em] text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                    Active
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-white/60">
+                  ₹299 / month · renews on{' '}
+                  <span className="font-semibold text-white/85">
+                    {new Date(activeSubscription.currentPeriodEnd).toLocaleDateString()}
+                  </span>
                 </p>
+                {activeSubscription.cancelAtPeriodEnd && (
+                  <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200">
+                    Ends at the close of the current billing cycle.
+                  </p>
+                )}
+              </div>
+
+              {cancelSuccess ? (
+                <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-center text-xs font-medium text-emerald-200">
+                  Renewal cancelled. Pro stays active until your cycle ends.
+                </div>
+              ) : !activeSubscription.cancelAtPeriodEnd ? (
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={isProcessing}
+                  className="w-full rounded-full border border-white/10 bg-white/[0.04] py-3 text-xs font-semibold text-rose-300 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 disabled:opacity-50"
+                >
+                  {isProcessing ? 'Processing…' : 'Cancel renewal'}
+                </button>
+              ) : null}
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-3 text-xs text-rose-200">
+                  <AlertCircleIcon className="mt-px h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
             </div>
+          ) : (
+            <div className="space-y-4 pb-1">
+              {reasonText && (
+                <div className="flex items-start gap-3 rounded-2xl border border-violet-400/25 bg-violet-500/[0.08] p-3.5">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-violet-500/20 text-violet-200">
+                    <SparklesIcon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-300">
+                      Unlock this feature
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-white/60">{reasonText}</p>
+                  </div>
+                </div>
+              )}
 
-            {cancelSuccess ? (
-              <div className="p-3 bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 text-xs rounded-2xl text-center">
-                Subscription renewal cancelled successfully.
+              {/* Price */}
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/[0.14] via-white/[0.03] to-cyan-400/[0.07] p-5">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
+                      Monthly membership
+                    </p>
+                    <p className="mt-1 font-display text-4xl font-extrabold tracking-tight text-white">
+                      ₹299
+                      <span className="ml-1 text-sm font-semibold text-white/40">/mo</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[11px] font-semibold text-white/70">Billed monthly</p>
+                    <p className="mt-0.5 text-[10px] text-white/40">Cancel anytime</p>
+                  </div>
+                </div>
               </div>
-            ) : !activeSubscription.cancelAtPeriodEnd ? (
+
+              {/* Features */}
+              <ul className="space-y-2.5">
+                {PRO_FEATURES.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2.5 text-xs text-white/75">
+                    <CheckmarkCircle01Icon className="mt-px h-4 w-4 shrink-0 text-violet-300" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Compliance */}
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-white/65">
+                  <WebProtectionIcon className="h-3.5 w-3.5 text-emerald-300" />
+                  Cashfree recurring payments
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-white/40">
+                  ₹299/month processed securely by Cashfree Payments. Cancel renewal anytime from
+                  Account Settings before your billing cycle ends — access continues to the period end.
+                </p>
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-3 text-xs text-rose-200">
+                  <AlertCircleIcon className="mt-px h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <button
-                onClick={handleCancelSubscription}
+                onClick={handleStartCheckout}
                 disabled={isProcessing}
-                className="w-full py-3 rounded-full border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-xs font-semibold text-rose-300 transition-colors"
+                className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-xs"
               >
-                {isProcessing ? 'Processing...' : 'Cancel Subscription Renewal'}
+                <LockIcon className="h-3.5 w-3.5" />
+                <span>{isProcessing ? 'Processing payment…' : 'Continue to checkout · ₹299'}</span>
               </button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {upgradeReason && (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-pink-500/15 to-neutral-900 border border-amber-500/40 flex items-center gap-3 text-xs animate-in fade-in duration-150">
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
-                  <SparklesIcon className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="font-bold text-white">Exclusive Filter Feature</p>
-                  <p className="text-neutral-300 text-[11px] mt-0.5">{upgradeReason}</p>
-                </div>
-              </div>
-            )}
 
-            {/* Price Presentation (Airbnb Style) */}
-            <div className="p-5 rounded-2xl bg-[#0F0F11] border border-neutral-800 flex items-baseline justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 font-medium">Monthly Membership</p>
-                <p className="text-3xl font-extrabold text-white font-mono mt-0.5">₹299</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-neutral-300 font-semibold">Billed monthly</span>
-                <p className="text-[11px] text-neutral-500">Cancel anytime</p>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div className="space-y-3 text-xs text-neutral-200">
-              <div className="flex items-center gap-2.5">
-                <CheckmarkCircle01Icon className="w-4 h-4 text-[#FF385C] shrink-0" />
-                <span>Preferred Gender Matching (Male / Female filter)</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <CheckmarkCircle01Icon className="w-4 h-4 text-[#FF385C] shrink-0" />
-                <span>Country Location Filter (India, US, UK, Global)</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <CheckmarkCircle01Icon className="w-4 h-4 text-[#FF385C] shrink-0" />
-                <span>Priority placement in matchmaking queue</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <CheckmarkCircle01Icon className="w-4 h-4 text-[#FF385C] shrink-0" />
-                <span>100% Ad-Free experience</span>
-              </div>
-            </div>
-
-            {/* Compliance notice */}
-            <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 text-[11px] text-neutral-400 leading-relaxed space-y-1">
-              <div className="flex items-center gap-1.5 text-neutral-300 font-semibold">
-                <WebProtectionIcon className="w-3.5 h-3.5 text-[#FF385C]" />
-                <span>Cashfree Payments Recurring Compliance</span>
-              </div>
-              <p>
-                Recurring subscription of ₹299/month processed securely via Cashfree Payments. You can cancel renewal anytime in Account Settings before the end of your billing cycle.
+              <p className="text-center text-[10px] text-white/30">
+                Secure checkout via Cashfree · 18+ only
               </p>
             </div>
-
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs">
-                <AlertCircleIcon className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <button
-              onClick={handleStartCheckout}
-              disabled={isProcessing}
-              className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#FF385C] to-[#E00B41] hover:from-[#E00B41] hover:to-[#D70438] disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-[#FF385C]/30 transition-all flex items-center justify-center gap-2 active:scale-95"
-            >
-              <LockIcon className="w-3.5 h-3.5" />
-              <span>{isProcessing ? 'Processing Cashfree Payment...' : 'Proceed to Checkout with Cashfree (₹299)'}</span>
-            </button>
-          </div>
-        )}
+          )}
       </div>
-    </div>
+    </ModalShell>
   );
 };

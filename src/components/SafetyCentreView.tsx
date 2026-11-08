@@ -7,144 +7,172 @@ import {
   Cancel01Icon,
 } from 'hugeicons-react';
 
+const CARD = 'rounded-3xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm';
+const H2 = 'font-display text-xl font-bold tracking-tight text-white';
+const BODY = 'text-sm leading-relaxed text-white/50';
+
+const PROHIBITED = [
+  {
+    title: 'Non-consensual intimate imagery',
+    body: 'Broadcasting, recording, or displaying private sexual content without full, affirmative consent.',
+  },
+  {
+    title: 'Harassment, bullying & hate speech',
+    body: 'Targeted attacks based on race, ethnicity, religion, disability, sexual orientation, or gender.',
+  },
+  {
+    title: 'Commercial spam & automated bots',
+    body: 'Automated loops, prerecorded videos, advertisements, financial scams, or affiliate links.',
+  },
+  {
+    title: 'Weapons, violence & self-harm',
+    body: 'Displaying firearms or weapons in a threatening manner, violence, or promoting self-harm.',
+  },
+];
+
 export const SafetyCentreView: React.FC = () => {
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 text-neutral-300 space-y-12">
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       {/* Header */}
-      <div className="border-b border-neutral-800 pb-8 space-y-3">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 text-xs font-bold text-[#FF385C] bg-[#FF385C]/10 border border-[#FF385C]/30 rounded-full">
-          <WebProtectionIcon className="w-3.5 h-3.5" />
-          <span>Strict Community Safety & Zero Tolerance</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-          U-R-LIVE Safety Centre & Policies
-        </h1>
-        <p className="text-sm text-neutral-400 leading-relaxed max-w-3xl">
-          U-R-LIVE is an adult-only social video communication platform. We implement zero tolerance for unlawful conduct, underage access, sexual exploitation, non-consensual imagery, and harassment.
-        </p>
-      </div>
-
-      {/* 1. Adult-Only 18+ Policy */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2.5 text-white">
-          <AlertCircleIcon className="w-5 h-5 text-[#FF385C]" />
-          <h2 className="text-xl font-bold">1. Adult-Only (18+) Eligibility Policy</h2>
-        </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">
-          The service is strictly restricted to adults aged 18 and above (or the legal age of majority in your jurisdiction). Minors are strictly prohibited from using, accessing, or appearing in any video stream on U-R-LIVE.
-        </p>
-        <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-2 text-xs">
-          <p className="font-bold text-white">Underage Detection & Immediate Ban Protocol:</p>
-          <p className="text-neutral-400 leading-relaxed">
-            Any user suspected or reported as being underage is immediately blocked from the matchmaking queue, subjected to priority admin review, and permanently banned. Instances involving child sexual exploitation and abuse are reported to law enforcement authorities without exception.
+      <header className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-violet-500/[0.10] via-white/[0.03] to-cyan-400/[0.06] px-6 py-9 sm:px-10 sm:py-12">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-violet-500/15 blur-3xl" />
+        <div className="relative">
+          <span className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/12 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">
+            <WebProtectionIcon className="h-3.5 w-3.5" />
+            Zero tolerance community
+          </span>
+          <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Safety Centre &amp; policies
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/50">
+            U-R-LIVE is an adult-only social video platform. We enforce zero tolerance for unlawful
+            conduct, underage access, sexual exploitation, non-consensual imagery and harassment.
           </p>
-        </div>
-      </section>
-
-      {/* 2. Prohibited Conduct */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2.5 text-white">
-          <Cancel01Icon className="w-5 h-5 text-rose-400" />
-          <h2 className="text-xl font-bold">2. Prohibited Conduct & Community Standards</h2>
-        </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">
-          The following behaviours are strictly prohibited and result in immediate termination of access and potential legal referral:
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-1.5">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>Non-Consensual Intimate Imagery</span>
-            </h3>
-            <p className="text-neutral-400">
-              Broadcasting, recording, or displaying private sexual content without full, affirmative consent.
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-1.5">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>Harassment, Bullying & Hate Speech</span>
-            </h3>
-            <p className="text-neutral-400">
-              Targeted attacks based on race, ethnicity, religion, disability, sexual orientation, or gender.
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-1.5">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>Commercial Spam & Automated Bots</span>
-            </h3>
-            <p className="text-neutral-400">
-              Broadcasting automated loops, prerecorded videos, advertisements, financial scams, or affiliate links.
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-1.5">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>Weapons, Violence & Self-Harm</span>
-            </h3>
-            <p className="text-neutral-400">
-              Displaying firearms, real weapons in a threatening manner, violence, or promoting self-harm.
-            </p>
+          <div className="mt-5 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-white/50">
+              18+ only
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-white/50">
+              P2P encrypted media
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-white/50">
+              Zero recordings
+            </span>
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* 3. Privacy & Zero Media Storage Guarantee */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2.5 text-white">
-          <LockIcon className="w-5 h-5 text-[#FF385C]" />
-          <h2 className="text-xl font-bold">3. Privacy & Zero Video Recording Policy</h2>
-        </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">
-          We believe personal video conversations should remain completely confidential.
-        </p>
-
-        <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 space-y-3 text-xs leading-relaxed">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold">
-            <CheckmarkCircle01Icon className="w-4 h-4" />
-            <span>Zero Video Storage Guarantee</span>
+      <div className="mt-10 space-y-10">
+        {/* 1 */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl border border-rose-400/25 bg-rose-500/12 text-rose-300">
+              <AlertCircleIcon className="h-4 w-4" />
+            </span>
+            <h2 className={H2}>1. Adult-only (18+) eligibility</h2>
           </div>
-          <p className="text-neutral-400">
-            Video and audio are transmitted peer-to-peer (P2P) between participating browsers using WebRTC protocols. U-R-LIVE servers do not inspect, record, or retain any video frames or audio tracks.
+          <p className={BODY}>
+            The service is strictly restricted to adults aged 18 and above, or the legal age of majority
+            in your jurisdiction. Minors may not use, access, or appear in any video stream on U-R-LIVE.
           </p>
-          <div className="flex items-center gap-2 text-[#FF385C] font-bold pt-1">
-            <LockIcon className="w-4 h-4" />
-            <span>Data Minimization</span>
+          <div className={`${CARD} p-5`}>
+            <p className="text-xs font-bold text-white/85">Underage detection &amp; immediate ban protocol</p>
+            <p className="mt-2 text-xs leading-relaxed text-white/45">
+              Any user suspected or reported as underage is removed from the matchmaking queue, escalated
+              to priority admin review and permanently banned. Cases involving child sexual exploitation
+              and abuse are reported to law enforcement without exception.
+            </p>
           </div>
-          <p className="text-neutral-400">
-            We only collect ephemeral signaling identifiers during an active match to facilitate connection establishment. When you disconnect or click Next, session identifiers are purged.
+        </section>
+
+        {/* 2 */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-rose-300">
+              <Cancel01Icon className="h-4 w-4" />
+            </span>
+            <h2 className={H2}>2. Prohibited conduct</h2>
+          </div>
+          <p className={BODY}>
+            The following behaviours result in immediate termination of access and possible legal referral.
           </p>
-        </div>
-      </section>
 
-      {/* 4. Grievance Redressal & Legal Officer */}
-      <section className="space-y-4 border-t border-neutral-800 pt-8">
-        <div className="flex items-center gap-2.5 text-white">
-          <WebProtectionIcon className="w-5 h-5 text-[#FF385C]" />
-          <h2 className="text-xl font-bold">4. Grievance Officer & Complaint Redressal</h2>
-        </div>
-        <p className="text-sm text-neutral-400 leading-relaxed">
-          In compliance with applicable intermediary guidelines and online safety rules, users may reach our designated Grievance Officer directly:
-        </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {PROHIBITED.map((item) => (
+              <div key={item.title} className={`${CARD} p-5`}>
+                <h3 className="flex items-center gap-2 text-xs font-bold text-white/90">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]" />
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/40">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <div className="p-5 rounded-2xl bg-[#161618] border border-neutral-800 text-xs space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-2">
-            <div>
-              <p className="font-bold text-white">Designated Grievance & Compliance Officer</p>
-              <p className="text-neutral-500">Legal & Trust Safety Division</p>
+        {/* 3 */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl border border-emerald-400/25 bg-emerald-500/12 text-emerald-300">
+              <LockIcon className="h-4 w-4" />
+            </span>
+            <h2 className={H2}>3. Privacy &amp; zero recordings</h2>
+          </div>
+          <p className={BODY}>Personal video conversations stay confidential by design.</p>
+
+          <div className={`${CARD} space-y-3 p-5`}>
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+              <CheckmarkCircle01Icon className="h-4 w-4" />
+              Zero video storage guarantee
             </div>
-            <p className="font-mono text-[#FF385C]">grievance@u-r-live.local</p>
+            <p className="text-xs leading-relaxed text-white/45">
+              Video and audio travel peer-to-peer between browsers over WebRTC. U-R-LIVE servers never
+              inspect, record or retain video frames or audio tracks.
+            </p>
+            <div className="flex items-center gap-2 border-t border-white/[0.07] pt-3 text-xs font-bold text-violet-300">
+              <LockIcon className="h-4 w-4" />
+              Data minimisation
+            </div>
+            <p className="text-xs leading-relaxed text-white/45">
+              Only ephemeral signaling identifiers exist while a match is active. On disconnect or Next,
+              the session identifiers are purged.
+            </p>
           </div>
-          <p className="text-neutral-400">
-            <strong>Response SLA:</strong> Acknowledgment within 24 hours; formal resolution within statutory timelines.
+        </section>
+
+        {/* 4 */}
+        <section className="space-y-4 border-t border-white/[0.07] pt-8">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl border border-violet-400/25 bg-violet-500/12 text-violet-300">
+              <WebProtectionIcon className="h-4 w-4" />
+            </span>
+            <h2 className={H2}>4. Grievance officer</h2>
+          </div>
+          <p className={BODY}>
+            In line with applicable intermediary and online safety rules, you can reach our designated
+            Grievance Officer directly.
           </p>
-        </div>
-      </section>
+
+          <div className={`${CARD} p-5`}>
+            <div className="flex flex-col gap-2 border-b border-white/[0.07] pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold text-white/85">Grievance &amp; Compliance Officer</p>
+                <p className="mt-0.5 text-[11px] text-white/35">Legal &amp; Trust Safety Division</p>
+              </div>
+              <a
+                href="mailto:grievance@u-r-live.local"
+                className="text-[11px] font-semibold text-violet-300 hover:text-violet-200"
+              >
+                grievance@u-r-live.local
+              </a>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-white/45">
+              <strong className="font-semibold text-white/70">Response SLA:</strong> acknowledgement within
+              24 hours; formal resolution within statutory timelines.
+            </p>
+          </div>
+        </section>
+      </div>
     </div>
   );
 };

@@ -157,6 +157,29 @@ export async function verifyCashfreeOrderStatus(orderId: string): Promise<{
 }
 
 /**
+ * Cashfree requires an absolute callback URL. Derive it from PUBLIC_URL and fail
+ * closed in production rather than sending a path Cashfree cannot resolve.
+ */
+export function resolveNotifyUrl(): string {
+  const base = process.env.PUBLIC_URL || process.env.VITE_SITE_URL;
+  if (base) {
+    try {
+      return new URL('/api/subscription/webhook', base).toString();
+    } catch {
+      // fall through to the explicit error below
+    }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'PUBLIC_URL must be configured to an absolute https origin before creating Cashfree orders.'
+    );
+  }
+
+  return 'http://localhost:3000/api/subscription/webhook';
+}
+
+/**
  * Create a new Cashfree subscription checkout session for an authenticated user.
  * Fails closed if Cashfree API credentials are not set.
  */
@@ -164,6 +187,13 @@ export async function createSubscriptionOrder(userId: string) {
   const user = db.getUser(userId);
   if (!user) {
     throw new Error('User not found');
+  }
+
+  // Require a verified account (email/login) before purchasing Pro so it can be restored
+  if (user.authProvider === 'guest' || !user.email) {
+    throw new Error(
+      'Account verification required: users must sign in with an email or Google account before purchasing a Pro subscription.'
+    );
   }
 
   if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
@@ -177,7 +207,7 @@ export async function createSubscriptionOrder(userId: string) {
   const subscriptionId = 'sub_cf_' + Math.random().toString(36).substring(2, 12);
   const customerId = user.id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 45);
   const customerPhone = '9999999999';
-  const customerEmail = user.email || `${customerId}@user.omelive.local`;
+  const customerEmail = user.email;
   const customerName = user.displayName || 'Subscriber';
 
   const response = await fetch(`${CASHFREE_BASE_URL}/orders`, {
@@ -199,7 +229,7 @@ export async function createSubscriptionOrder(userId: string) {
         customer_phone: customerPhone,
       },
       order_meta: {
-        notify_url: '/api/webhooks/cashfree',
+        notify_url: resolveNotifyUrl(),
         payment_methods: 'cc,dc,upi,nb',
       },
       order_note: 'U-R-LIVE Pro Monthly Subscription ₹299',
@@ -228,17 +258,14 @@ export async function createSubscriptionOrder(userId: string) {
   };
 }
 
-/**
- * Activate Pro subscription following verified Cashfree payment
- */
-export function activateProSubscription(
+function buildProSubscription(
   userId: string,
   providerSubscriptionId: string,
-  providerCustomerId = 'cust_' + userId
+  providerCustomerId: string
 ): Subscription {
   const now = Date.now();
-  const sub: Subscription = {
-    id: 'sub_cf_ent_' + Math.random().toString(36).substring(2, 10),
+  return {
+    id: 'sub_cf_ent_' + crypto.randomBytes(6).toString('hex'),
     userId,
     provider: 'cashfree',
     providerCustomerId,
@@ -251,45 +278,81 @@ export function activateProSubscription(
     createdAt: now,
     updatedAt: now,
   };
+}
 
-  db.saveSubscription(sub);
+function auditSubscriptionActivation(sub: Subscription): void {
   db.addAuditLog({
     adminUserId: 'system',
     action: 'subscription_activated',
     targetType: 'subscription',
     targetId: sub.id,
-    details: { userId, provider: 'cashfree', planCode: PRO_PLAN_CODE, price: PRO_PLAN_PRICE_INR },
+    details: {
+      userId: sub.userId,
+      provider: 'cashfree',
+      planCode: PRO_PLAN_CODE,
+      price: PRO_PLAN_PRICE_INR,
+    },
   });
+}
 
+/**
+ * Activate Pro subscription following verified Cashfree payment.
+ * Synchronous variant kept for entitlement tests and in-memory callers.
+ */
+export function activateProSubscription(
+  userId: string,
+  providerSubscriptionId: string,
+  providerCustomerId = 'cust_' + userId
+): Subscription {
+  const sub = buildProSubscription(userId, providerSubscriptionId, providerCustomerId);
+  db.saveSubscription(sub);
+  auditSubscriptionActivation(sub);
   return sub;
 }
 
 /**
- * Idempotently process incoming Cashfree webhooks
+ * Awaited activation used by payment routes and webhooks. Persistence happens
+ * before the caller is told Pro is active.
  */
-export function processCashfreeWebhook(
+export async function activateProSubscriptionPersisted(
+  userId: string,
+  providerSubscriptionId: string,
+  providerCustomerId = 'cust_' + userId
+): Promise<Subscription> {
+  const sub = buildProSubscription(userId, providerSubscriptionId, providerCustomerId);
+  await db.saveSubscriptionAwait(sub);
+  auditSubscriptionActivation(sub);
+  return sub;
+}
+
+/**
+ * Idempotently process incoming Cashfree webhooks.
+ * The event is claimed in the database first (atomic unique insert), so a
+ * replayed or concurrently delivered webhook can only mutate state once.
+ */
+export async function processCashfreeWebhook(
   eventId: string,
   eventType: string,
   payload: Record<string, any>
-): { processed: boolean; duplicate: boolean; message: string } {
-  // Idempotency check: if eventId already processed, return early
-  if (db.hasPaymentEvent(eventId)) {
+): Promise<{ processed: boolean; duplicate: boolean; message: string }> {
+  const paymentEvent: PaymentEvent = {
+    id: 'evt_cf_' + crypto.randomBytes(6).toString('hex'),
+    provider: 'cashfree',
+    providerEventId: eventId,
+    eventType,
+    processingStatus: 'processing',
+    receivedAt: Date.now(),
+    payload,
+  };
+
+  const claimed = await db.claimPaymentEvent(paymentEvent);
+  if (!claimed) {
     return {
       processed: true,
       duplicate: true,
       message: 'Event already processed (idempotent)',
     };
   }
-
-  const paymentEvent: PaymentEvent = {
-    id: 'evt_cf_' + Math.random().toString(36).substring(2, 10),
-    provider: 'cashfree',
-    providerEventId: eventId,
-    eventType,
-    processingStatus: 'processed',
-    receivedAt: Date.now(),
-    payload,
-  };
 
   try {
     const data = payload.data || payload;
@@ -310,7 +373,7 @@ export function processCashfreeWebhook(
         // Verify amount satisfies Pro pricing
         if (amount > 0 && amount < PRO_PLAN_PRICE_INR) {
           paymentEvent.processingStatus = 'ignored';
-          db.savePaymentEvent(paymentEvent);
+          await db.updatePaymentEvent(paymentEvent);
           return {
             processed: false,
             duplicate: false,
@@ -321,21 +384,32 @@ export function processCashfreeWebhook(
         // Extract user id from customer_id or metadata
         let userId = customerId;
         if (!userId && data.order_meta?.return_url) {
-          const match = data.order_meta.return_url.match(/userId=([^&]+)/);
+          const match = String(data.order_meta.return_url).match(/userId=([^&]+)/);
           if (match) userId = match[1];
         }
 
-        if (userId) {
-          activateProSubscription(userId, subId, customerId || 'cust_' + userId);
+        // Never grant entitlement to an identity we do not know
+        if (!userId || !db.getUser(userId)) {
+          paymentEvent.processingStatus = 'ignored';
+          await db.updatePaymentEvent(paymentEvent);
+          return {
+            processed: false,
+            duplicate: false,
+            message: 'Webhook did not reference a known user; entitlement not granted',
+          };
         }
-        break;
+
+        const sub = buildProSubscription(userId, subId, customerId || 'cust_' + userId);
+        await db.activateSubscriptionWithEvent(sub, paymentEvent);
+        auditSubscriptionActivation(sub);
+        return { processed: true, duplicate: false, message: 'Pro subscription activated' };
       }
 
       case 'SUBSCRIPTION_CANCELLED':
       case 'subscription.cancelled': {
         const customerId = data.customer_details?.customer_id || data.userId;
         if (customerId) {
-          db.cancelSubscription(customerId);
+          await db.cancelSubscriptionAwait(customerId);
         }
         break;
       }
@@ -348,7 +422,8 @@ export function processCashfreeWebhook(
           const sub = db.getSubscription(customerId);
           if (sub) {
             sub.status = 'expired';
-            db.saveSubscription(sub);
+            sub.updatedAt = Date.now();
+            await db.saveSubscriptionAwait(sub);
           }
         }
         break;
@@ -359,11 +434,15 @@ export function processCashfreeWebhook(
         break;
     }
 
-    db.savePaymentEvent(paymentEvent);
+    await db.updatePaymentEvent(paymentEvent);
     return { processed: true, duplicate: false, message: 'Processed successfully by Cashfree handler' };
   } catch (err: any) {
     paymentEvent.processingStatus = 'failed';
-    db.savePaymentEvent(paymentEvent);
+    try {
+      await db.updatePaymentEvent(paymentEvent);
+    } catch (persistErr: any) {
+      console.error('[Payments] Could not record failed event:', persistErr.message);
+    }
     return { processed: false, duplicate: false, message: err.message || 'Processing error' };
   }
 }

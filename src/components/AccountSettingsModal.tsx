@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
-  UserCircleIcon,
   SparklesIcon,
   Cancel01Icon,
   CheckmarkCircle01Icon,
   Delete02Icon,
   Settings02Icon,
+  Link04Icon,
 } from 'hugeicons-react';
 import { UserProfile, Subscription } from '../types';
 import { api } from '../services/api';
+import { ModalShell } from './ModalShell';
 
 interface AccountSettingsModalProps {
   isOpen: boolean;
@@ -20,6 +21,12 @@ interface AccountSettingsModalProps {
   onOpenUpgradeModal: () => void;
   onOpenGoogleModal: () => void;
 }
+
+const fieldClass =
+  'w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-xs text-white placeholder:text-white/25 transition-colors focus:border-violet-400/60 focus:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/30';
+
+const sectionLabelClass =
+  'text-[10px] font-bold uppercase tracking-[0.16em] text-white/35';
 
 export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   isOpen,
@@ -97,46 +104,72 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   const isGoogleUser = user.authProvider === 'google';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-3xl border border-neutral-800 bg-[#161618] p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-          <div className="flex items-center gap-2.5">
-            <Settings02Icon className="w-5 h-5 text-[#FF385C]" />
-            <h2 className="text-base font-bold text-white">Account & Preferences</h2>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabel="Account and preferences"
+      panelClassName="max-w-lg rounded-t-[28px] border border-white/10 bg-[#0b0914]/95 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:rounded-[28px]"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent"
+      />
+
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.06] text-violet-200">
+              <Settings02Icon className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="font-display text-lg font-bold tracking-tight">Account &amp; preferences</h2>
+              <p className="mt-0.5 text-[11px] text-white/45">
+                Signed in as <span className="text-white/70">{user.displayName}</span>
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full text-neutral-400 hover:text-white">
-            <Cancel01Icon className="w-4 h-4" />
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+            aria-label="Close"
+          >
+            <Cancel01Icon className="h-4.5 w-4.5" />
           </button>
         </div>
 
-        {/* Google Account Authentication Status */}
-        <div className="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <div>
-                <p className="text-xs font-bold text-white">
-                  {isGoogleUser ? 'Google Account Connected' : 'Guest Identity (Unlinked)'}
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          {/* Identity provider */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3.5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05]">
+                {isGoogleUser ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                ) : (
+                  <Link04Icon className="h-4 w-4 text-white/45" />
+                )}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-white/85">
+                  {isGoogleUser ? 'Google account linked' : 'Guest identity'}
                 </p>
-                <p className="text-[11px] text-neutral-400">
-                  {isGoogleUser ? user.email : 'Link your Google account to save preferences'}
+                <p className="truncate text-[11px] text-white/35">
+                  {isGoogleUser ? user.email : 'Link Google to sync across devices'}
                 </p>
               </div>
             </div>
@@ -147,169 +180,192 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
                   onClose();
                   onOpenGoogleModal();
                 }}
-                className="px-3.5 py-1.5 rounded-full border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-white transition-colors"
+                className="shrink-0 rounded-full border border-white/12 bg-white/[0.06] px-3.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:border-white/25 hover:bg-white/[0.1]"
               >
                 Connect
               </button>
             ) : (
-              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-0.5 rounded-full">
-                Connected
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/12 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Linked
               </span>
             )}
           </div>
-        </div>
 
-        {/* Profile Details Form */}
-        <form onSubmit={handleSaveProfile} className="space-y-4">
-          <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-            User Profile
-          </h3>
-
-          <div>
-            <label className="block text-xs text-neutral-400 mb-1 font-medium">Display Name (Pseudonym)</label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF385C]"
-              maxLength={30}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-neutral-400 mb-1 font-medium">Self-Selected Gender</label>
-              <select
-                value={gender}
-                onChange={(e) => setGender(e.target.value as any)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF385C]"
-              >
-                <option value="unspecified">Unspecified</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="non-binary">Non-Binary</option>
-              </select>
-            </div>
+          {/* Profile form */}
+          <form onSubmit={handleSaveProfile} className="space-y-3.5">
+            <p className={sectionLabelClass}>Profile</p>
 
             <div>
-              <label className="block text-xs text-neutral-400 mb-1 font-medium">Country</label>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-2xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF385C]"
+              <label htmlFor="settings-display-name" className="mb-1.5 block text-[11px] text-white/45">
+                Display name <span className="text-white/25">(pseudonym)</span>
+              </label>
+              <input
+                id="settings-display-name"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className={fieldClass}
+                maxLength={30}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="settings-gender" className="mb-1.5 block text-[11px] text-white/45">
+                  Gender
+                </label>
+                <select
+                  id="settings-gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as any)}
+                  className={`${fieldClass} appearance-none`}
+                >
+                  <option value="unspecified">Unspecified</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non-binary">Non-binary</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="settings-country" className="mb-1.5 block text-[11px] text-white/45">
+                  Country
+                </label>
+                <select
+                  id="settings-country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className={`${fieldClass} appearance-none`}
+                >
+                  <option value="GLOBAL">Global</option>
+                  <option value="IN">India</option>
+                  <option value="US">United States</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="CA">Canada</option>
+                  <option value="AU">Australia</option>
+                  <option value="DE">Germany</option>
+                </select>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-0.5">
+              <span className="truncate font-mono text-[10px] text-white/25">
+                ID {user.id.slice(0, 14)}…
+              </span>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] font-bold transition-all active:scale-95 disabled:opacity-60 ${
+                  saveSuccess
+                    ? 'border border-emerald-400/30 bg-emerald-500/15 text-emerald-200'
+                    : 'btn-primary'
+                }`}
               >
-                <option value="GLOBAL">Global</option>
-                <option value="IN">India</option>
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-                <option value="CA">Canada</option>
-                <option value="AU">Australia</option>
-                <option value="DE">Germany</option>
-              </select>
+                {saveSuccess && <CheckmarkCircle01Icon className="h-3.5 w-3.5" />}
+                <span>{saveSuccess ? 'Saved' : isSaving ? 'Saving…' : 'Save changes'}</span>
+              </button>
             </div>
-          </div>
+          </form>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[11px] text-neutral-500 font-mono">
-              ID: {user.id.slice(0, 14)}...
-            </span>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-5 py-2 rounded-full bg-gradient-to-r from-[#FF385C] to-[#E00B41] hover:from-[#E00B41] hover:to-[#D70438] text-xs font-bold text-white transition-all shadow-md shadow-[#FF385C]/25 flex items-center gap-1.5 active:scale-95"
-            >
-              {saveSuccess ? <CheckmarkCircle01Icon className="w-3.5 h-3.5" /> : null}
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-
-        {/* Subscription Entitlement */}
-        <div className="pt-4 border-t border-neutral-800 space-y-3">
-          <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Membership Plan</span>
-            {isPro && <span className="text-[10px] text-[#FF385C] font-mono">₹299/mo</span>}
-          </h3>
-
-          <div className="p-4 rounded-2xl bg-[#0F0F11] border border-neutral-800 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>{isPro ? 'Pro Membership Active' : 'Free Standard Plan'}</span>
-                {isPro && <SparklesIcon className="w-3.5 h-3.5 text-[#FF385C]" />}
-              </p>
-              <p className="text-[11px] text-neutral-400">
-                {isPro
-                  ? `Renews: ${new Date(subscription?.currentPeriodEnd || 0).toLocaleDateString()}`
-                  : 'Pure random matching with no gender or country filters'}
-              </p>
+          {/* Membership */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className={sectionLabelClass}>Membership</p>
+              {isPro && (
+                <span className="text-[10px] font-semibold text-violet-300">₹299 / mo</span>
+              )}
             </div>
 
-            <button
-              onClick={() => {
-                onClose();
-                onOpenUpgradeModal();
-              }}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
+            <div
+              className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 ${
                 isPro
-                  ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
-                  : 'bg-gradient-to-r from-[#FF385C] to-[#E00B41] text-white hover:opacity-95'
+                  ? 'border-violet-400/30 bg-gradient-to-r from-violet-500/[0.12] to-cyan-400/[0.05]'
+                  : 'border-white/[0.07] bg-white/[0.03]'
               }`}
             >
-              {isPro ? 'Manage' : 'Upgrade (₹299)'}
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-white/90">
+                  {isPro ? 'Pro membership active' : 'Free standard plan'}
+                  {isPro && <SparklesIcon className="h-3.5 w-3.5 text-violet-300" />}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-snug text-white/40">
+                  {isPro
+                    ? `Renews ${new Date(subscription?.currentPeriodEnd || 0).toLocaleDateString()}`
+                    : 'Random matching with no gender or country filters'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenUpgradeModal();
+                }}
+                className={`shrink-0 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all active:scale-95 ${
+                  isPro
+                    ? 'border border-white/12 bg-white/[0.05] text-white/70 hover:bg-white/[0.09]'
+                    : 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-[0_10px_26px_-12px_rgba(99,102,241,0.9)]'
+                }`}
+              >
+                {isPro ? 'Manage' : 'Upgrade · ₹299'}
+              </button>
+            </div>
+          </div>
+
+          {/* Blocked users */}
+          <div className="space-y-2.5">
+            <p className={sectionLabelClass}>Blocked users · {blockedUsers.length}</p>
+
+            {blockedUsers.length === 0 ? (
+              <p className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3 text-[11px] text-white/35">
+                Nobody blocked. Anyone you block during a call lands here.
+              </p>
+            ) : (
+              <div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
+                {blockedUsers.map((id) => (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[11px]"
+                  >
+                    <span className="truncate font-mono text-white/40">User {id.slice(0, 16)}…</span>
+                    <button
+                      onClick={() => handleUnblock(id)}
+                      disabled={unblockingId === id}
+                      className="shrink-0 font-semibold text-violet-300 transition-colors hover:text-violet-200 disabled:opacity-50"
+                    >
+                      {unblockingId === id ? 'Unblocking…' : 'Unblock'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Account controls */}
+          <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] pt-4 text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="text-white/30">Role</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white/55">
+                {user.role}
+              </span>
+            </div>
+
+            <button
+              onClick={handleDeleteAccountData}
+              className="inline-flex items-center gap-1.5 text-white/30 transition-colors hover:text-rose-300"
+            >
+              <Delete02Icon className="h-3.5 w-3.5" />
+              <span>Reset identity</span>
             </button>
           </div>
         </div>
-
-        {/* Blocked Users */}
-        <div className="pt-4 border-t border-neutral-800 space-y-3">
-          <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-            Blocked Users ({blockedUsers.length})
-          </h3>
-
-          {blockedUsers.length === 0 ? (
-            <p className="text-xs text-neutral-500">You have not blocked any users yet.</p>
-          ) : (
-            <div className="space-y-1.5 max-h-32 overflow-y-auto">
-              {blockedUsers.map((id) => (
-                <div
-                  key={id}
-                  className="p-2.5 rounded-2xl bg-neutral-950 border border-neutral-800 flex items-center justify-between text-xs"
-                >
-                  <span className="font-mono text-neutral-400 text-[11px]">
-                    User {id.slice(0, 16)}...
-                  </span>
-                  <button
-                    onClick={() => handleUnblock(id)}
-                    disabled={unblockingId === id}
-                    className="text-xs text-[#FF385C] hover:underline font-semibold"
-                  >
-                    {unblockingId === id ? 'Unblocking...' : 'Unblock'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Account Controls */}
-        <div className="pt-4 border-t border-neutral-800 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-neutral-500">Account Role:</span>
-            <span className="px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-300 font-mono text-[11px] uppercase">
-              {user.role}
-            </span>
-          </div>
-
-          <button
-            onClick={handleDeleteAccountData}
-            className="text-neutral-500 hover:text-rose-400 transition-colors flex items-center gap-1.5"
-          >
-            <Delete02Icon className="w-3.5 h-3.5" />
-            <span>Reset Identity</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

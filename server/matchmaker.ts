@@ -6,6 +6,154 @@ import { db } from './db';
 
 const STALE_QUEUE_TIMEOUT_MS = 60 * 1000; // 60s without ping = stale
 
+/**
+ * Builds a queue entry with server-enforced Pro entitlements.
+ * Shared by the in-process matchmaker and the Redis-backed distributed one so
+ * both enforce identical preference rules.
+ */
+export function buildQueueEntry(
+  socketId: string,
+  userId: string,
+  gender: UserGender,
+  country: string,
+  rawPreferences: MatchPreferences,
+  isPro: boolean
+): QueueEntry {
+  const mode = rawPreferences?.mode === 'text' ? 'text' : 'video';
+  const interests = Array.isArray(rawPreferences?.interests) ? rawPreferences.interests : [];
+
+  // Strictly enforce Pro-only country and language filtering on server-side
+  let preferredCountries: string[] = ['GLOBAL'];
+  let preferredCountry = 'GLOBAL';
+  let languages: string[] = [];
+
+  if (isPro) {
+    if (Array.isArray(rawPreferences?.preferredCountries) && rawPreferences.preferredCountries.length > 0) {
+      preferredCountries = rawPreferences.preferredCountries;
+      preferredCountry = preferredCountries[0] || 'GLOBAL';
+    } else if (rawPreferences?.preferredCountry) {
+      preferredCountry = rawPreferences.preferredCountry;
+      preferredCountries = [rawPreferences.preferredCountry];
+    }
+
+    if (Array.isArray(rawPreferences?.languages) && rawPreferences.languages.length > 0) {
+      languages = rawPreferences.languages;
+    } else if (Array.isArray(rawPreferences?.preferredLanguages) && rawPreferences.preferredLanguages.length > 0) {
+      languages = rawPreferences.preferredLanguages;
+    }
+  }
+
+  const preferences: MatchPreferences = {
+    mode,
+    preferredGender: isPro ? (rawPreferences?.preferredGender || 'any') : 'any',
+    preferredCountry,
+    preferredCountries,
+    isMultipleCountries: isPro && Boolean(rawPreferences?.isMultipleCountries),
+    interests,
+    languages,
+    preferredLanguages: languages,
+    primaryLanguage: rawPreferences?.primaryLanguage || (languages[0] || 'en'),
+    interestMatchingEnabled: interests.length > 0,
+    priorityQueue: isPro,
+  };
+
+  return {
+    userId,
+    socketId,
+    gender,
+    country,
+    isPro,
+    mode,
+    interests,
+    languages,
+    preferences,
+    joinedAt: Date.now(),
+  };
+}
+
+/**
+ * Compatibility predicate shared by both matchmaking engines.
+ * `isBlocked` is injectable so the distributed engine can use the Redis block set.
+ */
+export function areEntriesCompatible(
+  a: QueueEntry,
+  b: QueueEntry,
+  isBlocked: (userA: string, userB: string) => boolean = (userA, userB) =>
+    db.isBlocked(userA, userB)
+): boolean {
+  // Cannot match with oneself (same socket or same user account)
+  if (a.socketId === b.socketId || a.userId === b.userId) {
+    return false;
+  }
+
+  // Cannot match if blocked
+  if (isBlocked(a.userId, b.userId)) {
+    return false;
+  }
+
+  // Chat mode matching: Video with Video, Text with Text
+  const modeA = a.mode || a.preferences?.mode || 'video';
+  const modeB = b.mode || b.preferences?.mode || 'video';
+  if (modeA !== modeB) {
+    return false;
+  }
+
+  // Preference matching:
+  // Check A's gender preferences regarding B
+  if (a.preferences.preferredGender && a.preferences.preferredGender !== 'any') {
+    if (a.preferences.preferredGender !== b.gender) {
+      return false;
+    }
+  }
+
+  // Check B's gender preferences regarding A
+  if (b.preferences.preferredGender && b.preferences.preferredGender !== 'any') {
+    if (b.preferences.preferredGender !== a.gender) {
+      return false;
+    }
+  }
+
+  // Check A's country preferences regarding B
+  const aCountries = a.preferences.preferredCountries || (a.preferences.preferredCountry ? [a.preferences.preferredCountry] : ['GLOBAL']);
+  const aHasCountryFilter = a.isPro && aCountries.length > 0 && !aCountries.includes('GLOBAL') && !aCountries.includes('any');
+  if (aHasCountryFilter) {
+    if (!aCountries.includes(b.country)) {
+      return false;
+    }
+  }
+
+  // Check B's country preferences regarding A
+  const bCountries = b.preferences.preferredCountries || (b.preferences.preferredCountry ? [b.preferences.preferredCountry] : ['GLOBAL']);
+  const bHasCountryFilter = b.isPro && bCountries.length > 0 && !bCountries.includes('GLOBAL') && !bCountries.includes('any');
+  if (bHasCountryFilter) {
+    if (!bCountries.includes(a.country)) {
+      return false;
+    }
+  }
+
+  // Check A's language preferences regarding B
+  const aLangs = a.preferences.languages || a.preferences.preferredLanguages || [];
+  const aHasLangFilter = a.isPro && aLangs.length > 0 && !aLangs.includes('any');
+  if (aHasLangFilter) {
+    const bLanguages = b.languages || b.preferences?.languages || [];
+    if (bLanguages.length > 0 && !aLangs.some((lang) => bLanguages.includes(lang))) {
+      return false;
+    }
+  }
+
+  // Check B's language preferences regarding A
+  const bLangs = b.preferences.languages || b.preferences.preferredLanguages || [];
+  const bHasLangFilter = b.isPro && bLangs.length > 0 && !bLangs.includes('any');
+  if (bHasLangFilter) {
+    const aLanguages = a.languages || a.preferences?.languages || [];
+    if (aLanguages.length > 0 && !bLangs.some((lang) => aLanguages.includes(lang))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export class Matchmaker {
   private queue: Map<string, QueueEntry> = new Map(); // socketId -> QueueEntry
   private activeMatches: Map<string, ActiveMatch> = new Map(); // matchId -> ActiveMatch
@@ -27,7 +175,7 @@ export class Matchmaker {
     gender: UserGender,
     country: string,
     rawPreferences: MatchPreferences
-  ): { success: boolean; error?: string } {
+  ): { success: boolean; error?: string; endedMatch?: ActiveMatch } {
     // Check if user is suspended or banned
     const user = db.getUser(userId);
     if (user && (user.status === 'banned' || user.status === 'suspended')) {
@@ -36,45 +184,22 @@ export class Matchmaker {
 
     // Leave any existing match or queue
     this.dequeue(socketId);
-    this.endMatchBySocket(socketId);
+    const endedMatch = this.endMatchBySocket(socketId);
 
     // Enforce preferences with Pro priority
     const isPro = db.isUserPro(userId);
-    const mode = rawPreferences?.mode === 'text' ? 'text' : 'video';
-    const interests = Array.isArray(rawPreferences?.interests) ? rawPreferences.interests : [];
-    const languages = Array.isArray(rawPreferences?.languages) ? rawPreferences.languages : [];
-    const preferredCountry = rawPreferences?.preferredCountry || 'GLOBAL';
-
-    const preferences: MatchPreferences = {
-      mode,
-      preferredGender: isPro ? (rawPreferences?.preferredGender || 'any') : 'any',
-      preferredCountry,
-      interests,
-      languages,
-      primaryLanguage: rawPreferences?.primaryLanguage || (languages[0] || 'en'),
-      interestMatchingEnabled: interests.length > 0,
-      priorityQueue: isPro,
-    };
-
-    const entry: QueueEntry = {
-      userId,
-      socketId,
-      gender,
-      country,
-      isPro,
-      mode,
-      interests,
-      languages,
-      preferences,
-      joinedAt: Date.now(),
-    };
+    const entry: QueueEntry = buildQueueEntry(socketId, userId, gender, country, rawPreferences, isPro);
 
     this.queue.set(socketId, entry);
-    return { success: true };
+    return { success: true, endedMatch };
   }
 
   public dequeue(socketId: string): boolean {
     return this.queue.delete(socketId);
+  }
+
+  public getActiveMatches(): ActiveMatch[] {
+    return Array.from(this.activeMatches.values());
   }
 
   public getQueueLength(): number {
@@ -107,57 +232,7 @@ export class Matchmaker {
    * Check if two queue entries are compatible for matching.
    */
   public isCompatible(a: QueueEntry, b: QueueEntry): boolean {
-    // Cannot match with oneself (same socket or same user account)
-    if (a.socketId === b.socketId || a.userId === b.userId) {
-      return false;
-    }
-
-    // Cannot match if blocked
-    if (db.isBlocked(a.userId, b.userId)) {
-      return false;
-    }
-
-    // Chat mode matching: Video with Video, Text with Text
-    const modeA = a.mode || a.preferences?.mode || 'video';
-    const modeB = b.mode || b.preferences?.mode || 'video';
-    if (modeA !== modeB) {
-      return false;
-    }
-
-    // Preference matching:
-    // Check A's preferences regarding B
-    if (a.preferences.preferredGender && a.preferences.preferredGender !== 'any') {
-      if (a.preferences.preferredGender !== b.gender) {
-        return false;
-      }
-    }
-    if (
-      a.preferences.preferredCountry &&
-      a.preferences.preferredCountry !== 'GLOBAL' &&
-      a.preferences.preferredCountry !== 'any'
-    ) {
-      if (a.preferences.preferredCountry !== b.country && b.preferences.preferredCountry !== a.preferences.preferredCountry) {
-        return false;
-      }
-    }
-
-    // Check B's preferences regarding A
-    if (b.preferences.preferredGender && b.preferences.preferredGender !== 'any') {
-      if (b.preferences.preferredGender !== a.gender) {
-        return false;
-      }
-    }
-    if (
-      b.preferences.preferredCountry &&
-      b.preferences.preferredCountry !== 'GLOBAL' &&
-      b.preferences.preferredCountry !== 'any'
-    ) {
-      if (b.preferences.preferredCountry !== a.country && a.preferences.preferredCountry !== b.preferences.preferredCountry) {
-        return false;
-      }
-    }
-
-    return true;
+    return areEntriesCompatible(a, b);
   }
 
   /**

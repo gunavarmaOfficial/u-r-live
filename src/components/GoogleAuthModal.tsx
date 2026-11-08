@@ -1,164 +1,244 @@
-import React, { useState } from 'react';
-import { Cancel01Icon, UserCircleIcon, CheckmarkCircle01Icon, AlertCircleIcon } from 'hugeicons-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Cancel01Icon, UserCircleIcon, AlertCircleIcon } from 'hugeicons-react';
 import { api } from '../services/api';
 import { UserProfile, Subscription } from '../types';
+import { LEGAL } from '../legal/config';
 import { Logo } from './Logo';
+import { ModalShell } from './ModalShell';
 
 interface GoogleAuthModalProps {
   isOpen: boolean;
+  clientId: string | null;
   onClose: () => void;
   onSuccess: (user: UserProfile, isPro: boolean, sub: Subscription | null) => void;
 }
 
+interface GoogleIdentity {
+  accounts: {
+    id: {
+      initialize: (options: {
+        client_id: string;
+        callback: (response: { credential?: string }) => void;
+        cancel_on_tap_outside?: boolean;
+      }) => void;
+      renderButton: (
+        parent: HTMLElement,
+        options: Record<string, string | number | boolean>
+      ) => void;
+    };
+  };
+}
+
+declare global {
+  interface Window {
+    google?: GoogleIdentity;
+  }
+}
+
+const GSI_SCRIPT_ID = 'google-identity-services';
+
+function loadGsiScript(): Promise<void> {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  const existing = document.getElementById(GSI_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Google sign-in failed to load')));
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.id = GSI_SCRIPT_ID;
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google sign-in failed to load'));
+    document.head.appendChild(script);
+  });
+}
+
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   isOpen,
+  clientId,
   onClose,
   onSuccess,
 }) => {
-  const [emailInput, setEmailInput] = useState('gunavarma0000@gmail.com');
-  const [nameInput, setNameInput] = useState('Guna Varma');
-  const [showCustomEmail, setShowCustomEmail] = useState(false);
+  const navigate = useNavigate();
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const consentReady = ageConfirmed && acceptedTerms;
+
+  useEffect(() => {
+    if (!isOpen || !clientId) return;
+    let cancelled = false;
+
+    const handleCredential = async (response: { credential?: string }) => {
+      if (!response.credential) {
+        setError('Google did not return a credential. Please try again.');
+        return;
+      }
+      setIsLoading(true);
+      setError('');
+      try {
+        const res = await api.loginWithGoogle({
+          credential: response.credential,
+          termsVersion: LEGAL.termsVersion,
+          ageConfirmed: true,
+        });
+        onSuccess(res.user, res.isPro, res.subscription);
+        onClose();
+      } catch (err: any) {
+        setError(err.message || 'Google sign-in failed');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadGsiScript()
+      .then(() => {
+        if (cancelled || !buttonRef.current || !window.google?.accounts?.id) return;
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredential,
+          cancel_on_tap_outside: true,
+        });
+        buttonRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          type: 'standard',
+          theme: 'filled_black',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          logo_alignment: 'left',
+          width: 320,
+        });
+      })
+      .catch((err: Error) => setError(err.message));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, clientId, onSuccess, onClose]);
+
   if (!isOpen) return null;
 
-  const handleGoogleLogin = async (email: string, name: string) => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const res = await api.loginWithGoogle({
-        email,
-        name,
-        avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=ff385c`,
-      });
-
-      onSuccess(res.user, res.isPro, res.subscription);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Google authentication failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#161618] p-6 shadow-2xl space-y-6 text-neutral-100 relative">
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabel="Sign in with Google"
+      panelClassName="max-w-md rounded-t-[28px] border border-white/10 bg-[#0b0914]/95 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:rounded-[28px]"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/70 to-transparent"
+      />
+
+        <div className="flex items-center justify-between px-5 pt-5 pb-2">
+          <Logo size="sm" />
           <button
             onClick={onClose}
-            className="p-2 -ml-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+            className="grid h-8 w-8 place-items-center rounded-full text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+            aria-label="Close"
           >
-            <Cancel01Icon className="w-4 h-4" />
+            <Cancel01Icon className="h-4.5 w-4.5" />
           </button>
-          <Logo size="sm" />
-          <div className="w-6" /> {/* Spacer */}
         </div>
 
-        {/* Brand welcome */}
-        <div className="space-y-1.5">
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Welcome to <span className="text-[#FF385C]">U-R-LIVE</span>
-          </h2>
-          <p className="text-xs text-neutral-400">
-            Sign in with your Google account for preferred matching and verified access.
-          </p>
-        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          <div className="mt-2">
+            <h2 className="font-display text-xl font-bold tracking-tight">
+              Welcome to <span className="text-gradient-brand">U-R-LIVE</span>
+            </h2>
+            <p className="mt-1.5 text-xs leading-relaxed text-white/45">
+              Sign in with Google to keep your preferences, Pro status and safety history across devices.
+            </p>
+          </div>
 
-        {/* Primary Google Login Button (Airbnb Style) */}
-        <div className="space-y-3">
-          <button
-            onClick={() => handleGoogleLogin(emailInput, nameInput)}
-            disabled={isLoading}
-            className="w-full py-3.5 px-4 rounded-full border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-xs transition-all shadow-sm hover:shadow-md active:scale-[0.99] flex items-center justify-center gap-3"
-          >
-            {/* Google SVG Logo */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+          <div className="mt-5 space-y-2.5">
+            <label className="flex cursor-pointer select-none items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
+              <input
+                type="checkbox"
+                checked={ageConfirmed}
+                onChange={(e) => setAgeConfirmed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-black/40 accent-[#8b5cf6]"
               />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>Continue with Google</span>
-          </button>
+              <span className="text-[11px] leading-relaxed text-white/50">
+                I confirm I am at least{' '}
+                <strong className="font-bold text-white">{LEGAL.minimumAge} years old</strong>.
+              </span>
+            </label>
 
-          {/* Quick toggle to customize user profile / test with another Google email */}
-          {!showCustomEmail ? (
-            <button
-              onClick={() => setShowCustomEmail(true)}
-              className="w-full text-center text-[11px] text-neutral-400 hover:text-white underline"
-            >
-              Signing in as {emailInput}? Change email
-            </button>
-          ) : (
-            <div className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2.5 text-xs animate-in fade-in duration-150">
-              <div>
-                <label className="block text-[11px] text-neutral-400 mb-1">Google Email</label>
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF385C]"
-                  placeholder="user@gmail.com"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-neutral-400 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF385C]"
-                  placeholder="Your Name"
-                />
-              </div>
+            <label className="flex cursor-pointer select-none items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3.5">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 bg-black/40 accent-[#8b5cf6]"
+              />
+              <span className="text-[11px] leading-relaxed text-white/50">
+                I agree to the{' '}
+                <Link to="/terms" target="_blank" rel="noreferrer" className="font-semibold text-violet-300 underline underline-offset-2">
+                  Terms
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-violet-300 underline underline-offset-2">
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
+          </div>
+
+          <div className="relative mt-4">
+            <div
+              ref={buttonRef}
+              className={`flex min-h-[44px] justify-center transition-opacity ${
+                consentReady && !isLoading ? 'opacity-100' : 'pointer-events-none opacity-40'
+              }`}
+            />
+            {!consentReady && (
+              <p className="mt-2 text-center text-[10px] text-white/35">
+                Confirm both statements to enable Google sign-in.
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-3 flex items-start gap-2 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-3 text-xs text-rose-200">
+              <AlertCircleIcon className="mt-px h-4 w-4 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
-        </div>
 
-        {error && (
-          <div className="flex items-center gap-2 p-3 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs">
-            <AlertCircleIcon className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="relative my-5 flex items-center justify-center">
+            <div className="h-px w-full bg-white/[0.08]" />
+            <span className="absolute bg-[#0b0914] px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/25">
+              or
+            </span>
           </div>
-        )}
 
-        {/* Divider */}
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-neutral-800 w-full" />
-          <span className="bg-[#161618] px-3 text-[11px] text-neutral-500 uppercase tracking-wider font-medium">
-            or
-          </span>
+          <button
+            onClick={() => {
+              onClose();
+              navigate('/live');
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-transparent px-4 py-3 text-xs font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white"
+          >
+            <UserCircleIcon className="h-4 w-4 text-white/40" />
+            <span>Continue as anonymous guest</span>
+          </button>
+
+          <p className="mt-4 text-center text-[10px] leading-relaxed text-white/25">
+            By signing in you accept the U-R-LIVE Community Rules and confirm you are {LEGAL.minimumAge}+.
+          </p>
         </div>
-
-        {/* Anonymous / Guest Option */}
-        <button
-          onClick={onClose}
-          className="w-full py-3 px-4 rounded-full border border-neutral-800 hover:bg-neutral-800/60 text-neutral-300 hover:text-white font-medium text-xs transition-colors flex items-center justify-center gap-2"
-        >
-          <UserCircleIcon className="w-4 h-4 text-neutral-400" />
-          <span>Continue as Anonymous Guest</span>
-        </button>
-
-        <p className="text-[11px] text-neutral-500 text-center leading-relaxed">
-          By signing in, you confirm you are at least 18 years old and agree to the U-R-LIVE Community Standards and Terms of Service.
-        </p>
-      </div>
-    </div>
+    </ModalShell>
   );
 };

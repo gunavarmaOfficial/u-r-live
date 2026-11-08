@@ -136,28 +136,41 @@ describe('3. Cashfree Payment Webhook HMAC Verification & Idempotency', () => {
     expect(verifyCashfreeWebhookSignature(payload, 'some_sig', '', secret)).toBe(false);
   });
 
-  it('idempotently processes webhooks without duplicate execution', () => {
+  it('idempotently processes webhooks without duplicate execution', async () => {
+    const targetUserId = 'user_target_' + Date.now();
+    db.saveUser({
+      id: targetUserId,
+      displayName: 'Webhook Target',
+      gender: 'unspecified',
+      country: 'IN',
+      isAdultVerified: true,
+      role: 'user',
+      status: 'active',
+      createdAt: Date.now(),
+      lastActiveAt: Date.now(),
+    });
+
     const eventId = 'evt_test_unique_' + Date.now();
     const eventPayload = {
       event: 'subscription.charged',
       event_id: eventId,
       order: { order_amount: 299 },
-      customer_details: { customer_id: 'user_target_id' },
+      customer_details: { customer_id: targetUserId },
     };
 
     // First attempt
-    const res1 = processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
+    const res1 = await processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
     expect(res1.processed).toBe(true);
     expect(res1.duplicate).toBe(false);
 
     // Second attempt with identical eventId
-    const res2 = processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
+    const res2 = await processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
     expect(res2.processed).toBe(true);
     expect(res2.duplicate).toBe(true);
     expect(res2.message).toContain('idempotent');
   });
 
-  it('rejects webhook order activation if payment amount is less than ₹299', () => {
+  it('rejects webhook order activation if payment amount is less than ₹299', async () => {
     const underpaidEventId = 'evt_underpaid_' + Date.now();
     const underpaidPayload = {
       event: 'ORDER_PAID',
@@ -166,7 +179,7 @@ describe('3. Cashfree Payment Webhook HMAC Verification & Idempotency', () => {
       customer_details: { customer_id: 'user_cheap' },
     };
 
-    const res = processCashfreeWebhook(underpaidEventId, 'ORDER_PAID', underpaidPayload);
+    const res = await processCashfreeWebhook(underpaidEventId, 'ORDER_PAID', underpaidPayload);
     expect(res.processed).toBe(false);
     expect(res.duplicate).toBe(false);
     expect(res.message).toContain('less than required');

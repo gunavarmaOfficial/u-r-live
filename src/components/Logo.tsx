@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -13,12 +13,16 @@ export const Logo: React.FC<LogoProps> = ({
   className = '',
   onClick,
 }) => {
-  // Dimension definitions
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const brandId = `brand-${uid}`;
+  const glowId = `glow-${uid}`;
+  const shineId = `shine-${uid}`;
+
   const dimensions = {
-    sm: { icon: 26, text: 'text-base', dot: 'w-1.5 h-1.5', gap: 'gap-2' },
-    md: { icon: 34, text: 'text-xl', dot: 'w-2 h-2', gap: 'gap-2.5' },
-    lg: { icon: 44, text: 'text-2xl', dot: 'w-2.5 h-2.5', gap: 'gap-3' },
-    xl: { icon: 56, text: 'text-3xl', dot: 'w-3 h-3', gap: 'gap-3.5' },
+    sm: { icon: 30, text: 'text-base', dot: 'w-1.5 h-1.5', gap: 'gap-2', sub: 'text-[8px]' },
+    md: { icon: 38, text: 'text-xl', dot: 'w-2 h-2', gap: 'gap-2.5', sub: 'text-[9px]' },
+    lg: { icon: 48, text: 'text-2xl', dot: 'w-2.5 h-2.5', gap: 'gap-3', sub: 'text-[10px]' },
+    xl: { icon: 64, text: 'text-3xl', dot: 'w-3 h-3', gap: 'gap-3.5', sub: 'text-[11px]' },
   }[size];
 
   const iconPx = dimensions.icon;
@@ -27,15 +31,14 @@ export const Logo: React.FC<LogoProps> = ({
     <div
       onClick={onClick}
       className={`inline-flex items-center ${dimensions.gap} select-none ${
-        onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''
+        onClick ? 'cursor-pointer active:scale-[0.97] transition-transform' : ''
       } ${className}`}
     >
-      {/* Colourful Streaming Emblem */}
       <div className="relative shrink-0 flex items-center justify-center">
-        {/* Ambient Glow behind the logo */}
         <div
-          className="absolute inset-0 rounded-full blur-md opacity-40 bg-gradient-to-tr from-[#FF007A] via-[#7928CA] to-[#00DFD8]"
-          style={{ width: iconPx, height: iconPx }}
+          className="absolute inset-0 rounded-[30%] blur-lg opacity-60 bg-gradient-to-tr from-[#f472b6] via-[#8b5cf6] to-[#22d3ee]"
+          style={{ width: iconPx * 0.86, height: iconPx * 0.86 }}
+          aria-hidden="true"
         />
 
         <svg
@@ -44,112 +47,81 @@ export const Logo: React.FC<LogoProps> = ({
           viewBox="0 0 100 100"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="relative drop-shadow-md"
+          className="relative drop-shadow-[0_6px_18px_rgba(99,102,241,0.45)]"
+          role="img"
+          aria-label="U-R-LIVE"
         >
           <defs>
-            {/* Vivid multi-stop gradients matching the colourful streaming logo */}
-            <linearGradient id="urLiveGradPink" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FF385C" />
-              <stop offset="50%" stopColor="#FF007A" />
-              <stop offset="100%" stopColor="#E11D48" />
+            <linearGradient id={brandId} x1="10" y1="8" x2="92" y2="94" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#f472b6" />
+              <stop offset="46%" stopColor="#8b5cf6" />
+              <stop offset="100%" stopColor="#22d3ee" />
             </linearGradient>
-
-            <linearGradient id="urLiveGradPurple" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#7928CA" />
-              <stop offset="50%" stopColor="#9333EA" />
-              <stop offset="100%" stopColor="#4F46E5" />
+            <linearGradient id={shineId} x1="20" y1="12" x2="70" y2="70" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </linearGradient>
-
-            <linearGradient id="urLiveGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#00F2FE" />
-              <stop offset="50%" stopColor="#06B6D4" />
-              <stop offset="100%" stopColor="#3B82F6" />
-            </linearGradient>
-
-            <linearGradient id="urLiveGradOrange" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FF8A00" />
-              <stop offset="60%" stopColor="#FF385C" />
-              <stop offset="100%" stopColor="#FF007A" />
-            </linearGradient>
-
-            {/* Glowing filter for highlights */}
-            <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#FF007A" floodOpacity="0.45" />
+            <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
             </filter>
           </defs>
 
-          {/* Rounded base badge background */}
-          <rect
-            x="4"
-            y="4"
-            width="92"
-            height="92"
-            rx="26"
-            fill="#121216"
-            stroke="url(#urLiveGradPink)"
-            strokeWidth="1.5"
-            strokeOpacity="0.35"
-          />
+          {/* Deep glass tile */}
+          <rect x="5" y="5" width="90" height="90" rx="27" fill="#0b0917" />
+          <rect x="5.6" y="5.6" width="88.8" height="88.8" rx="26.5" stroke={`url(#${brandId})`} strokeWidth="1.4" strokeOpacity="0.85" />
 
-          {/* Ribbon 1: Left dynamic curve (Cyan / Teal to Blue) */}
-          <path
-            d="M 26 28 C 38 18, 54 22, 60 34 C 64 42, 60 52, 50 56 C 36 62, 22 50, 26 28 Z"
-            fill="url(#urLiveGradCyan)"
-            opacity="0.9"
-          />
-
-          {/* Ribbon 2: Sweeping energetic ribbon (Orange to Hot Pink) */}
-          <path
-            d="M 74 72 C 62 82, 46 78, 40 66 C 36 58, 40 48, 50 44 C 64 38, 78 50, 74 72 Z"
-            fill="url(#urLiveGradOrange)"
-            opacity="0.95"
-          />
-
-          {/* Ribbon 3: Violet / Magenta overlapping wave */}
-          <path
-            d="M 32 68 C 22 54, 26 36, 42 26 C 56 18, 74 24, 76 40 C 78 58, 58 78, 32 68 Z"
-            fill="url(#urLiveGradPurple)"
-            opacity="0.8"
-            style={{ mixBlendMode: 'screen' }}
-          />
-
-          {/* Center Streaming Play / Signal Beacon Mark */}
-          <g filter="url(#glowEffect)">
-            {/* Play triangle with rounded vertices */}
+          {/* Orbital signal sweeps */}
+          <g opacity="0.9">
             <path
-              d="M 45 38 C 45 35.8, 47.4 34.4, 49.3 35.6 L 65 46.2 C 66.8 47.4, 66.8 50.1, 65 51.3 L 49.3 61.9 C 47.4 63.1, 45 61.7, 45 59.5 Z"
-              fill="#FFFFFF"
+              d="M24 51c0-14.9 12.1-27 27-27"
+              stroke={`url(#${brandId})`}
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              opacity="0.55"
+            />
+            <path
+              d="M32 51c0-10.5 8.5-19 19-19"
+              stroke={`url(#${brandId})`}
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
+            <circle cx="76" cy="26" r="4.2" fill="#22d3ee" />
+            <circle cx="76" cy="26" r="8.6" stroke="#22d3ee" strokeWidth="1.3" opacity="0.35" />
+          </g>
+
+          {/* Live beacon / play core */}
+          <g filter={`url(#${glowId})`}>
+            <circle cx="51" cy="54" r="21" fill={`url(#${brandId})`} fillOpacity="0.18" stroke={`url(#${brandId})`} strokeWidth="1.6" />
+            <path
+              d="M45.5 44.6c0-2.4 2.6-3.9 4.7-2.6l14.6 9.3c2 1.3 2 4.2 0 5.5l-14.6 9.3c-2.1 1.3-4.7-.2-4.7-2.6V44.6Z"
+              fill="#ffffff"
             />
           </g>
 
-          {/* Pulsing broadcast ripples in the corner */}
-          <circle cx="76" cy="24" r="5" fill="#FF385C" />
-          <circle cx="76" cy="24" r="8" stroke="#FF385C" strokeWidth="1.5" opacity="0.6" />
+          {/* Top sheen */}
+          <path d="M20 34c4-12 15-20 30-20" stroke={`url(#${shineId})`} strokeWidth="3" strokeLinecap="round" />
         </svg>
       </div>
 
-      {/* Brand Typography */}
       {showText && (
         <div className="flex flex-col leading-none">
           <div className="flex items-center gap-1.5">
-            <span
-              className={`font-black tracking-tight text-white font-sans ${dimensions.text} flex items-center`}
-            >
+            <span className={`font-display font-extrabold tracking-tight text-white ${dimensions.text} flex items-center`}>
               <span>U-R-</span>
-              <span className="bg-gradient-to-r from-[#FF385C] via-[#FF007A] to-[#A855F7] bg-clip-text text-transparent">
-                LIVE
-              </span>
+              <span className="text-gradient-brand">LIVE</span>
             </span>
-            {/* Live indicator dot */}
-            <span className="relative flex items-center justify-center">
-              <span
-                className={`${dimensions.dot} rounded-full bg-[#FF385C] animate-ping absolute opacity-75`}
-              />
-              <span className={`${dimensions.dot} rounded-full bg-[#FF385C] relative`} />
+            <span className="relative flex items-center justify-center" aria-hidden="true">
+              <span className={`${dimensions.dot} rounded-full bg-[#f472b6] animate-ping absolute opacity-70`} />
+              <span className={`${dimensions.dot} rounded-full bg-gradient-to-tr from-[#f472b6] to-[#22d3ee] relative`} />
             </span>
           </div>
-          <span className="text-[9px] tracking-wider uppercase font-semibold text-neutral-400 mt-0.5">
-            Stream • Connect
+          <span className={`tracking-[0.18em] uppercase font-bold text-neutral-500 mt-1 ${dimensions.sub}`}>
+            Live video social
           </span>
         </div>
       )}

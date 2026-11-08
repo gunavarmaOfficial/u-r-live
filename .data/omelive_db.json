@@ -111,11 +111,11 @@
       "role": "user",
       "status": "active",
       "createdAt": 1792412460575,
-      "lastActiveAt": 1792413569208,
+      "lastActiveAt": 1793153207097,
       "email": "gunavarma0000@gmail.com",
       "googleId": "g_Z3VuYXZhcm1hMDAwMEBnbWFpbC5jb20",
       "authProvider": "google",
-      "avatarUrl": "https://api.dicebear.com/7.x/initials/svg?seed=Guna%20Varma&backgroundColor=ff385c"
+      "avatarUrl": "https://api.dicebear.com/7.x/initials/svg?seed=Guna%20Varma&backgroundColor=8b5cf6"
     },
     "test_user_s63ctc": {
       "id": "test_user_s63ctc",
@@ -204,6 +204,102 @@
       "status": "active",
       "createdAt": 1792596284002,
       "lastActiveAt": 1792596284002
+    },
+    "guest_2eb2b788da3d": {
+      "id": "guest_2eb2b788da3d",
+      "displayName": "Stranger 9274",
+      "authProvider": "guest",
+      "gender": "male",
+      "country": "GLOBAL",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792629355843,
+      "lastActiveAt": 1793153505738
+    },
+    "guest_ac3b45a32b9a": {
+      "id": "guest_ac3b45a32b9a",
+      "displayName": "Stranger 1458",
+      "authProvider": "guest",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792651189926,
+      "lastActiveAt": 1792651283815
+    },
+    "guest_2eb9092dbde2": {
+      "id": "guest_2eb9092dbde2",
+      "displayName": "Stranger 7065",
+      "authProvider": "guest",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792651255713,
+      "lastActiveAt": 1792651255714
+    },
+    "guest_37f5ceb55e1e": {
+      "id": "guest_37f5ceb55e1e",
+      "displayName": "Stranger 1932",
+      "authProvider": "guest",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792651276047,
+      "lastActiveAt": 1792651276047
+    },
+    "guest_4964d66464ac": {
+      "id": "guest_4964d66464ac",
+      "displayName": "Stranger 1433",
+      "authProvider": "guest",
+      "gender": "unspecified",
+      "country": "GLOBAL",
+      "isAdultVerified": false,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1792651482231,
+      "lastActiveAt": 1792651482231
+    },
+    "guest_48608767508c": {
+      "id": "guest_48608767508c",
+      "displayName": "Stranger 3007",
+      "authProvider": "guest",
+      "gender": "male",
+      "country": "GLOBAL",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1793152003931,
+      "lastActiveAt": 1793177322979
+    },
+    "guest_ef7781ede709": {
+      "id": "guest_ef7781ede709",
+      "displayName": "Stranger 9631",
+      "authProvider": "guest",
+      "gender": "male",
+      "country": "IN",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1793152267432,
+      "lastActiveAt": 1793152267479
+    },
+    "guest_7fdeb535cf16": {
+      "id": "guest_7fdeb535cf16",
+      "displayName": "Stranger 4816",
+      "authProvider": "guest",
+      "gender": "female",
+      "country": "US",
+      "isAdultVerified": true,
+      "role": "user",
+      "status": "active",
+      "createdAt": 1793152267486,
+      "lastActiveAt": 1793152267495
     }
   },
   "subscriptions": {
@@ -937,5 +1033,96 @@
       "id": "log_fomprw5p",
       "createdAt": 1792411124046
     }
-  ]
+  ],
+  "preferences": {},
+  "sessions": {
+    "d26dbef87d55e9b2e39cff094a1eb7c1fb8aecd25b5113c0eab85fa0769ba0cd": {
+      "id": "sess_ed671bd92f9871a7",
+      "userId": "guest_2eb2b788da3d",
+      "tokenHash": "d26dbef87d55e9b2e39cff094a1eb7c1fb8aecd25b5113c0eab85fa0769ba0cd",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1792629355843,
+      "expiresAt": 1795221355843,
+      "revoked": false,
+      "lastActiveAt": 1793153505737
+    },
+    "04e6cc59b727c24d6635fa872a6e10954413c83b3044cd61dc17c47278f0b13a": {
+      "id": "sess_629545eb558f9aa1",
+      "userId": "guest_ac3b45a32b9a",
+      "tokenHash": "04e6cc59b727c24d6635fa872a6e10954413c83b3044cd61dc17c47278f0b13a",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1792651189926,
+      "expiresAt": 1795243189926,
+      "revoked": false,
+      "lastActiveAt": 1792651283819
+    },
+    "9f0df7016627bcb23d10e318104f29cbfad2aafa6bb796467d175ed36a8eeb06": {
+      "id": "sess_57b66f98cd0d9020",
+      "userId": "guest_2eb9092dbde2",
+      "tokenHash": "9f0df7016627bcb23d10e318104f29cbfad2aafa6bb796467d175ed36a8eeb06",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1792651255713,
+      "expiresAt": 1795243255713,
+      "revoked": false,
+      "lastActiveAt": 1792651255713
+    },
+    "49ddd0705ffd2ea0a0fca888415af85af76cd094f58c87db77592d67bc057260": {
+      "id": "sess_97d08536eb4d2c58",
+      "userId": "guest_37f5ceb55e1e",
+      "tokenHash": "49ddd0705ffd2ea0a0fca888415af85af76cd094f58c87db77592d67bc057260",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1792651276047,
+      "expiresAt": 1795243276047,
+      "revoked": false,
+      "lastActiveAt": 1792651276047
+    },
+    "822103ad34c1a472c4bb49280da60d1c9e6044d48e080186c2cac1af9bebd4ea": {
+      "id": "sess_db9ebbbe4e687b2e",
+      "userId": "guest_4964d66464ac",
+      "tokenHash": "822103ad34c1a472c4bb49280da60d1c9e6044d48e080186c2cac1af9bebd4ea",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1792651482231,
+      "expiresAt": 1795243482231,
+      "revoked": false,
+      "lastActiveAt": 1792651482231
+    },
+    "49857caddf14e0c332f7e2528b012d2ca7cd2fd1d06e0183363aa1756ea115bb": {
+      "id": "sess_9e00134e25a92298",
+      "userId": "guest_48608767508c",
+      "tokenHash": "49857caddf14e0c332f7e2528b012d2ca7cd2fd1d06e0183363aa1756ea115bb",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1793152003931,
+      "expiresAt": 1795744003931,
+      "revoked": false,
+      "lastActiveAt": 1793177322979
+    },
+    "98616ef5786220bd88ac40e36576df5020717dfeb6843b442ccb982d66a39a8a": {
+      "id": "sess_b0b93d1f0885fc02",
+      "userId": "guest_ef7781ede709",
+      "tokenHash": "98616ef5786220bd88ac40e36576df5020717dfeb6843b442ccb982d66a39a8a",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1793152267432,
+      "expiresAt": 1795744267432,
+      "revoked": false,
+      "lastActiveAt": 1793152267432
+    },
+    "c3609b719420aba5021c5cde6b31c71c1baf80d7884b5ac49c81871aac879fca": {
+      "id": "sess_2bc3593165002586",
+      "userId": "guest_7fdeb535cf16",
+      "tokenHash": "c3609b719420aba5021c5cde6b31c71c1baf80d7884b5ac49c81871aac879fca",
+      "role": "user",
+      "isGuest": true,
+      "createdAt": 1793152267486,
+      "expiresAt": 1795744267486,
+      "revoked": false,
+      "lastActiveAt": 1793152267486
+    }
+  }
 }

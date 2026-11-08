@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+dist-server
+.git
+.gitignore
+.data
+.env
+.env.*
+!.env.example
+vite_images
+load-tests
+server/tests
+coverage
+*.log
+*.bak
+.DS_Store

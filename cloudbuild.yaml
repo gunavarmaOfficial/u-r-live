@@ -1,0 +1,79 @@
+# Cloud Build: build image -> push to Artifact Registry -> run migrations -> deploy Cloud Run.
+# Required Secret Manager secrets (all in the same project):
+#   DATABASE_URL, REDIS_URL, SESSION_SECRET, ADMIN_SECRET_KEY,
+#   CASHFREE_APP_ID, CASHFREE_SECRET_KEY, TURNSTILE_SECRET_KEY,
+#   TURN_URL, TURN_USERNAME, TURN_CREDENTIAL
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: u-r-live
+  _REPO: u-r-live
+  _SITE_URL: https://u-r-live.com
+  _GOOGLE_CLIENT_ID: ""
+  _MIN_INSTANCES: "2"
+  _MAX_INSTANCES: "10"
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: build-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - VITE_SITE_URL=${_SITE_URL}
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+      - .
+
+  - id: push-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+
+  # Schema migrations run once as a job and take a Postgres advisory lock, so
+  # concurrent cold starts cannot race the same DDL.
+  - id: migrate
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - ${_SERVICE}-migrate
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --command=node
+      - --args=dist-server/migrate.mjs
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest
+      - --set-env-vars=NODE_ENV=production,PUBLIC_URL=${_SITE_URL}
+      - --execute
+      - --wait
+
+  - id: deploy-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --cpu=1
+      - --memory=1Gi
+      - --concurrency=250
+      - --min-instances=${_MIN_INSTANCES}
+      - --max-instances=${_MAX_INSTANCES}
+      - --timeout=3600
+      - --cpu-boost
+      - --no-cpu-throttling
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SESSION_SECRET=SESSION_SECRET:latest,ADMIN_SECRET_KEY=ADMIN_SECRET_KEY:latest,CASHFREE_APP_ID=CASHFREE_APP_ID:latest,CASHFREE_SECRET_KEY=CASHFREE_SECRET_KEY:latest,TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY:latest,TURN_URL=TURN_URL:latest,TURN_USERNAME=TURN_USERNAME:latest,TURN_CREDENTIAL=TURN_CREDENTIAL:latest
+      - --set-env-vars=NODE_ENV=production,PUBLIC_URL=${_SITE_URL},VITE_SITE_URL=${_SITE_URL},LEGAL_TERMS_VERSION=2026-10-28,CASHFREE_ENV=PRODUCTION,CASHFREE_API_VERSION=2023-08-01,TURNSTILE_REQUIRED=true,TURNSTILE_FAIL_OPEN=true,GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$BUILD_ID

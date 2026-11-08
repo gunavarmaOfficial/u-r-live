@@ -19,8 +19,35 @@ export interface UserProfile {
   role: 'user' | 'admin';
   status: 'active' | 'suspended' | 'banned';
   allowFriendRequests?: boolean;
+  termsVersion?: string;
+  termsAcceptedAt?: number;
+  ageConfirmedAt?: number;
   createdAt: number;
   lastActiveAt: number;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  role: 'user' | 'admin';
+  isGuest: boolean;
+  createdAt: number;
+  expiresAt: number;
+  revoked: boolean;
+  lastActiveAt: number;
+}
+
+export type LegalConsentKind = 'terms' | 'age';
+
+export interface LegalConsent {
+  id: string;
+  userId: string;
+  kind: LegalConsentKind;
+  version: string;
+  acceptedAt: number;
+  ipHash?: string;
+  userAgentHash?: string;
 }
 
 export type SubscriptionPlan = 'free' | 'pro';
@@ -45,7 +72,7 @@ export interface PaymentEvent {
   provider: 'cashfree';
   providerEventId: string;
   eventType: string;
-  processingStatus: 'processed' | 'ignored' | 'failed';
+  processingStatus: 'processing' | 'processed' | 'ignored' | 'failed';
   receivedAt: number;
   payload: Record<string, unknown>;
 }
@@ -134,10 +161,13 @@ export interface MatchPreferences {
   mode?: ChatMode;
   preferredGender?: 'any' | 'male' | 'female';
   preferredCountry?: string; // e.g. "IN", "US", "GLOBAL"
+  preferredCountries?: string[]; // multiple countries e.g. ["IN", "US"]
+  isMultipleCountries?: boolean;
   interests?: string[];
   interestMatchingEnabled?: boolean;
   strictInterests?: boolean; // Pro only
   languages?: string[];
+  preferredLanguages?: string[];
   primaryLanguage?: string;
   strictLanguage?: boolean; // Pro only
   priorityQueue?: boolean; // Pro only
@@ -154,6 +184,7 @@ export interface QueueEntry {
   languages?: string[];
   preferences: MatchPreferences;
   joinedAt: number;
+  displayName?: string;
 }
 
 export interface ActiveMatch {
@@ -187,6 +218,8 @@ export type SignalingMessageType =
   | 'answer'
   | 'ice_candidate'
   | 'chat_message'
+  | 'typing'
+  | 'media_state'
   | 'skip_match'
   | 'match_ended'
   | 'peer_disconnected'

@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  WebProtectionIcon,
   AlertCircleIcon,
   Search01Icon,
   UserCircleIcon,
   SparklesIcon,
-  CheckmarkCircle01Icon,
   Cancel01Icon,
-  Settings02Icon,
   Globe02Icon,
 } from 'hugeicons-react';
 import { api } from '../services/api';
 import { UserReport, UserProfile } from '../types';
+
+const CARD = 'rounded-3xl border border-white/[0.07] bg-white/[0.03]';
+const INPUT =
+  'w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/25 transition-colors focus:border-violet-400/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/30';
+const TH = 'p-3.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/35';
 
 export const AdminDashboardView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'users' | 'health'>('overview');
@@ -95,151 +97,142 @@ export const AdminDashboardView: React.FC = () => {
     );
   });
 
+  const tabs = [
+    { key: 'overview' as const, label: 'Overview', icon: null },
+    { key: 'reports' as const, label: 'Safety reports', icon: <AlertCircleIcon className="h-3.5 w-3.5 text-rose-300" /> },
+    { key: 'users' as const, label: 'Accounts', icon: <UserCircleIcon className="h-3.5 w-3.5 text-violet-300" /> },
+    { key: 'health' as const, label: 'WebRTC & health', icon: <Globe02Icon className="h-3.5 w-3.5 text-emerald-300" /> },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 text-neutral-300">
+    <div className="mx-auto max-w-7xl space-y-7 px-4 py-8 text-white/70 sm:px-6">
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-5">
+      <div className="flex flex-col justify-between gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF385C]" />
-            <h1 className="text-2xl font-bold text-white tracking-tight">U-R-LIVE Staff Console</h1>
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-r from-violet-400 to-cyan-300 shadow-[0_0_10px_rgba(139,92,246,0.9)]" />
+            <h1 className="font-display text-2xl font-bold tracking-tight text-white">
+              Staff console
+            </h1>
+            <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.14em] text-white/40">
+              Internal
+            </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Server-side moderation, safety reviews, and WebRTC diagnostics
+          <p className="mt-1.5 text-xs text-white/35">
+            Moderation, safety reviews and WebRTC diagnostics
           </p>
         </div>
 
         <button
           onClick={loadData}
           disabled={isLoading}
-          className="px-4 py-2 rounded-full border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-xs font-semibold text-neutral-300 hover:text-white transition-colors flex items-center gap-2 self-start sm:self-auto"
+          className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-semibold text-white/60 transition-colors hover:border-white/25 hover:bg-white/[0.08] hover:text-white disabled:opacity-60 sm:self-auto"
         >
-          <span>{isLoading ? 'Refreshing...' : 'Refresh Metrics'}</span>
+          <span className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'animate-pulse bg-amber-300' : 'bg-emerald-400'}`} />
+          <span>{isLoading ? 'Refreshing…' : 'Refresh metrics'}</span>
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-neutral-800 pb-2 text-xs">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
-            activeTab === 'overview'
-              ? 'bg-neutral-800 text-white shadow-sm'
-              : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('reports')}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors flex items-center gap-1.5 ${
-            activeTab === 'reports'
-              ? 'bg-neutral-800 text-white shadow-sm'
-              : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          <AlertCircleIcon className="w-3.5 h-3.5 text-rose-400" />
-          <span>Safety Reports</span>
-          {overview?.pendingReportsCount > 0 && (
-            <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 text-[10px] rounded-full font-mono">
-              {overview.pendingReportsCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors flex items-center gap-1.5 ${
-            activeTab === 'users' ? 'bg-neutral-800 text-white shadow-sm' : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          <UserCircleIcon className="w-3.5 h-3.5 text-[#FF385C]" />
-          <span>User Accounts</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('health')}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors flex items-center gap-1.5 ${
-            activeTab === 'health' ? 'bg-neutral-800 text-white shadow-sm' : 'text-neutral-400 hover:text-white'
-          }`}
-        >
-          <Globe02Icon className="w-3.5 h-3.5 text-emerald-400" />
-          <span>WebRTC & Health</span>
-        </button>
+      <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1 text-xs sm:inline-flex">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 font-semibold transition-all ${
+                isActive
+                  ? 'bg-white/[0.10] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_18px_-10px_rgba(0,0,0,0.9)]'
+                  : 'text-white/40 hover:text-white/80'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {tab.key === 'reports' && overview?.pendingReportsCount > 0 && (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white">
+                  {overview.pendingReportsCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Overview Tab */}
       {activeTab === 'overview' && overview && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-5 rounded-3xl bg-[#161618] border border-neutral-800">
-              <p className="text-xs text-neutral-400 font-medium">Total Users</p>
-              <p className="text-2xl font-extrabold font-mono text-white mt-1 tabular-nums">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            <div className={`${CARD} p-5`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Total users</p>
+              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-white">
                 {overview.totalUsers}
               </p>
             </div>
-            <div className="p-5 rounded-3xl bg-[#161618] border border-neutral-800">
-              <p className="text-xs text-neutral-400 font-medium">Active Queue</p>
-              <p className="text-2xl font-extrabold font-mono text-[#FF385C] mt-1 tabular-nums">
+            <div className={`${CARD} p-5`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Active queue</p>
+              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-violet-300">
                 {overview.activeQueueLength}
               </p>
             </div>
-            <div className="p-5 rounded-3xl bg-[#161618] border border-neutral-800">
-              <p className="text-xs text-neutral-400 font-medium">Active Matches</p>
-              <p className="text-2xl font-extrabold font-mono text-emerald-400 mt-1 tabular-nums">
+            <div className={`${CARD} p-5`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Active matches</p>
+              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-emerald-300">
                 {overview.activeMatchesCount}
               </p>
             </div>
-            <div className="p-5 rounded-3xl bg-[#161618] border border-neutral-800">
-              <p className="text-xs text-neutral-400 font-medium">Pro Subscribers</p>
-              <p className="text-2xl font-extrabold font-mono text-amber-400 mt-1 tabular-nums">
+            <div className={`${CARD} p-5`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Pro subscribers</p>
+              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-amber-300">
                 {overview.proSubscribers}{' '}
-                <span className="text-xs font-normal text-neutral-400">
-                  (₹{overview.monthlyRevenueInr}/mo)
+                <span className="text-xs font-normal text-white/30">
+                  ₹{overview.monthlyRevenueInr}/mo
                 </span>
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-3xl bg-[#161618] border border-neutral-800 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <AlertCircleIcon className="w-4 h-4 text-rose-400" />
-                <span>Safety Review Queue</span>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+            <div className={`${CARD} space-y-4 p-6`}>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                <AlertCircleIcon className="h-4 w-4 text-rose-300" />
+                Safety review queue
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                  <span className="text-neutral-400">Pending Safety Reports</span>
-                  <span className="font-mono font-bold text-rose-400">
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between border-b border-white/[0.06] py-2">
+                  <span className="text-white/40">Pending safety reports</span>
+                  <span className="font-bold tabular-nums text-rose-300">
                     {overview.pendingReportsCount}
                   </span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                  <span className="text-neutral-400">Total Reports Received</span>
-                  <span className="font-mono text-white">{overview.totalReportsCount}</span>
+                <div className="flex justify-between border-b border-white/[0.06] py-2">
+                  <span className="text-white/40">Total reports received</span>
+                  <span className="tabular-nums text-white/80">{overview.totalReportsCount}</span>
                 </div>
-                <div className="flex justify-between py-1.5">
-                  <span className="text-neutral-400">Immediate Peer Blocking</span>
-                  <span className="text-emerald-400 font-semibold">Automatic on Submit</span>
+                <div className="flex justify-between py-2">
+                  <span className="text-white/40">Immediate peer blocking</span>
+                  <span className="font-semibold text-emerald-300">Automatic on submit</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 rounded-3xl bg-[#161618] border border-neutral-800 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-[#FF385C]" />
-                <span>Cashfree Subscriptions (₹299/mo)</span>
+            <div className={`${CARD} space-y-4 p-6`}>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                <SparklesIcon className="h-4 w-4 text-violet-300" />
+                Cashfree subscriptions
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                  <span className="text-neutral-400">Plan Code</span>
-                  <span className="font-mono text-white">pro_monthly_299</span>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between border-b border-white/[0.06] py-2">
+                  <span className="text-white/40">Plan code</span>
+                  <span className="font-mono text-white/80">pro_monthly_299</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                  <span className="text-neutral-400">Server Signature Verification</span>
-                  <span className="text-emerald-400 font-semibold">HMAC-SHA256 Enforced</span>
+                <div className="flex justify-between border-b border-white/[0.06] py-2">
+                  <span className="text-white/40">Signature verification</span>
+                  <span className="font-semibold text-emerald-300">HMAC-SHA256</span>
                 </div>
-                <div className="flex justify-between py-1.5">
-                  <span className="text-neutral-400">Webhook Idempotency</span>
-                  <span className="text-emerald-400 font-semibold">Active (Zero Duplicates)</span>
+                <div className="flex justify-between py-2">
+                  <span className="text-white/40">Webhook idempotency</span>
+                  <span className="font-semibold text-emerald-300">Active</span>
                 </div>
               </div>
             </div>
@@ -251,73 +244,71 @@ export const AdminDashboardView: React.FC = () => {
       {activeTab === 'reports' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-neutral-400 font-medium">Status Filter:</span>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-white/35">Status</span>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-neutral-900 border border-neutral-800 rounded-full px-3 py-1.5 text-xs text-white"
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white/80 focus:border-violet-400/60 focus:outline-none"
               >
-                <option value="all">All Reports</option>
-                <option value="pending">Pending Review</option>
+                <option value="all">All reports</option>
+                <option value="pending">Pending review</option>
                 <option value="resolved">Resolved</option>
                 <option value="dismissed">Dismissed</option>
                 <option value="escalated">Escalated</option>
               </select>
             </div>
-            <span className="text-xs text-neutral-500 font-mono">
+            <span className="font-mono text-[11px] text-white/30">
               {filteredReports.length} reports
             </span>
           </div>
 
           {filteredReports.length === 0 ? (
-            <div className="p-12 text-center border border-neutral-800 rounded-3xl bg-[#161618] text-xs text-neutral-400">
+            <div className={`${CARD} p-12 text-center text-xs text-white/35`}>
               No reports found for this filter.
             </div>
           ) : (
-            <div className="border border-neutral-800 rounded-3xl overflow-hidden bg-[#161618] text-xs">
-              <table className="w-full text-left">
-                <thead className="bg-neutral-900/80 border-b border-neutral-800 text-neutral-400">
+            <div className={`${CARD} overflow-x-auto text-xs`}>
+              <table className="w-full min-w-[720px] text-left">
+                <thead className="border-b border-white/[0.07] bg-white/[0.03]">
                   <tr>
-                    <th className="p-3.5 font-semibold">Violation Category</th>
-                    <th className="p-3.5 font-semibold">Reported User</th>
-                    <th className="p-3.5 font-semibold">Reporter</th>
-                    <th className="p-3.5 font-semibold">Status</th>
-                    <th className="p-3.5 font-semibold">Action Taken</th>
-                    <th className="p-3.5 font-semibold text-right">Review</th>
+                    <th className={TH}>Violation</th>
+                    <th className={TH}>Reported user</th>
+                    <th className={TH}>Reporter</th>
+                    <th className={TH}>Status</th>
+                    <th className={TH}>Action</th>
+                    <th className={`${TH} text-right`}>Review</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-800/60">
+                <tbody className="divide-y divide-white/[0.05]">
                   {filteredReports.map((r) => (
-                    <tr key={r.id} className="hover:bg-neutral-900/40">
+                    <tr key={r.id} className="transition-colors hover:bg-white/[0.03]">
                       <td className="p-3.5">
-                        <span className="font-bold text-white capitalize">
+                        <span className="font-semibold capitalize text-white/85">
                           {r.category.replace(/_/g, ' ')}
                         </span>
                         {r.description && (
-                          <p className="text-[11px] text-neutral-500 truncate max-w-xs">
+                          <p className="mt-0.5 max-w-xs truncate text-[11px] text-white/30">
                             {r.description}
                           </p>
                         )}
                       </td>
-                      <td className="p-3.5 font-mono text-neutral-300">
-                        {r.reportedUserName} ({r.reportedUserId.slice(0, 8)}...)
+                      <td className="p-3.5 font-mono text-white/55">
+                        {r.reportedUserName} ({r.reportedUserId.slice(0, 8)}…)
                       </td>
-                      <td className="p-3.5 text-neutral-400">{r.reporterName}</td>
+                      <td className="p-3.5 text-white/40">{r.reporterName}</td>
                       <td className="p-3.5">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono ${
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
                             r.status === 'pending'
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-800/40'
-                              : 'bg-neutral-800 text-neutral-300'
+                              ? 'border border-rose-400/25 bg-rose-500/15 text-rose-200'
+                              : 'bg-white/[0.06] text-white/55'
                           }`}
                         >
                           {r.status}
                         </span>
                       </td>
-                      <td className="p-3.5 font-mono text-neutral-400 capitalize">
-                        {r.actionTaken || 'none'}
-                      </td>
+                      <td className="p-3.5 capitalize text-white/40">{r.actionTaken || 'none'}</td>
                       <td className="p-3.5 text-right">
                         <button
                           onClick={() => {
@@ -326,7 +317,7 @@ export const AdminDashboardView: React.FC = () => {
                             setActionDecision(r.actionTaken || 'none');
                             setActionNotes(r.moderatorNotes || '');
                           }}
-                          className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full font-semibold transition-colors"
+                          className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 font-semibold text-white/80 transition-colors hover:border-white/25 hover:bg-white/[0.09] hover:text-white"
                         >
                           Review
                         </button>
@@ -344,78 +335,80 @@ export const AdminDashboardView: React.FC = () => {
       {activeTab === 'users' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="relative w-72">
-              <Search01Icon className="w-3.5 h-3.5 text-neutral-500 absolute left-3.5 top-3" />
+            <div className="relative w-full max-w-xs">
+              <Search01Icon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
               <input
                 type="text"
                 value={searchUser}
                 onChange={(e) => setSearchUser(e.target.value)}
-                placeholder="Search user ID or display name..."
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-full pl-9 pr-4 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FF385C]"
+                placeholder="Search user ID or name…"
+                className={`${INPUT} pl-9`}
               />
             </div>
-            <span className="text-xs text-neutral-500 font-mono">{filteredUsers.length} users</span>
+            <span className="shrink-0 font-mono text-[11px] text-white/30">
+              {filteredUsers.length} users
+            </span>
           </div>
 
-          <div className="border border-neutral-800 rounded-3xl overflow-hidden bg-[#161618] text-xs">
-            <table className="w-full text-left">
-              <thead className="bg-neutral-900/80 border-b border-neutral-800 text-neutral-400">
+          <div className={`${CARD} overflow-x-auto text-xs`}>
+            <table className="w-full min-w-[720px] text-left">
+              <thead className="border-b border-white/[0.07] bg-white/[0.03]">
                 <tr>
-                  <th className="p-3.5 font-semibold">User</th>
-                  <th className="p-3.5 font-semibold">Plan</th>
-                  <th className="p-3.5 font-semibold">18+ Verified</th>
-                  <th className="p-3.5 font-semibold">Status</th>
-                  <th className="p-3.5 font-semibold text-right">Actions</th>
+                  <th className={TH}>User</th>
+                  <th className={TH}>Plan</th>
+                  <th className={TH}>18+ verified</th>
+                  <th className={TH}>Status</th>
+                  <th className={`${TH} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-800/60">
+              <tbody className="divide-y divide-white/[0.05]">
                 {filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-neutral-900/40">
+                  <tr key={u.id} className="transition-colors hover:bg-white/[0.03]">
                     <td className="p-3.5">
-                      <p className="font-bold text-white">{u.displayName}</p>
-                      <p className="text-[11px] font-mono text-neutral-500">
-                        {u.email || u.id}
-                      </p>
+                      <p className="font-semibold text-white/85">{u.displayName}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-white/25">{u.email || u.id}</p>
                     </td>
                     <td className="p-3.5">
                       {u.isPro ? (
-                        <span className="text-[#FF385C] font-semibold">Pro Member</span>
+                        <span className="inline-flex items-center gap-1 font-semibold text-violet-300">
+                          <SparklesIcon className="h-3 w-3" /> Pro
+                        </span>
                       ) : (
-                        <span className="text-neutral-500">Free Tier</span>
+                        <span className="text-white/30">Free</span>
                       )}
                     </td>
                     <td className="p-3.5">
                       {u.isAdultVerified ? (
-                        <span className="text-emerald-400 font-semibold">✓ Verified 18+</span>
+                        <span className="font-semibold text-emerald-300">Verified</span>
                       ) : (
-                        <span className="text-neutral-500">Pending</span>
+                        <span className="text-white/30">Pending</span>
                       )}
                     </td>
                     <td className="p-3.5">
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono ${
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
                           u.status === 'active'
-                            ? 'bg-emerald-500/10 text-emerald-400'
+                            ? 'bg-emerald-500/12 text-emerald-300'
                             : u.status === 'suspended'
-                            ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-rose-500/20 text-rose-300'
+                              ? 'bg-amber-500/15 text-amber-200'
+                              : 'bg-rose-500/15 text-rose-200'
                         }`}
                       >
                         {u.status}
                       </span>
                     </td>
-                    <td className="p-3.5 text-right space-x-1.5">
+                    <td className="space-x-1.5 p-3.5 text-right">
                       {u.status === 'active' ? (
                         <>
                           <button
                             onClick={() => handleToggleUserStatus(u.id, 'suspended')}
-                            className="px-3 py-1 rounded-full bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/40 text-[11px]"
+                            className="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
                           >
                             Suspend
                           </button>
                           <button
                             onClick={() => handleToggleUserStatus(u.id, 'banned')}
-                            className="px-3 py-1 rounded-full bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 text-[11px]"
+                            className="rounded-full border border-rose-400/25 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-200 transition-colors hover:bg-rose-500/20"
                           >
                             Ban
                           </button>
@@ -423,7 +416,7 @@ export const AdminDashboardView: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => handleToggleUserStatus(u.id, 'active')}
-                          className="px-3 py-1 rounded-full bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40 text-[11px]"
+                          className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/20"
                         >
                           Reactivate
                         </button>
@@ -439,63 +432,61 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* Health Tab */}
       {activeTab === 'health' && systemHealth && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-3xl bg-[#161618] border border-neutral-800 space-y-3 text-xs">
-              <h3 className="font-bold text-white">WebSocket Signaling</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">Endpoint</span>
-                  <span className="font-mono text-white">/ws (Port 3000)</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">Heartbeat Interval</span>
-                  <span className="font-mono text-white">30s Ping / Pong</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-neutral-400">Queue State</span>
-                  <span className="text-emerald-400 font-semibold">In-Memory Ephemeral</span>
-                </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+          <div className={`${CARD} space-y-3 p-6 text-xs`}>
+            <h3 className="text-sm font-bold text-white">WebSocket signaling</h3>
+            <div className="space-y-1">
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">Endpoint</span>
+                <span className="font-mono text-white/75">/ws · 3000</span>
+              </div>
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">Heartbeat</span>
+                <span className="font-mono text-white/75">30s ping/pong</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-white/35">Queue state</span>
+                <span className="font-semibold text-emerald-300">Ephemeral</span>
               </div>
             </div>
+          </div>
 
-            <div className="p-6 rounded-3xl bg-[#161618] border border-neutral-800 space-y-3 text-xs">
-              <h3 className="font-bold text-white">TURN / STUN Relays</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">Google STUN Pool</span>
-                  <span className="text-emerald-400 font-semibold">Active (3 endpoints)</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">TURN Relay Fallback</span>
-                  <span className="font-mono text-neutral-300">
-                    {systemHealth.turnConfigured ? 'Configured' : 'Env Ready (TURN_URL)'}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-neutral-400">Video Server Bypass</span>
-                  <span className="text-emerald-400 font-semibold">100% P2P Enforced</span>
-                </div>
+          <div className={`${CARD} space-y-3 p-6 text-xs`}>
+            <h3 className="text-sm font-bold text-white">TURN / STUN relays</h3>
+            <div className="space-y-1">
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">Google STUN pool</span>
+                <span className="font-semibold text-emerald-300">3 endpoints</span>
+              </div>
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">TURN fallback</span>
+                <span className="font-mono text-white/60">
+                  {systemHealth.turnConfigured ? 'Configured' : 'Env ready'}
+                </span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-white/35">Video path</span>
+                <span className="font-semibold text-emerald-300">100% P2P</span>
               </div>
             </div>
+          </div>
 
-            <div className="p-6 rounded-3xl bg-[#161618] border border-neutral-800 space-y-3 text-xs">
-              <h3 className="font-bold text-white">Operational Uptime</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">Process Uptime</span>
-                  <span className="font-mono text-white">{systemHealth.uptimeSeconds}s</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-neutral-800">
-                  <span className="text-neutral-400">Health Status</span>
-                  <span className="text-emerald-400 font-semibold uppercase font-mono">
-                    {systemHealth.status}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-neutral-400">Zero Video Retention</span>
-                  <span className="text-emerald-400 font-semibold">Active</span>
-                </div>
+          <div className={`${CARD} space-y-3 p-6 text-xs`}>
+            <h3 className="text-sm font-bold text-white">Operational uptime</h3>
+            <div className="space-y-1">
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">Process uptime</span>
+                <span className="font-mono text-white/75">{systemHealth.uptimeSeconds}s</span>
+              </div>
+              <div className="flex justify-between border-b border-white/[0.06] py-1.5">
+                <span className="text-white/35">Health</span>
+                <span className="font-mono font-semibold uppercase text-emerald-300">
+                  {systemHealth.status}
+                </span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-white/35">Video retention</span>
+                <span className="font-semibold text-emerald-300">None</span>
               </div>
             </div>
           </div>
@@ -504,98 +495,109 @@ export const AdminDashboardView: React.FC = () => {
 
       {/* Review Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-neutral-800 bg-[#161618] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <h2 className="text-base font-bold text-white">Moderation Review</h2>
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 p-0 backdrop-blur-xl animate-in fade-in duration-200 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Moderation review"
+        >
+          <div className="animate-in flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-[#0b0914]/95 text-white shadow-[0_40px_120px_-40px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:rounded-[28px]">
+            <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
+              <h2 className="font-display text-base font-bold">Moderation review</h2>
               <button
                 onClick={() => setSelectedReport(null)}
-                className="text-neutral-400 hover:text-white"
+                className="grid h-8 w-8 place-items-center rounded-full text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white"
+                aria-label="Close review"
               >
-                <Cancel01Icon className="w-4 h-4" />
+                <Cancel01Icon className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-1">
-                <p className="text-neutral-400">
+            <form
+              onSubmit={handleUpdateReportAction}
+              className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain px-5 py-4 text-xs"
+            >
+              <div className="space-y-1.5 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4">
+                <p className="text-white/40">
                   Category:{' '}
-                  <strong className="text-white capitalize">
+                  <strong className="capitalize text-white/85">
                     {selectedReport.category.replace(/_/g, ' ')}
                   </strong>
                 </p>
-                <p className="text-neutral-400">
-                  Reported User:{' '}
-                  <span className="font-mono text-[#FF385C]">
+                <p className="text-white/40">
+                  Reported user:{' '}
+                  <span className="font-mono text-violet-300">
                     {selectedReport.reportedUserName} ({selectedReport.reportedUserId})
                   </span>
                 </p>
-                <p className="text-neutral-400">
-                  Reporter: <span className="text-neutral-200">{selectedReport.reporterName}</span>
+                <p className="text-white/40">
+                  Reporter: <span className="text-white/75">{selectedReport.reporterName}</span>
                 </p>
                 {selectedReport.description && (
-                  <p className="text-neutral-300 pt-1 border-t border-neutral-900">
-                    "{selectedReport.description}"
+                  <p className="border-t border-white/[0.06] pt-2 leading-relaxed text-white/55">
+                    “{selectedReport.description}”
                   </p>
                 )}
               </div>
-            </div>
 
-            <form onSubmit={handleUpdateReportAction} className="space-y-3 pt-1 text-xs">
               <div>
-                <label className="block text-neutral-400 mb-1 font-semibold">Moderator Action</label>
+                <label htmlFor="mod-action" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">
+                  Moderator action
+                </label>
                 <select
+                  id="mod-action"
                   value={actionDecision}
                   onChange={(e) => setActionDecision(e.target.value as any)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                  className={INPUT}
                 >
-                  <option value="none">No Action (Dismiss false report)</option>
-                  <option value="warned">Issue Warning</option>
-                  <option value="suspended">Suspend User Account</option>
-                  <option value="banned">Permanently Ban User</option>
+                  <option value="none">No action — dismiss report</option>
+                  <option value="warned">Issue warning</option>
+                  <option value="suspended">Suspend account</option>
+                  <option value="banned">Permanently ban</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-neutral-400 mb-1 font-semibold">Report Status</label>
+                <label htmlFor="mod-status" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">
+                  Report status
+                </label>
                 <select
+                  id="mod-status"
                   value={actionStatus}
                   onChange={(e) => setActionStatus(e.target.value as any)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                  className={INPUT}
                 >
                   <option value="resolved">Resolved</option>
                   <option value="dismissed">Dismissed</option>
-                  <option value="escalated">Escalated to Legal</option>
-                  <option value="reviewed">In Review</option>
+                  <option value="escalated">Escalated to legal</option>
+                  <option value="reviewed">In review</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-neutral-400 mb-1 font-semibold">
-                  Moderator Notes
+                <label htmlFor="mod-notes" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">
+                  Moderator notes
                 </label>
                 <textarea
+                  id="mod-notes"
                   value={actionNotes}
                   onChange={(e) => setActionNotes(e.target.value)}
-                  placeholder="Record justification..."
+                  placeholder="Record the justification…"
                   rows={2}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                  className={`${INPUT} resize-none`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] pt-4">
                 <button
                   type="button"
                   onClick={() => setSelectedReport(null)}
-                  className="px-4 py-2 rounded-full border border-neutral-800 text-neutral-400 hover:text-white"
+                  className="rounded-full px-4 py-2 text-[11px] font-semibold text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-full bg-gradient-to-r from-[#FF385C] to-[#E00B41] text-white font-bold shadow-md shadow-[#FF385C]/25"
-                >
-                  Save Decision
+                <button type="submit" className="btn-primary px-5 py-2 text-[11px]">
+                  Save decision
                 </button>
               </div>
             </form>

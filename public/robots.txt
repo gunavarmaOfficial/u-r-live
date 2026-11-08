@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /safety
+Allow: /terms
+Allow: /privacy
+Allow: /cookies
+Allow: /community-rules
+
+Disallow: /api/
+Disallow: /live
+Disallow: /admin
+
+Sitemap: https://u-r-live.com/sitemap.xml

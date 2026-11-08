@@ -12,6 +12,9 @@ export interface UserProfile {
   isAdultVerified: boolean;
   role: 'user' | 'admin';
   status: 'active' | 'suspended' | 'banned';
+  termsVersion?: string;
+  termsAcceptedAt?: number;
+  ageConfirmedAt?: number;
   createdAt: number;
   lastActiveAt: number;
 }
@@ -37,9 +40,12 @@ export interface MatchPreferences {
   mode?: ChatMode;
   preferredGender: 'any' | 'male' | 'female';
   preferredCountry: string;
+  preferredCountries?: string[];
+  isMultipleCountries?: boolean;
   interests?: string[];
   interestMatchingEnabled?: boolean;
   languages?: string[];
+  preferredLanguages?: string[];
   primaryLanguage?: string;
 }
 

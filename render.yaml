@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: u-r-live
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build && npm run build:server
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://u-r-live.vercel.app

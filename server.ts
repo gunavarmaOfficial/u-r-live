@@ -112,7 +112,26 @@ const corsAllowedOrigins = (process.env.CORS_ORIGINS || '')
   .filter(Boolean);
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
-  const allowed = !origin || corsAllowedOrigins.includes(origin.replace(/\/+$/, ''));
+  const host = req.headers.host;
+  const isSameOrigin = Boolean(
+    origin &&
+      host &&
+      (origin === `http://${host}` ||
+        origin === `https://${host}` ||
+        origin === `http://${host.replace(/:\d+$/, '')}` ||
+        origin === `https://${host.replace(/:\d+$/, '')}`)
+  );
+  const isVercelOrigin = Boolean(
+    origin && (origin.endsWith('.vercel.app') || origin === 'https://u-r-live.vercel.app')
+  );
+  const allowed =
+    !origin ||
+    isSameOrigin ||
+    isVercelOrigin ||
+    corsAllowedOrigins.length === 0 ||
+    corsAllowedOrigins.includes('*') ||
+    corsAllowedOrigins.includes(origin.replace(/\/+$/, ''));
+
   if (allowed) {
     if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
@@ -1273,8 +1292,8 @@ async function shutdown(signal: string): Promise<void> {
   process.exit(0);
 }
 
-// Only start the HTTP listener when run directly, not when imported by test suites
-if (process.env.NODE_ENV !== 'test') {
+// Only start the HTTP listener when run directly, not when imported by test suites or in Vercel serverless functions
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   startServer();
 
   let shuttingDown = false;

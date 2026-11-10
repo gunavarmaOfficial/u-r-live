@@ -123,7 +123,7 @@ export class Database {
         }
       }
     } else {
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
         throw new Error(
           'FATAL: Production environment detected (NODE_ENV=production) but DATABASE_URL or SUPABASE_DB_URL is not configured. Silently falling back to JSON storage in production is prohibited.'
         );

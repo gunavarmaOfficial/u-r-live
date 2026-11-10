@@ -161,7 +161,7 @@ export async function verifyCashfreeOrderStatus(orderId: string): Promise<{
  * closed in production rather than sending a path Cashfree cannot resolve.
  */
 export function resolveNotifyUrl(): string {
-  const base = process.env.PUBLIC_URL || process.env.VITE_SITE_URL;
+  const base = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || process.env.VITE_SITE_URL;
   if (base) {
     try {
       return new URL('/api/subscription/webhook', base).toString();

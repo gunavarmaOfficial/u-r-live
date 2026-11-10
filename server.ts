@@ -175,7 +175,7 @@ app.get('/api/config', (_req: Request, res: Response) => {
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
     termsVersion: LEGAL_TERMS_VERSION,
     turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || null,
-    siteUrl: process.env.PUBLIC_URL || null,
+    siteUrl: process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || null,
   });
 });
 

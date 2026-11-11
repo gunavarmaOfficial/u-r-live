@@ -67,6 +67,31 @@ export default function App() {
     }
   });
   const [chatMode, setChatMode] = useState<ChatMode>("video");
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {}
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+    try {
+      localStorage.setItem('theme', theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("idle");
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -164,6 +189,7 @@ export default function App() {
       preferredGender,
       interests,
       chatMode,
+      theme,
       sessionStatus,
       sessionError,
       googleEnabled,
@@ -174,6 +200,7 @@ export default function App() {
       setPreferredGender,
       setInterests,
       setChatMode,
+      toggleTheme,
       signOut,
       openSettings: () => setIsSettingsModalOpen(true),
       openGoogle: () => {
@@ -196,6 +223,8 @@ export default function App() {
       updateUser,
       setInterests,
       setChatMode,
+      theme,
+      toggleTheme,
       signOut,
     ],
   );
@@ -203,7 +232,7 @@ export default function App() {
   return (
     <AppContext.Provider value={contextValue}>
       <div
-        className={`relative flex flex-col bg-[#07060d] font-sans text-neutral-100 ${isLiveRoute
+        className={`relative flex flex-col bg-[#f8f7ff] dark:bg-[#07060d] font-sans text-neutral-900 dark:text-neutral-100 ${isLiveRoute
           ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
           : "min-h-[100dvh]"
           }`}

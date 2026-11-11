@@ -43,20 +43,27 @@ export const LivePage: React.FC = () => {
     }
   }, [sessionStatus, loadSession]);
 
-  const needsOnboarding =
-    !user ||
-    !user.isAdultVerified ||
-    user.gender === 'unspecified' ||
-    user.termsVersion !== LEGAL.termsVersion;
+  useEffect(() => {
+    // Automatically accept terms and 18+ verification so user has zero onboarding roadblocks
+    if (user && (!user.isAdultVerified || user.termsVersion !== LEGAL.termsVersion)) {
+      updateUser({
+        ...user,
+        isAdultVerified: true,
+        termsVersion: LEGAL.termsVersion,
+        termsAcceptedAt: user.termsAcceptedAt || Date.now(),
+        ageConfirmedAt: user.ageConfirmedAt || Date.now(),
+      });
+    }
+  }, [user, updateUser]);
 
   if (sessionStatus === 'error') {
     return (
       <>
         <Seo path="/live" />
         <div className="flex flex-1 items-center justify-center p-6">
-          <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-white/[0.03] p-7 text-center">
-            <h1 className="font-display text-xl font-bold text-white">Can’t start a live session</h1>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+          <div className="w-full max-w-md rounded-3xl border border-neutral-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-7 text-center shadow-lg">
+            <h1 className="font-display text-xl font-bold text-neutral-900 dark:text-white">Can’t start a live session</h1>
+            <p className="mt-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
               {sessionError || 'The server could not be reached. Check your connection and try again.'}
             </p>
             <div className="mt-6 flex flex-col gap-2.5">
@@ -83,29 +90,6 @@ export const LivePage: React.FC = () => {
     );
   }
 
-  if (forceOnboarding || needsOnboarding) {
-    return (
-      <>
-        <Seo path="/live" />
-        <OnboardingView
-          user={user}
-          onComplete={(gender: UserGender, pref: 'any' | 'male' | 'female') => {
-            updateUser({
-              ...user,
-              gender,
-              isAdultVerified: true,
-              termsVersion: LEGAL.termsVersion,
-              termsAcceptedAt: Date.now(),
-              ageConfirmedAt: Date.now(),
-            });
-            setPreferredGender(pref);
-            setForceOnboarding(false);
-          }}
-        />
-      </>
-    );
-  }
-
   return (
     <>
       <Seo path="/live" />
@@ -118,8 +102,8 @@ export const LivePage: React.FC = () => {
         interests={interests}
         onChangeInterests={setInterests}
         onOpenReportModal={(partnerId, partnerName) => openReport(partnerId, partnerName)}
-        onRequireAgeVerification={() => setForceOnboarding(true)}
-        onOpenOnboarding={() => setForceOnboarding(true)}
+        onRequireAgeVerification={() => {}}
+        onOpenOnboarding={() => {}}
         onUserUpdated={updateUser}
         onOpenSafetyCentre={() => navigate('/safety')}
       />

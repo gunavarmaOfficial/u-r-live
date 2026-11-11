@@ -1,63 +1,28 @@
-import React, { useState, KeyboardEvent } from 'react';
-import {
-  CameraVideoIcon,
-  Message01Icon,
-  Shield02Icon,
-  LockIcon,
-  ZapIcon,
-  Cancel01Icon,
-  CheckmarkCircle01Icon,
-  WebProtectionIcon,
-  Globe02Icon,
-  Tag01Icon,
-  SparklesIcon,
-} from 'hugeicons-react';
-import { useSystemHealth } from '../hooks/useSystemHealth';
-import { preloadLivePage } from '../lib/preload';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Logo } from './Logo';
 
-interface LandingViewProps {
+export interface LandingViewProps {
   onStartChat: (mode?: 'video' | 'text') => void;
-  onOpenGoogleModal: () => void;
-  onNavigateToSafety: () => void;
-  isGoogleUser: boolean;
-  googleEnabled: boolean;
+  onOpenGoogleModal?: () => void;
+  onNavigateToSafety?: () => void;
+  isGoogleUser?: boolean;
+  googleEnabled?: boolean;
 }
-
-const POPULAR_TAGS = [
-  'gaming',
-  'music',
-  'anime',
-  'movies',
-  'coding',
-  'crypto',
-  'art',
-  'travel',
-  'chat',
-];
 
 export const LandingView: React.FC<LandingViewProps> = ({
   onStartChat,
-  onOpenGoogleModal,
-  onNavigateToSafety,
-  isGoogleUser,
-  googleEnabled,
 }) => {
-  const metrics = useSystemHealth();
   const { interests, setInterests } = useApp();
   const [tagInput, setTagInput] = useState('');
-  const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  // Approximate active community counter with real telemetry floor
-  const activeCount = metrics.loaded
-    ? Math.max(1200 + metrics.queueLength * 15 + metrics.activeMatches * 42, 1420)
-    : 1850;
-
-  const handleAddTag = (tag: string) => {
-    const clean = tag.trim().toLowerCase().replace(/^#/, '');
-    if (!clean || interests.includes(clean)) return;
-    setInterests([...interests, clean]);
+  const handleAddTag = (raw: string) => {
+    const cleaned = raw.trim().replace(/^#+/, '').slice(0, 32);
+    if (!cleaned) return;
+    if (!interests.some((t) => t.toLowerCase() === cleaned.toLowerCase())) {
+      setInterests([...interests, cleaned]);
+    }
     setTagInput('');
   };
 
@@ -65,7 +30,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
     setInterests(interests.filter((t) => t !== tagToRemove));
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       handleAddTag(tagInput);
@@ -74,201 +39,213 @@ export const LandingView: React.FC<LandingViewProps> = ({
     }
   };
 
-  const handleStart = (mode: 'video' | 'text') => {
-    if (tagInput.trim()) {
-      handleAddTag(tagInput);
-    }
-    onStartChat(mode);
-  };
+  const faqs = [
+    {
+      q: 'How does interest matching work?',
+      a: 'When you enter topics you want to talk about, U-R-LIVE looks for other online users who entered matching tags. If a match is found, you are connected immediately; otherwise, you are paired with a random stranger.',
+    },
+    {
+      q: 'How does U-R-LIVE help keep chats safer?',
+      a: 'We enforce an 18+ age restriction, utilize automated real-time moderation, and empower every user with one-click report and instant block tools. Violators of community guidelines are permanently banned.',
+    },
+    {
+      q: 'Why choose U-R-LIVE for online video and text chat?',
+      a: 'U-R-LIVE provides peer-to-peer encrypted WebRTC connections with zero recordings, no account or credit card required, instant matchmaking, and the flexibility to switch between text and video at any time.',
+    },
+    {
+      q: 'Can I use U-R-LIVE on my phone?',
+      a: 'Yes! U-R-LIVE works natively in all modern mobile browsers on both iOS and Android without needing to download any app from an app store.',
+    },
+  ];
 
   return (
-    <div className="relative min-h-[calc(100dvh-4rem)] overflow-hidden bg-[#07060d] text-neutral-100 flex flex-col justify-between">
-      {/* Background ambient lighting */}
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-50" />
-      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[600px] rounded-full bg-red-600/10 blur-[160px]" />
-      <div className="pointer-events-none absolute -bottom-40 right-10 h-[450px] w-[450px] rounded-full bg-rose-600/10 blur-[150px]" />
+    <div className="relative min-h-[calc(100vh-64px)] w-full overflow-hidden bg-[#f8f7ff] dark:bg-[#07060d] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between transition-colors">
+      {/* Decorative ambient background blobs (Image 1 style) */}
+      <div
+        className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-purple-300/35 dark:bg-purple-900/15 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-indigo-300/35 dark:bg-indigo-900/15 blur-3xl"
+        aria-hidden="true"
+      />
 
-      <div className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-        {/* Omegle-Style Main Card */}
-        <div className="w-full rounded-3xl border border-white/10 bg-[#0c0a15]/90 p-5 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl sm:p-8">
-          {/* Top Brand Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
-            <div className="flex items-center gap-3">
-              <Logo size="md" />
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span>{activeCount.toLocaleString()}+ online now</span>
-            </div>
-          </div>
-
-          {/* Intro statement */}
-          <div className="mt-6 space-y-3 text-sm leading-relaxed text-neutral-300 sm:text-[15px]">
-            <p>
-              <strong className="text-white font-bold">U-R-LIVE</strong> is a great way to meet new
-              friends. When you use U-R-LIVE, you are paired randomly with another person to talk
-              one-on-one.
-            </p>
-            <p className="text-neutral-400 text-xs sm:text-sm">
-              If you prefer, you can add your interests below to be paired with people who share your
-              hobbies. Chats are strictly peer-to-peer and confidential until you choose to reveal yourself.
+      <main className="relative z-10 mx-auto w-full max-w-3xl px-4 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+        {/* Main Card Container */}
+        <div className="w-full rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#121024] p-6 shadow-[0_20px_60px_-15px_rgba(124,58,237,0.08)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:p-12 transition-colors">
+          {/* Header */}
+          <div className="text-center">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white sm:text-4xl">
+              Live Video &amp; Text Chat
+            </h1>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+              Ready to connect? U-R-LIVE pairs you for live video or text chat with people who share your interests. Fast, moderated, and time to start mingling!
             </p>
           </div>
 
-          {/* Interests Section ("What do you wanna talk about?") */}
-          <div className="mt-7 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-300">
-              <Tag01Icon size={14} className="text-red-400" />
-              <span>What do you wanna talk about? (Optional)</span>
-            </div>
+          {/* Text or Video Choice Buttons */}
+          <div className="mt-8 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => onStartChat('text')}
+              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl border-2 border-[#7c3aed] bg-white dark:bg-transparent px-8 text-lg font-bold text-[#7c3aed] dark:text-[#a78bfa] shadow-sm transition hover:bg-[#7c3aed]/10 active:scale-95 cursor-pointer"
+            >
+              Text
+            </button>
+            <span className="text-xs font-semibold text-neutral-400 dark:text-neutral-500">or</span>
+            <button
+              type="button"
+              onClick={() => onStartChat('video')}
+              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl bg-[#6d28d9] hover:bg-[#5b21b6] px-8 text-lg font-bold text-white shadow-lg shadow-purple-600/30 transition hover:shadow-purple-600/40 active:scale-95 cursor-pointer"
+            >
+              Video
+            </button>
+          </div>
 
-            {/* Interest tag chips input */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-black/40 p-2 focus-within:border-red-500/60 focus-within:ring-1 focus-within:ring-red-500/30 transition">
+          {/* Interest Tags Input */}
+          <div className="mt-8">
+            <h2 className="mb-2 text-center text-sm font-bold text-neutral-800 dark:text-neutral-200">
+              What do you want to talk about?
+            </h2>
+
+            <div className="mx-auto flex max-w-md flex-wrap items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50/70 dark:bg-white/[0.03] p-2 transition focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20">
               {interests.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-200"
+                  className="inline-flex items-center gap-1 rounded-lg bg-[#7c3aed]/10 dark:bg-[#7c3aed]/25 px-2.5 py-1 text-xs font-bold text-[#6d28d9] dark:text-[#c4b5fd]"
                 >
-                  <span>#{tag}</span>
+                  #{tag}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-white transition"
-                    aria-label={`Remove tag ${tag}`}
+                    aria-label={`Remove #${tag}`}
+                    className="ml-0.5 hover:text-rose-500"
                   >
-                    <Cancel01Icon size={12} />
+                    ×
                   </button>
                 </span>
               ))}
-
               <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  interests.length === 0
-                    ? 'Add interests (e.g. gaming, anime, music) separated by comma or Enter...'
-                    : 'Add more...'
-                }
-                className="min-w-[180px] flex-1 bg-transparent px-2 py-1 text-xs text-white placeholder-neutral-500 focus:outline-none"
+                placeholder={interests.length === 0 ? 'Add your interests (optional)' : 'Add another tag…'}
+                className="min-w-[160px] flex-1 bg-transparent px-2 py-1 text-center sm:text-left text-xs font-medium text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none"
               />
             </div>
+          </div>
 
-            {/* Quick-add popular tag pills */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
-              <span className="text-[11px] font-semibold text-neutral-500 mr-1">Suggestions:</span>
-              {POPULAR_TAGS.map((tag) => {
-                const isSelected = interests.includes(tag);
+          {/* 18+ Moderation Pill */}
+          <div className="mt-5 flex justify-center">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 bg-purple-50 dark:bg-purple-950/40 px-4 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
+              <span className="text-sm">💬</span>
+              <span>18+ Only · Chats are moderated</span>
+            </div>
+          </div>
+
+          {/* 4 Feature Highlights Grid */}
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="6" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+              </div>
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white">Interest-Based Matching</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Add topics you love and get paired with people who share them.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white">Active Moderation</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Automated systems and human mods work to keep chats in check.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                </svg>
+              </div>
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white">Global Community</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Thousands of people online around the world, day and night.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              </div>
+              <h3 className="text-xs font-bold text-neutral-900 dark:text-white">Fast &amp; Seamless</h3>
+              <p className="mt-1 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Jump into real-time video or text conversations in seconds.
+              </p>
+            </div>
+          </div>
+
+          {/* Frequently Asked Questions */}
+          <div className="mt-12 border-t border-neutral-100 dark:border-white/[0.08] pt-8">
+            <h3 className="mb-6 text-center font-display text-xl font-bold text-neutral-900 dark:text-white">
+              Frequently Asked Questions
+            </h3>
+            <div className="mx-auto flex max-w-2xl flex-col gap-2.5">
+              {faqs.map((faq, i) => {
+                const isOpen = openFaq === i;
                 return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => (isSelected ? handleRemoveTag(tag) : handleAddTag(tag))}
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${
-                      isSelected
-                        ? 'border border-red-500/40 bg-red-500/20 text-red-200'
-                        : 'border border-white/10 bg-white/[0.04] text-neutral-300 hover:border-white/20 hover:bg-white/[0.08]'
-                    }`}
+                  <div
+                    key={faq.q}
+                    className="overflow-hidden rounded-xl border border-neutral-200/80 dark:border-white/[0.08] bg-neutral-50/50 dark:bg-white/[0.02] transition"
                   >
-                    #{tag}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : i)}
+                      className="flex w-full items-center justify-between px-4 py-3.5 text-left text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                    >
+                      <span>{faq.q}</span>
+                      <span className="text-base leading-none text-neutral-400">{isOpen ? '−' : '+'}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="px-4 pb-3.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+                        {faq.a}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
           </div>
+        </div>
+      </main>
 
-          {/* Start Chatting: Big Action Buttons */}
-          <div className="mt-8">
-            <p className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3 text-center sm:text-left">
-              Start chatting:
-            </p>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {/* Text Chat Button */}
-              <button
-                type="button"
-                onClick={() => handleStart('text')}
-                onMouseEnter={preloadLivePage}
-                onFocus={preloadLivePage}
-                className="group relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-sky-400/30 bg-gradient-to-b from-sky-500/20 to-sky-600/10 p-5 text-white transition hover:border-sky-400/60 hover:from-sky-500/30 hover:to-sky-600/20 active:scale-[0.98] shadow-[0_10px_30px_-10px_rgba(56,189,248,0.25)]"
-              >
-                <div className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-sky-200 group-hover:text-white transition">
-                  <Message01Icon size={22} className="text-sky-400" />
-                  <span>Text</span>
-                </div>
-                <span className="text-xs text-neutral-400">Instant chat only · No camera required</span>
-              </button>
-
-              {/* Video Chat Button */}
-              <button
-                type="button"
-                onClick={() => handleStart('video')}
-                onMouseEnter={preloadLivePage}
-                onFocus={preloadLivePage}
-                className="group relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-red-500/40 bg-gradient-to-b from-red-600/25 to-rose-700/15 p-5 text-white transition hover:border-red-400 hover:from-red-600/35 hover:to-rose-700/25 active:scale-[0.98] shadow-[0_10px_35px_-10px_rgba(239,68,68,0.35)]"
-              >
-                <div className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-red-200 group-hover:text-white transition">
-                  <CameraVideoIcon size={22} className="text-red-400" />
-                  <span>Video</span>
-                </div>
-                <span className="text-xs text-neutral-300">Face-to-face video &amp; audio with chat</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 18+ Warning & Safety Checkpoint */}
-          <div className="mt-7 flex items-center justify-between gap-3 border-t border-white/[0.08] pt-5">
-            <label className="flex items-center gap-2.5 text-xs text-neutral-400 select-none cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-black/40 text-red-500 focus:ring-red-500/50"
-              />
-              <span>
-                I confirm I am <strong className="text-white">18 years or older</strong> and agree to community standards.
-              </span>
-            </label>
-
-            <button
-              type="button"
-              onClick={onNavigateToSafety}
-              className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-white transition underline decoration-white/20 underline-offset-4"
-            >
-              <Shield02Icon size={13} />
-              Safety Centre
-            </button>
+      {/* Footer */}
+      <footer className="relative z-10 w-full border-t border-neutral-200/80 dark:border-white/[0.06] bg-white/50 dark:bg-[#07060d]/50 px-4 py-4 text-xs text-neutral-500 dark:text-neutral-400">
+        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-3 sm:flex-row">
+          <span>&copy; {new Date().getFullYear()} U-R-LIVE.com</span>
+          <div className="flex items-center gap-4">
+            <Link to="/safety" className="hover:text-neutral-800 dark:hover:text-white transition">Rules</Link>
+            <Link to="/safety" className="hover:text-neutral-800 dark:hover:text-white transition">Safety</Link>
+            <Link to="/terms" className="hover:text-neutral-800 dark:hover:text-white transition">Terms</Link>
+            <Link to="/privacy" className="hover:text-neutral-800 dark:hover:text-white transition">Privacy</Link>
           </div>
         </div>
-
-        {/* Feature Badges below card */}
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 w-full">
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-neutral-400">
-            <LockIcon size={16} className="shrink-0 text-emerald-400" />
-            <span>Encrypted P2P Media</span>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-neutral-400">
-            <ZapIcon size={16} className="shrink-0 text-amber-400" />
-            <span>Instant Esc-Esc Skip</span>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-neutral-400">
-            <Globe02Icon size={16} className="shrink-0 text-sky-400" />
-            <span>Shared Tag Matching</span>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-neutral-400">
-            <WebProtectionIcon size={16} className="shrink-0 text-rose-400" />
-            <span>One-Tap Block &amp; Report</span>
-          </div>
-        </div>
-      </div>
+      </footer>
     </div>
   );
 };

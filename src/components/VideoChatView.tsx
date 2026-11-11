@@ -800,36 +800,48 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const micLabel = activeMic?.label || (isMicOn ? 'Default microphone' : 'Microphone muted');
   const usableAudioInputs = audioInputs.filter((device) => Boolean(device.deviceId));
 
-  /* ---------------- Chat panel ---------------- */
-  const chatBody = (
-    <div className="flex min-h-0 flex-1 flex-col font-sans">
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3 text-[13px]">
-        {/* Omegle system greeting */}
-        <div className="mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-xs text-neutral-400">
-          <p className="font-medium text-neutral-300">You're now chatting with a random stranger. Say hi!</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Video &amp; text are encrypted peer-to-peer. Keep it clean and respectful.</p>
+  /* ---------------- Chat pane (Umingle layout matching Image 2) ---------------- */
+  const chatPane = (
+    <div className="flex min-h-0 flex-1 flex-col font-sans bg-white dark:bg-[#12111f] rounded-2xl border border-neutral-200/80 dark:border-white/10 shadow-sm overflow-hidden">
+      {/* Welcome & Community Rules Header (matching Image 2) */}
+      <div className="shrink-0 p-5 sm:p-6 border-b border-neutral-100 dark:border-white/[0.06] bg-neutral-50/50 dark:bg-white/[0.01]">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-neutral-900 dark:text-white">
+          Welcome to U-R-LIVE.
+        </h2>
+        <div className="mt-2.5 flex items-center gap-2">
+          <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-black text-white">18+</span>
+          <span className="text-sm font-bold text-[#6d28d9] dark:text-[#a78bfa]">You must be 18 or older</span>
         </div>
+        <ul className="mt-2 space-y-1 text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          <li>No nudity, hate speech, or harassment</li>
+          <li>Your camera must show you, live</li>
+          <li>Do not ask for gender — this is not a dating site</li>
+        </ul>
+        <p className="mt-2 text-xs sm:text-sm font-black text-neutral-900 dark:text-white">
+          Violators will be banned
+        </p>
+      </div>
 
-        {/* Shared interests notification */}
+      {/* Scrollable messages history */}
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 text-[13px]">
         {partner?.sharedInterests && partner.sharedInterests.length > 0 && (
-          <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-200">
-            <span className="text-amber-400 shrink-0 text-sm">★</span>
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-300">
+            <span className="text-amber-400 text-sm">★</span>
             <span>You both like: {partner.sharedInterests.join(', ')}</span>
           </div>
         )}
 
-        {/* Messages list with classic Omegle You / Stranger styling */}
         {messages.map((msg) => (
           <div key={msg.id} className="leading-relaxed break-words py-0.5">
             {msg.isLocal ? (
               <>
-                <strong className="font-bold text-sky-400 mr-1.5 select-none">You:</strong>
-                <span className="text-neutral-100">{msg.text}</span>
+                <strong className="font-bold text-[#6d28d9] dark:text-[#a78bfa] mr-1.5 select-none">You:</strong>
+                <span className="text-neutral-800 dark:text-neutral-200">{msg.text}</span>
               </>
             ) : (
               <>
                 <strong className="font-bold text-rose-500 mr-1.5 select-none">Stranger:</strong>
-                <span className="text-neutral-100">{msg.text}</span>
+                <span className="text-neutral-800 dark:text-neutral-200">{msg.text}</span>
               </>
             )}
           </div>
@@ -841,23 +853,15 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           </div>
         )}
 
-        {/* Disconnect banners */}
         {state === 'remote_disconnected' && (
           <div className="my-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-center">
-            <p className="text-sm font-bold text-rose-300">Stranger has disconnected.</p>
-            <p className="mt-1 text-xs text-neutral-400">
-              Click <strong className="text-white">New</strong> or press{' '}
-              <kbd className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white">Esc</kbd> to find someone new.
-            </p>
-          </div>
-        )}
-
-        {state === 'local_disconnected' && (
-          <div className="my-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-center">
-            <p className="text-sm font-semibold text-neutral-300">You ended the chat.</p>
-            <p className="mt-1 text-xs text-neutral-400">
-              Click <strong className="text-white">New</strong> or press{' '}
-              <kbd className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white">Esc</kbd> to start another session.
+            <p className="text-sm font-bold text-rose-500 dark:text-rose-400">Stranger has disconnected.</p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Press <strong className="text-neutral-900 dark:text-white">New</strong> or press{' '}
+              <kbd className="rounded bg-black/10 dark:bg-black/50 px-1 py-0.5 font-mono text-[10px] text-neutral-800 dark:text-white">
+                Esc
+              </kbd>{' '}
+              to find someone new.
             </p>
           </div>
         )}
@@ -865,650 +869,206 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         <div ref={chatEndRef} />
       </div>
 
-      <form
-        onSubmit={handleSendMessage}
-        className="flex shrink-0 items-center gap-2 border-t border-white/[0.08] bg-[#090812] p-2.5"
-      >
-        <input
-          value={chatInput}
-          onChange={(e) => handleChatInput(e.target.value)}
-          disabled={!isConnected}
-          placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
-          className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-[13px] text-white placeholder:text-neutral-500 outline-none transition focus:border-red-500/50 focus:ring-1 focus:ring-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={!isConnected || !chatInput.trim()}
-          aria-label="Send message"
-          className="flex h-10 px-4 items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 font-bold text-xs text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <span>Send</span>
-          <SentIcon size={14} />
-        </button>
-      </form>
-    </div>
-  );
-
-  return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#07060d] text-neutral-100">
-      {/* ---------- Status strip ---------- */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] bg-[#0a0812]/70 px-3 py-2 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-          <span
-            className="truncate text-[11px] font-semibold text-neutral-300 sm:text-xs"
-            role="status"
-            aria-live="polite"
+      {/* Bottom options and input row (matching Image 2) */}
+      <div className="shrink-0 border-t border-neutral-200/80 dark:border-white/[0.08] bg-neutral-50/60 dark:bg-[#0d0c18] p-3 space-y-2.5">
+        {/* Quick options strip: Smart Match & Get Premium */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCountryModal(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/[0.08] transition cursor-pointer"
           >
-            {statusMessage}
-          </span>
-          {(isSearching || isConnected) && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-neutral-400">
-              <Clock01Icon size={11} />
-              {formatDuration(displaySeconds)}
-            </span>
-          )}
-        </div>
+            <span>🌍</span>
+            <span>Smart Match</span>
+            <span className="text-[10px] text-neutral-400">▾</span>
+          </button>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          {othersWaiting !== null && (
-            <span className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-neutral-400 sm:inline-flex">
-              <Globe02Icon size={11} />
-              {othersWaiting} waiting
-            </span>
-          )}
-          {user.isAdultVerified && (
-            <span className="hidden items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300 md:inline-flex">
-              <CheckmarkCircle01Icon size={11} />
-              18+
-            </span>
-          )}
           <button
             type="button"
             onClick={() => setShowSettingsModal(true)}
-            title="Audio and video settings"
-            aria-label="Audio and video settings"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-neutral-300 transition hover:bg-white/[0.1] lg:hidden"
+            className="flex items-center gap-1 rounded-lg bg-[#6d28d9] px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#5b21b6] transition cursor-pointer"
           >
-            <Settings02Icon size={12} />
+            <span>⚡</span>
+            <span>Get Premium</span>
           </button>
+
           {onChangeMode && (
             <button
               type="button"
               onClick={() => onChangeMode(mode === 'video' ? 'text' : 'video')}
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[10px] font-semibold text-neutral-300 transition hover:bg-white/[0.1]"
+              className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
             >
-              {mode === 'video' ? (
-                <>
-                  <Message01Icon size={12} className="text-sky-400" />
-                  <span>Switch to Text</span>
-                </>
-              ) : (
-                <>
-                  <CameraVideoIcon size={12} className="text-red-400" />
-                  <span>Switch to Video</span>
-                </>
-              )}
+              {mode === 'video' ? 'Switch to Text' : 'Switch to Video'}
             </button>
           )}
+        </div>
+
+        {/* Main Start / Stop button and text input (Image 2 style) */}
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={handleInvite}
-            title="Invite a friend"
-            aria-label="Invite a friend"
-            className="inline-flex h-7 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold text-neutral-300 transition hover:bg-white/[0.1]"
+            onClick={handleOmegleStop}
+            className={`flex h-12 w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md cursor-pointer ${
+              stopPhase === 'really'
+                ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
+                : stopPhase === 'new'
+                  ? 'bg-[#6d28d9] hover:bg-[#5b21b6]'
+                  : isConnected
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-[#6d28d9] hover:bg-[#5b21b6]'
+            }`}
           >
-            <Share01Icon size={12} />
-            <span className="hidden sm:inline">{inviteState === 'copied' ? 'Link copied' : 'Invite'}</span>
+            <span className="leading-tight">
+              {stopPhase === 'really'
+                ? 'Really?'
+                : stopPhase === 'new'
+                  ? isSearching
+                    ? 'Stop'
+                    : 'Start'
+                  : isConnected
+                    ? 'Stop'
+                    : 'Start'}
+            </span>
+            <span className="text-[10px] font-mono opacity-80 leading-tight">Esc</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab((tab) => (tab === 'chat' ? 'video' : 'chat'))}
-            aria-label="Toggle chat"
-            className="relative inline-flex h-7 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold text-neutral-300 transition hover:bg-white/[0.1] lg:hidden"
-          >
-            <Message01Icon size={12} />
-            Chat
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
+
+          <form onSubmit={handleSendMessage} className="flex flex-1 items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                value={chatInput}
+                onChange={(e) => handleChatInput(e.target.value)}
+                disabled={!isConnected}
+                placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
+                className="h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-4 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#6d28d9] focus:ring-2 focus:ring-[#6d28d9]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!isConnected || !chatInput.trim()}
+                aria-label="Send message"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#6d28d9] dark:hover:text-purple-400 disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
+              >
+                <svg className="h-5 w-5 rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
+    </div>
+  );
 
-      {/* ---------- Workspace ---------- */}
+  return (
+    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#f8f7ff] dark:bg-[#07060d] text-neutral-900 dark:text-neutral-100 transition-colors">
+      {/* Workspace */}
       {mode === 'text' ? (
-        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-3 p-3 sm:p-4">
-          <div className="surface-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-black/40 px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
-                  Omegle Text Mode
-                </span>
-                {interests && interests.length > 0 && (
-                  <span className="ml-2 hidden sm:inline-flex items-center gap-1 rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] text-neutral-400">
-                    Looking for: {interests.slice(0, 3).map((i) => `#${i}`).join(', ')}
-                  </span>
-                )}
-              </div>
-              <span className="max-w-[180px] truncate text-xs font-semibold text-neutral-400">
-                {partner?.name || (isSearching ? 'Looking for stranger...' : 'Stranger disconnected')}
-              </span>
-            </div>
-            {chatBody}
-          </div>
-
-          {/* Primary controls */}
-          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={handleOmegleStop}
-              className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold transition active:scale-[0.98] ${
-                stopPhase === 'really'
-                  ? 'border-amber-400 bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.6)] animate-pulse'
-                  : stopPhase === 'new'
-                    ? 'border-sky-400 bg-sky-500 text-white shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:bg-sky-400'
-                    : 'border-rose-500/40 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30'
-              }`}
-            >
-              <StopCircleIcon size={16} />
-              <span>
-                {stopPhase === 'really'
-                  ? 'Really?'
-                  : stopPhase === 'new'
-                    ? isSearching
-                      ? 'Stop'
-                      : 'New'
-                    : 'Stop'}
-              </span>
-              <kbd className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-80">
-                Esc
-              </kbd>
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePrimaryAction}
-              disabled={isSearching}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSearching ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-300" />
-                  <span>Searching…</span>
-                </>
-              ) : (
-                <>
-                  {isConnected ? (
-                    <ArrowRight01Icon size={17} />
-                  ) : (
-                    <PlayIcon size={17} />
-                  )}
-                  <span>{primaryLabel}</span>
-                  <kbd className="hidden sm:inline-block rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-70">
-                    Space
-                  </kbd>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowCountryModal(true)}
-              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
-            >
-              <span className="text-base leading-none">{currentCountryObj.flag}</span>
-              <span className="truncate">{currentCountryObj.name}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowGenderSheet(true)}
-              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
-            >
-              {genderAvatar(selfGender, 'h-6 w-6 shrink-0')}
-              <span className="truncate">{genderLabel(selfGender)}</span>
-            </button>
-          </div>
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-3 sm:p-4">
+          {chatPane}
         </div>
       ) : (
-        <div className="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-3 p-3 sm:p-4 lg:flex-row">
-        <div
-          className={`flex min-h-0 flex-1 flex-col gap-3 ${
-            mobileTab === 'chat' ? 'hidden lg:flex' : ''
-          }`}
-        >
-          {/* Video stage */}
-          <div
-            ref={stageRef}
-            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#050409]"
-          >
-            <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
+        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col lg:flex-row gap-4 p-3 sm:p-4">
+          {/* Left Column: Stacked dual video boxes (Image 2 style) */}
+          <div className="flex w-full lg:w-[480px] xl:w-[520px] flex-col gap-3 shrink-0">
+            {/* Top Box: Stranger Video */}
+            <div
+              ref={stageRef}
+              className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
+            >
+              <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
 
-            {/* Partner chip + actions while connected */}
-            {partner && isConnected && (
-              <>
-                <div className="absolute left-3 top-3 z-20 flex max-w-[70%] items-center gap-2 rounded-full border border-white/10 bg-black/55 px-2.5 py-1.5 backdrop-blur">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#7c3aed] to-[#06b6d4] text-[10px] font-bold text-white">
-                    {partner.name?.charAt(0).toUpperCase() || '?'}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-[11px] font-semibold text-white">{partner.name}</p>
-                    <p className="truncate text-[10px] text-neutral-400">
-                      {partnerCountryObj.flag} {partnerCountryObj.name}
-                    </p>
-                  </div>
+              {!remoteStream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
+                  {isSearching ? (
+                    <>
+                      <div className="h-10 w-10 animate-spin rounded-full border-3 border-purple-500/20 border-t-purple-500" />
+                      <p className="text-xs font-semibold text-neutral-400">Looking for someone to chat with…</p>
+                    </>
+                  ) : (
+                    <>
+                      <CameraOff01Icon size={28} className="text-neutral-500" />
+                      <p className="text-xs font-medium text-neutral-400">Press Start to connect with a stranger</p>
+                    </>
+                  )}
                 </div>
+              )}
+
+              {/* Watermark badge (Image 2 style) */}
+              <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+                <span className="text-purple-400">💬</span>
+                <span>u-r-live.com</span>
+              </div>
+
+              {/* Report button (Image 2 style) */}
+              {isConnected && (
                 <button
                   type="button"
-                  onClick={() => onOpenReportModal(partner.id, partner.name)}
-                  title="Report this person"
-                  aria-label="Report this person"
-                  className="absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/55 px-2.5 py-1.5 text-[10px] font-semibold text-neutral-300 backdrop-blur transition hover:text-rose-300"
+                  onClick={() => partner && onOpenReportModal(partner.id, partner.name)}
+                  aria-label="Report stranger"
+                  title="Report stranger"
+                  className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 backdrop-blur text-neutral-300 hover:text-rose-400 transition cursor-pointer shadow-sm"
                 >
-                  <AlertCircleIcon size={13} />
-                  Report
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                    <line x1="4" y1="22" x2="4" y2="15" />
+                  </svg>
                 </button>
-              </>
-            )}
+              )}
+            </div>
 
-            {/* Network quality */}
-            {network && isConnected && (
-              <div
-                className={`absolute bottom-3 left-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-semibold backdrop-blur ${QUALITY_META[network.quality].className}`}
-              >
-                <QualityBars quality={network.quality} />
-                {QUALITY_META[network.quality].label}
-              </div>
-            )}
+            {/* Bottom Box: Self preview (Your Camera) */}
+            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl overflow-hidden bg-black border border-neutral-200/80 dark:border-white/10 shadow-sm">
+              <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
 
-            {/* Message toast */}
-            <span className="sr-only" role="status" aria-live="polite">
-              {latestMessageToast ? `Stranger: ${latestMessageToast.text}` : ''}
-            </span>
-            {latestMessageToast && (
-              <button
-                type="button"
-                onClick={() => setMobileTab('chat')}
-                className="absolute bottom-3 left-1/2 z-30 max-w-[80%] -translate-x-1/2 truncate rounded-full border border-white/15 bg-black/75 px-3 py-1.5 text-[11px] backdrop-blur transition hover:bg-black/85"
-              >
-                <span className="font-semibold text-[#c4b5fd]">Stranger: </span>
-                <span className="text-neutral-200">{latestMessageToast.text}</span>
-              </button>
-            )}
+              {!localStream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0b0a14] text-center">
+                  <CameraOff01Icon size={24} className="text-neutral-600" />
+                  <p className="text-xs text-neutral-500">Camera preview</p>
+                </div>
+              )}
+              {!isCamOn && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+                  <CameraOff01Icon size={26} className="text-neutral-400" />
+                </div>
+              )}
 
-            {/* Mobile self preview */}
-            <div className="pip-frame absolute bottom-3 right-3 z-20 w-24 overflow-hidden rounded-xl bg-black lg:hidden">
-              <div className="relative aspect-video">
-                <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
-                <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[8px] font-semibold text-white/80">
-                  You
-                </span>
-                {!isCamOn && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                    <CameraOff01Icon size={16} className="text-neutral-400" />
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-center gap-2 border-t border-white/10 bg-black/60 py-1">
+              {/* You badge */}
+              <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
+                You
+              </span>
+
+              {/* Floating controls */}
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 z-10">
                 <button
                   type="button"
                   onClick={handleToggleMic}
                   aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                    isMicOn ? 'bg-white/10 text-white' : 'bg-rose-500/25 text-rose-200'
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
+                    isMicOn
+                      ? 'border-white/20 bg-black/60 text-white hover:bg-black/80'
+                      : 'border-rose-400/40 bg-rose-500/30 text-rose-100'
                   }`}
                 >
-                  {isMicOn ? <Mic01Icon size={12} /> : <MicOff01Icon size={12} />}
+                  {isMicOn ? <Mic01Icon size={14} /> : <MicOff01Icon size={14} />}
                 </button>
                 <button
                   type="button"
                   onClick={handleToggleCam}
                   aria-label={isCamOn ? 'Turn camera off' : 'Turn camera on'}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                    isCamOn ? 'bg-white/10 text-white' : 'bg-rose-500/25 text-rose-200'
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
+                    isCamOn
+                      ? 'border-white/20 bg-black/60 text-white hover:bg-black/80'
+                      : 'border-rose-400/40 bg-rose-500/30 text-rose-100'
                   }`}
                 >
-                  {isCamOn ? <CameraVideoIcon size={12} /> : <CameraOff01Icon size={12} />}
+                  {isCamOn ? <CameraVideoIcon size={14} /> : <CameraOff01Icon size={14} />}
                 </button>
               </div>
             </div>
-
-            {/* ---------- Stage overlays ---------- */}
-            {state === 'failed' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#08060f]/90 px-6 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/15 text-rose-300">
-                  <AlertCircleIcon size={22} />
-                </span>
-                <p className="max-w-xs text-sm font-semibold text-white">Could not connect</p>
-                <p className="max-w-xs text-[11px] leading-relaxed text-neutral-400">
-                  {statusMessage}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleStartSearch}
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 text-xs font-semibold text-white transition hover:bg-white/[0.12]"
-                >
-                  <PlayIcon size={14} />
-                  Try again
-                </button>
-              </div>
-            )}
-
-            {state === 'camera_unavailable' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#08060f]/90 px-6 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-300">
-                  <CameraOff01Icon size={22} />
-                </span>
-                <p className="max-w-xs text-sm font-semibold text-white">Camera unavailable</p>
-                <p className="max-w-xs text-[11px] leading-relaxed text-neutral-400">
-                  {statusMessage}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleStartSearch}
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 text-xs font-semibold text-white transition hover:bg-white/[0.12]"
-                >
-                  <PlayIcon size={14} />
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {isSearching && !remoteStream && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#08060f]/85 px-6 text-center">
-                <div className="relative flex h-32 w-32 items-center justify-center">
-                  <span className="absolute inset-0 rounded-full border border-red-500/25 animate-radar-1" />
-                  <span className="absolute inset-0 rounded-full border border-rose-500/25 animate-radar-2" />
-                  <span className="absolute inset-0 rounded-full border border-red-400/20 animate-radar-3" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0b0914] border border-white/10 shadow-[0_0_40px_-5px_rgba(239,68,68,0.7)] p-2">
-                    <img src="/logo-icon.png" alt="UR Live" className="h-full w-full object-contain" />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">
-                    {state === 'requesting_permissions' ? 'Getting you ready…' : 'Looking for someone new…'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-neutral-400">
-                    {othersWaiting !== null && othersWaiting > 0
-                      ? `${othersWaiting} more ${othersWaiting === 1 ? 'person' : 'people'} in the queue`
-                      : 'You are first in line'}
-                    {' · '}
-                    {formatDuration(searchSeconds)}
-                  </p>
-                </div>
-                <p className="max-w-[260px] text-[10px] leading-relaxed text-neutral-500">
-                  Stay on this screen. You will connect automatically as soon as someone joins.
-                </p>
-              </div>
-            )}
-
-            {(state === 'match_found' || state === 'connecting') && !remoteStream && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#08060f]/85 px-6 text-center">
-                <span className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-[#67e8f9]" />
-                <p className="text-sm font-semibold text-white">
-                  {partner ? `Connecting to ${partner.name}…` : 'Match found…'}
-                </p>
-                <p className="text-[11px] text-neutral-400">Setting up the encrypted stream</p>
-              </div>
-            )}
-
-            {state === 'remote_disconnected' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#08060f]/88 px-6 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-neutral-300">
-                  <ArrowLeft01Icon size={22} />
-                </span>
-                <p className="text-sm font-semibold text-white">Your partner left</p>
-                <p className="max-w-xs text-[11px] leading-relaxed text-neutral-400">
-                  Press Next to meet someone new right away.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="inline-flex h-9 items-center gap-2 rounded-full bg-emerald-500/90 px-4 text-xs font-bold text-emerald-950 transition hover:bg-emerald-400"
-                >
-                  Next
-                  <ArrowRight01Icon size={14} />
-                </button>
-              </div>
-            )}
-
-            {(state === 'idle' || state === 'local_disconnected') && !remoteStream && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#08060f]/80 px-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0b0914] border border-white/10 shadow-[0_0_35px_-8px_rgba(239,68,68,0.5)] p-2.5">
-                  <img src="/logo-icon.png" alt="UR Live" className="h-full w-full object-contain" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-white">Meet someone new</p>
-                  <p className="mt-1 max-w-[280px] text-[11px] leading-relaxed text-neutral-400">
-                    Press Start to join the live queue. Conversations are encrypted end to end.
-                  </p>
-                </div>
-                {othersWaiting !== null && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-neutral-400">
-                    <Globe02Icon size={11} />
-                    {othersWaiting > 0
-                      ? `${othersWaiting} ${othersWaiting === 1 ? 'person' : 'people'} waiting right now`
-                      : 'You would be first in the queue'}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={handleStartSearch}
-                  className="inline-flex h-10 items-center gap-2 rounded-full bg-emerald-500 px-5 text-xs font-bold text-emerald-950 transition hover:bg-emerald-400"
-                >
-                  <PlayIcon size={15} />
-                  Start
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Media fallback notice */}
-          {mediaFallback && (
-            <div className="flex shrink-0 items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-500/[0.08] px-3 py-2 text-[11px] text-amber-100/85">
-              <AlertCircleIcon size={14} className="mt-0.5 shrink-0" />
-              <p className="flex-1 leading-relaxed">{mediaFallback}</p>
-              <button
-                type="button"
-                onClick={() => setMediaFallback(null)}
-                aria-label="Dismiss notice"
-                className="text-amber-200/70 transition hover:text-amber-100"
-              >
-                <Cancel01Icon size={13} />
-              </button>
-            </div>
-          )}
-
-          {/* Primary controls with Omegle Stop / Really / New */}
-          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={handleOmegleStop}
-              className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold transition active:scale-[0.98] ${
-                stopPhase === 'really'
-                  ? 'border-amber-400 bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.6)] animate-pulse'
-                  : stopPhase === 'new'
-                    ? 'border-sky-400 bg-sky-500 text-white shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:bg-sky-400'
-                    : 'border-rose-500/40 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30'
-              }`}
-            >
-              <StopCircleIcon size={16} />
-              <span>
-                {stopPhase === 'really'
-                  ? 'Really?'
-                  : stopPhase === 'new'
-                    ? isSearching
-                      ? 'Stop'
-                      : 'New'
-                    : 'Stop'}
-              </span>
-              <kbd className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-80">
-                Esc
-              </kbd>
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePrimaryAction}
-              disabled={isSearching}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSearching ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-300" />
-                  <span>Searching…</span>
-                </>
-              ) : (
-                <>
-                  {primaryLabel === 'Next' ? (
-                    <ArrowRight01Icon size={17} />
-                  ) : (
-                    <PlayIcon size={17} />
-                  )}
-                  <span>{primaryLabel}</span>
-                  <kbd className="hidden sm:inline-block rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-70">
-                    Space
-                  </kbd>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowCountryModal(true)}
-              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
-            >
-              <span className="text-base leading-none">{currentCountryObj.flag}</span>
-              <span className="truncate">{currentCountryObj.name}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowGenderSheet(true)}
-              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
-            >
-              {genderAvatar(selfGender, 'h-6 w-6 shrink-0')}
-              <span className="truncate">{genderLabel(selfGender)}</span>
-            </button>
-          </div>
+          {/* Right Column: Chat Box */}
+          {chatPane}
         </div>
-
-        {/* ---------- Desktop rail ---------- */}
-        <aside className="hidden w-[320px] shrink-0 flex-col gap-3 lg:flex xl:w-[360px]">
-          <div className="relative aspect-video shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black">
-            <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
-            {!localStream && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0b0a14] text-center">
-                <CameraOff01Icon size={22} className="text-neutral-600" />
-                <p className="text-[10px] text-neutral-500">Camera preview</p>
-              </div>
-            )}
-            {!isCamOn && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                <CameraOff01Icon size={24} className="text-neutral-400" />
-              </div>
-            )}
-            <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white/85">
-              You
-            </span>
-            <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleToggleMic}
-                aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-                className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition ${
-                  isMicOn
-                    ? 'border-white/15 bg-black/50 text-white hover:bg-black/70'
-                    : 'border-rose-400/40 bg-rose-500/25 text-rose-100'
-                }`}
-              >
-                {isMicOn ? <Mic01Icon size={14} /> : <MicOff01Icon size={14} />}
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleCam}
-                aria-label={isCamOn ? 'Turn camera off' : 'Turn camera on'}
-                className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition ${
-                  isCamOn
-                    ? 'border-white/15 bg-black/50 text-white hover:bg-black/70'
-                    : 'border-rose-400/40 bg-rose-500/25 text-rose-100'
-                }`}
-              >
-                {isCamOn ? <CameraVideoIcon size={14} /> : <CameraOff01Icon size={14} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid shrink-0 grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] text-[11px] font-semibold text-neutral-200 transition hover:bg-white/[0.1]"
-            >
-              <FullScreenIcon size={14} />
-              {isFullscreen ? 'Exit' : 'Full Screen'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowSettingsModal(true)}
-              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] text-[11px] font-semibold text-neutral-200 transition hover:bg-white/[0.1]"
-            >
-              <Settings02Icon size={14} />
-              Settings
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowSettingsModal(true)}
-            className="flex h-9 w-full shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-3 text-[11px] text-neutral-300 transition hover:bg-white/[0.08]"
-          >
-            <Mic01Icon size={13} className="shrink-0 text-[#67e8f9]" />
-            <span className="min-w-0 flex-1 truncate text-left">{micLabel}</span>
-            <Settings02Icon size={12} className="shrink-0 text-neutral-500" />
-          </button>
-
-          <div className="surface-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-300">
-                  Chat
-                </span>
-              </div>
-              <span className="max-w-[140px] truncate text-[10px] text-neutral-500">
-                {partner?.name || 'No one yet'}
-              </span>
-            </div>
-            {chatBody}
-          </div>
-        </aside>
-
-        {/* ---------- Mobile chat ---------- */}
-        {mobileTab === 'chat' && (
-          <div className="surface-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl lg:hidden">
-            <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-2.5 py-2">
-              <button
-                type="button"
-                onClick={() => setMobileTab('video')}
-                aria-label="Back to video"
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-neutral-300"
-              >
-                <ArrowLeft01Icon size={14} />
-              </button>
-              <span className="text-xs font-bold text-white">Chat</span>
-              <span className="ml-auto max-w-[140px] truncate text-[10px] text-neutral-500">
-                {partner?.name || 'No one yet'}
-              </span>
-            </div>
-            {chatBody}
-          </div>
-        )}
-      </div>
       )}
 
       {/* ---------- Country / language ---------- */}

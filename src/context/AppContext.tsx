@@ -9,6 +9,7 @@ export interface AppContextValue {
   preferredGender: PreferredGender;
   interests: string[];
   chatMode: ChatMode;
+  theme: 'light' | 'dark';
   sessionStatus: SessionStatus;
   sessionError: string | null;
   googleEnabled: boolean;
@@ -19,6 +20,7 @@ export interface AppContextValue {
   setPreferredGender: (gender: PreferredGender) => void;
   setInterests: (interests: string[]) => void;
   setChatMode: (mode: ChatMode) => void;
+  toggleTheme: () => void;
   signOut: () => void;
   openSettings: () => void;
   openGoogle: () => void;

@@ -10,7 +10,7 @@ import { UserProfile } from './types';
 
 const SESSION_SECRET =
   process.env.SESSION_SECRET ||
-  (process.env.NODE_ENV === 'production'
+  (process.env.NODE_ENV === 'production' && !process.env.VERCEL
     ? (() => {
         throw new Error('SESSION_SECRET environment variable is required in production');
       })()

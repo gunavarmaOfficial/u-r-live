@@ -23,11 +23,15 @@ export const LivePage: React.FC = () => {
   const {
     user,
     preferredGender,
+    interests,
+    chatMode,
     sessionStatus,
     sessionError,
     loadSession,
     updateUser,
     setPreferredGender,
+    setInterests,
+    setChatMode,
     openReport,
   } = useApp();
   const [forceOnboarding, setForceOnboarding] = useState(false);
@@ -109,6 +113,10 @@ export const LivePage: React.FC = () => {
         user={user}
         preferredGender={preferredGender}
         onChangePreferredGender={setPreferredGender}
+        mode={chatMode}
+        onChangeMode={setChatMode}
+        interests={interests}
+        onChangeInterests={setInterests}
         onOpenReportModal={(partnerId, partnerName) => openReport(partnerId, partnerName)}
         onRequireAgeVerification={() => setForceOnboarding(true)}
         onOpenOnboarding={() => setForceOnboarding(true)}

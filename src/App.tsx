@@ -22,7 +22,7 @@ import {
   SessionStatus,
 } from "./context/AppContext";
 import { useVisibility } from "./hooks/useVisibility";
-import { UserProfile } from "./types";
+import { UserProfile, ChatMode } from "./types";
 import {
   api,
   clearStoredSessionToken,
@@ -58,10 +58,26 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [preferredGender, setPreferredGender] =
     useState<PreferredGender>("any");
+  const [interests, setInterestsState] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("omelive_interests");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [chatMode, setChatMode] = useState<ChatMode>("video");
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("idle");
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  const setInterests = useCallback((tags: string[]) => {
+    setInterestsState(tags);
+    try {
+      localStorage.setItem("omelive_interests", JSON.stringify(tags));
+    } catch {}
+  }, []);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
@@ -146,6 +162,8 @@ export default function App() {
     () => ({
       user,
       preferredGender,
+      interests,
+      chatMode,
       sessionStatus,
       sessionError,
       googleEnabled,
@@ -154,6 +172,8 @@ export default function App() {
       applySession,
       updateUser,
       setPreferredGender,
+      setInterests,
+      setChatMode,
       signOut,
       openSettings: () => setIsSettingsModalOpen(true),
       openGoogle: () => {
@@ -165,6 +185,8 @@ export default function App() {
     [
       user,
       preferredGender,
+      interests,
+      chatMode,
       sessionStatus,
       sessionError,
       googleEnabled,
@@ -172,6 +194,8 @@ export default function App() {
       loadSession,
       applySession,
       updateUser,
+      setInterests,
+      setChatMode,
       signOut,
     ],
   );

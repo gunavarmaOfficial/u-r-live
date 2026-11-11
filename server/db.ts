@@ -19,7 +19,9 @@ import {
 
 const { Pool } = pg;
 
-const DATA_DIR = path.resolve(process.cwd(), '.data');
+const DATA_DIR = process.env.VERCEL
+  ? path.resolve('/tmp', '.data')
+  : path.resolve(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'omelive_db.json');
 
 export interface UserPreferences {

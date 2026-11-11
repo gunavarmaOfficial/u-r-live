@@ -21,7 +21,7 @@ import {
   WebProtectionIcon,
 } from 'hugeicons-react';
 import { WebRTCManager, NetworkQuality, NetworkStats } from '../services/webrtc';
-import { WebRTCState, MatchPreferences, ChatMessage, UserProfile } from '../types';
+import { WebRTCState, MatchPreferences, ChatMessage, UserProfile, ChatMode } from '../types';
 import { api } from '../services/api';
 import { COUNTRIES } from '../data/constants';
 import { ThreeDMaleAvatar, ThreeDFemaleAvatar, ThreeDOtherAvatar, ThreeDGlobeIcon } from './ThreeDIcons';
@@ -34,6 +34,10 @@ interface VideoChatViewProps {
   onOpenOnboarding?: () => void;
   preferredGender?: 'any' | 'male' | 'female';
   onChangePreferredGender?: (gender: 'any' | 'male' | 'female') => void;
+  mode?: ChatMode;
+  onChangeMode?: (mode: ChatMode) => void;
+  interests?: string[];
+  onChangeInterests?: (interests: string[]) => void;
   onUserUpdated?: (user: UserProfile) => void;
   onOpenSafetyCentre?: () => void;
 }
@@ -141,6 +145,10 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   onRequireAgeVerification,
   onOpenOnboarding,
   preferredGender = 'any',
+  mode = 'video',
+  onChangeMode,
+  interests = [],
+  onChangeInterests,
   onUserUpdated,
   onOpenSafetyCentre,
 }) => {
@@ -151,6 +159,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const typingClearRef = useRef<number | null>(null);
   const inviteTimerRef = useRef<number | null>(null);
   const mobileTabRef = useRef<'video' | 'chat'>('video');
+  const stopTimeoutRef = useRef<number | null>(null);
+
+  const [stopPhase, setStopPhase] = useState<'stop' | 'really' | 'new'>('new');
 
   const [state, setState] = useState<WebRTCState>('idle');
   const [statusMessage, setStatusMessage] = useState<string>('Ready when you are.');
@@ -304,7 +315,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   const buildCurrentPreferences = useCallback((): MatchPreferences => {
     return {
-      mode: 'video',
+      mode: mode || 'video',
+      interests: interests || [],
+      interestMatchingEnabled: Boolean(interests && interests.length > 0),
       preferredCountry: selectedCountry,
       preferredCountries: selectedCountries,
       isMultipleCountries: isMultipleCountries,
@@ -314,6 +327,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       primaryLanguage: selectedLanguage,
     };
   }, [
+    mode,
+    interests,
     selectedCountry,
     selectedCountries,
     isMultipleCountries,
@@ -328,6 +343,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
     if (newState === 'connected') {
       setConnectedAt(Date.now());
+      setStopPhase('stop');
     } else if (
       newState === 'idle' ||
       newState === 'local_disconnected' ||
@@ -337,6 +353,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     ) {
       setConnectedAt(null);
       setNetwork(null);
+      if (newState === 'remote_disconnected' || newState === 'local_disconnected' || newState === 'idle') {
+        setStopPhase('new');
+      }
     }
     if (newState !== 'connected') {
       setPeerTyping(false);
@@ -695,33 +714,60 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     handleStartSearch();
   };
 
-  // Space starts a search or skips to the next partner; Esc leaves the queue.
+  const handleOmegleStop = useCallback(() => {
+    if (stopPhase === 'stop') {
+      if (isConnected || state === 'match_found' || state === 'connecting') {
+        setStopPhase('really');
+        if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+        stopTimeoutRef.current = window.setTimeout(() => {
+          setStopPhase('stop');
+        }, 3500);
+      } else if (isSearching) {
+        handleStop();
+        setStopPhase('new');
+      } else {
+        handleStop();
+        setStopPhase('new');
+      }
+    } else if (stopPhase === 'really') {
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      handleStop();
+      setStopPhase('new');
+    } else if (stopPhase === 'new') {
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      handleStartSearch();
+      setStopPhase('stop');
+    }
+  }, [stopPhase, isConnected, state, isSearching, handleStop, handleStartSearch]);
+
+  const handleOmegleStopRef = useRef(handleOmegleStop);
+  handleOmegleStopRef.current = handleOmegleStop;
+
+  // Space starts a search or skips to the next partner; Esc triggers Omegle Stop/Really/New.
   const primaryActionRef = useRef(handlePrimaryAction);
   primaryActionRef.current = handlePrimaryAction;
-  const searchingRef = useRef(isSearching);
-  searchingRef.current = isSearching;
-  const stopRef = useRef(handleStop);
-  stopRef.current = handleStop;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleOmegleStopRef.current();
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       const isTyping =
         !!target &&
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (isTyping || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
 
       if (event.code === 'Space' || event.key === ' ') {
         if (event.repeat) return;
         event.preventDefault();
         primaryActionRef.current();
         return;
-      }
-
-      if (event.key === 'Escape' && searchingRef.current) {
-        event.preventDefault();
-        stopRef.current();
       }
     };
 
@@ -756,75 +802,88 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   /* ---------------- Chat panel ---------------- */
   const chatBody = (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 p-2.5 pb-0">
-        <div className="rounded-xl border border-amber-400/20 bg-amber-500/[0.07] p-2.5">
-          <p className="text-[11px] leading-relaxed text-amber-100/80">
-            By pressing <span className="font-semibold text-amber-200">Start</span>, you agree to our
-            rules. Rule violators will be banned. Please keep your face visible in the camera frame.
-          </p>
-          <button
-            type="button"
-            onClick={() => onOpenSafetyCentre?.()}
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 transition hover:text-amber-200"
-          >
-            <WebProtectionIcon size={12} />
-            Read the rules
-          </button>
+    <div className="flex min-h-0 flex-1 flex-col font-sans">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3 text-[13px]">
+        {/* Omegle system greeting */}
+        <div className="mb-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-xs text-neutral-400">
+          <p className="font-medium text-neutral-300">You're now chatting with a random stranger. Say hi!</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Video &amp; text are encrypted peer-to-peer. Keep it clean and respectful.</p>
         </div>
-      </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-2.5">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-neutral-500">
-              <Message01Icon size={16} />
-            </span>
-            <p className="text-[11px] text-neutral-500">
-              {isConnected ? 'Say hello 👋' : 'Messages open when you connect.'}
+        {/* Shared interests notification */}
+        {partner?.sharedInterests && partner.sharedInterests.length > 0 && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-200">
+            <span className="text-amber-400 shrink-0 text-sm">★</span>
+            <span>You both like: {partner.sharedInterests.join(', ')}</span>
+          </div>
+        )}
+
+        {/* Messages list with classic Omegle You / Stranger styling */}
+        {messages.map((msg) => (
+          <div key={msg.id} className="leading-relaxed break-words py-0.5">
+            {msg.isLocal ? (
+              <>
+                <strong className="font-bold text-sky-400 mr-1.5 select-none">You:</strong>
+                <span className="text-neutral-100">{msg.text}</span>
+              </>
+            ) : (
+              <>
+                <strong className="font-bold text-rose-500 mr-1.5 select-none">Stranger:</strong>
+                <span className="text-neutral-100">{msg.text}</span>
+              </>
+            )}
+          </div>
+        ))}
+
+        {peerTyping && (
+          <div className="py-1 text-xs italic text-neutral-400 select-none animate-pulse">
+            Stranger is typing…
+          </div>
+        )}
+
+        {/* Disconnect banners */}
+        {state === 'remote_disconnected' && (
+          <div className="my-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-center">
+            <p className="text-sm font-bold text-rose-300">Stranger has disconnected.</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Click <strong className="text-white">New</strong> or press{' '}
+              <kbd className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white">Esc</kbd> to find someone new.
             </p>
           </div>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.isLocal ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`${
-                  msg.isLocal ? 'chat-bubble-local' : 'chat-bubble-remote'
-                } max-w-[85%] rounded-2xl px-3 py-2 text-[12px] leading-relaxed break-words`}
-              >
-                {msg.text}
-              </div>
-            </div>
-          ))
         )}
-        {peerTyping && (
-          <div className="flex justify-start">
-            <div className="chat-bubble-remote rounded-2xl px-3 py-2 text-[11px] italic text-neutral-400">
-              Stranger is typing…
-            </div>
+
+        {state === 'local_disconnected' && (
+          <div className="my-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-center">
+            <p className="text-sm font-semibold text-neutral-300">You ended the chat.</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Click <strong className="text-white">New</strong> or press{' '}
+              <kbd className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[10px] text-white">Esc</kbd> to start another session.
+            </p>
           </div>
         )}
+
         <div ref={chatEndRef} />
       </div>
 
       <form
         onSubmit={handleSendMessage}
-        className="flex shrink-0 items-center gap-2 border-t border-white/[0.06] p-2.5"
+        className="flex shrink-0 items-center gap-2 border-t border-white/[0.08] bg-[#090812] p-2.5"
       >
         <input
           value={chatInput}
           onChange={(e) => handleChatInput(e.target.value)}
           disabled={!isConnected}
-          placeholder={isConnected ? 'Write a message' : 'Write a message (connect first)'}
-          className="h-9 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[0.05] px-3 text-[12px] text-white placeholder:text-neutral-500 outline-none transition focus:border-[#8b5cf6]/50 disabled:cursor-not-allowed disabled:opacity-50"
+          placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
+          className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-[13px] text-white placeholder:text-neutral-500 outline-none transition focus:border-red-500/50 focus:ring-1 focus:ring-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={!isConnected || !chatInput.trim()}
           aria-label="Send message"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#06b6d4] text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 px-4 items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 font-bold text-xs text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <SentIcon size={15} />
+          <span>Send</span>
+          <SentIcon size={14} />
         </button>
       </form>
     </div>
@@ -873,6 +932,25 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           >
             <Settings02Icon size={12} />
           </button>
+          {onChangeMode && (
+            <button
+              type="button"
+              onClick={() => onChangeMode(mode === 'video' ? 'text' : 'video')}
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[10px] font-semibold text-neutral-300 transition hover:bg-white/[0.1]"
+            >
+              {mode === 'video' ? (
+                <>
+                  <Message01Icon size={12} className="text-sky-400" />
+                  <span>Switch to Text</span>
+                </>
+              ) : (
+                <>
+                  <CameraVideoIcon size={12} className="text-red-400" />
+                  <span>Switch to Video</span>
+                </>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleInvite}
@@ -901,7 +979,103 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* ---------- Workspace ---------- */}
-      <div className="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-3 p-3 sm:p-4 lg:flex-row">
+      {mode === 'text' ? (
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-3 p-3 sm:p-4">
+          <div className="surface-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-black/40 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
+                  Omegle Text Mode
+                </span>
+                {interests && interests.length > 0 && (
+                  <span className="ml-2 hidden sm:inline-flex items-center gap-1 rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] text-neutral-400">
+                    Looking for: {interests.slice(0, 3).map((i) => `#${i}`).join(', ')}
+                  </span>
+                )}
+              </div>
+              <span className="max-w-[180px] truncate text-xs font-semibold text-neutral-400">
+                {partner?.name || (isSearching ? 'Looking for stranger...' : 'Stranger disconnected')}
+              </span>
+            </div>
+            {chatBody}
+          </div>
+
+          {/* Primary controls */}
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              type="button"
+              onClick={handleOmegleStop}
+              className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold transition active:scale-[0.98] ${
+                stopPhase === 'really'
+                  ? 'border-amber-400 bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.6)] animate-pulse'
+                  : stopPhase === 'new'
+                    ? 'border-sky-400 bg-sky-500 text-white shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:bg-sky-400'
+                    : 'border-rose-500/40 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30'
+              }`}
+            >
+              <StopCircleIcon size={16} />
+              <span>
+                {stopPhase === 'really'
+                  ? 'Really?'
+                  : stopPhase === 'new'
+                    ? isSearching
+                      ? 'Stop'
+                      : 'New'
+                    : 'Stop'}
+              </span>
+              <kbd className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-80">
+                Esc
+              </kbd>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrimaryAction}
+              disabled={isSearching}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSearching ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-300" />
+                  <span>Searching…</span>
+                </>
+              ) : (
+                <>
+                  {isConnected ? (
+                    <ArrowRight01Icon size={17} />
+                  ) : (
+                    <PlayIcon size={17} />
+                  )}
+                  <span>{primaryLabel}</span>
+                  <kbd className="hidden sm:inline-block rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-70">
+                    Space
+                  </kbd>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowCountryModal(true)}
+              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
+            >
+              <span className="text-base leading-none">{currentCountryObj.flag}</span>
+              <span className="truncate">{currentCountryObj.name}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowGenderSheet(true)}
+              className="flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2 text-xs font-semibold text-neutral-200 transition hover:bg-white/[0.09]"
+            >
+              {genderAvatar(selfGender, 'h-6 w-6 shrink-0')}
+              <span className="truncate">{genderLabel(selfGender)}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-3 p-3 sm:p-4 lg:flex-row">
         <div
           className={`flex min-h-0 flex-1 flex-col gap-3 ${
             mobileTab === 'chat' ? 'hidden lg:flex' : ''
@@ -1149,18 +1323,44 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             </div>
           )}
 
-          {/* Primary controls */}
+          {/* Primary controls with Omegle Stop / Really / New */}
           <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              type="button"
+              onClick={handleOmegleStop}
+              className={`flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold transition active:scale-[0.98] ${
+                stopPhase === 'really'
+                  ? 'border-amber-400 bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.6)] animate-pulse'
+                  : stopPhase === 'new'
+                    ? 'border-sky-400 bg-sky-500 text-white shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:bg-sky-400'
+                    : 'border-rose-500/40 bg-rose-600/20 text-rose-200 hover:bg-rose-600/30'
+              }`}
+            >
+              <StopCircleIcon size={16} />
+              <span>
+                {stopPhase === 'really'
+                  ? 'Really?'
+                  : stopPhase === 'new'
+                    ? isSearching
+                      ? 'Stop'
+                      : 'New'
+                    : 'Stop'}
+              </span>
+              <kbd className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-80">
+                Esc
+              </kbd>
+            </button>
+
             <button
               type="button"
               onClick={handlePrimaryAction}
               disabled={isSearching}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSearching ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-300" />
-                  Searching…
+                  <span>Searching…</span>
                 </>
               ) : (
                 <>
@@ -1169,19 +1369,12 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                   ) : (
                     <PlayIcon size={17} />
                   )}
-                  {primaryLabel}
+                  <span>{primaryLabel}</span>
+                  <kbd className="hidden sm:inline-block rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono opacity-70">
+                    Space
+                  </kbd>
                 </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleStop}
-              disabled={!canStop}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-rose-400/25 bg-rose-500/10 text-xs font-bold text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <StopCircleIcon size={17} />
-              Stop
             </button>
 
             <button
@@ -1316,6 +1509,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* ---------- Country / language ---------- */}
       <CountryFilterModal

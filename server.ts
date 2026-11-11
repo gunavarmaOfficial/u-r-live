@@ -884,9 +884,11 @@ app.get('/readyz', async (_req: Request, res: Response) => {
   });
 });
 
-// Setup WebSocket Signaling
-const wss = new WebSocketServer({ server, path: '/ws' });
-setupSignaling(wss);
+// Setup WebSocket Signaling (skipped in Vercel serverless functions)
+const wss = new WebSocketServer(process.env.VERCEL ? { noServer: true } : { server, path: '/ws' });
+if (!process.env.VERCEL) {
+  setupSignaling(wss);
+}
 
 // Unknown API routes must return JSON, never the SPA HTML document —
 // the client parses every /api response as JSON and a doctype page

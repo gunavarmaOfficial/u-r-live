@@ -1,4 +1,4 @@
-import { UserProfile, Subscription, PlanInfo, UserReport } from '../types';
+import { UserProfile, UserReport } from '../types';
 
 const STORAGE_USER_ID_KEY = 'omelive_session_user_id';
 const STORAGE_SESSION_TOKEN_KEY = 'omelive_session_token';
@@ -133,8 +133,6 @@ function persistSession(data: {
 
 export interface SessionResponse {
   user: UserProfile;
-  isPro: boolean;
-  subscription: Subscription | null;
   sessionToken?: string;
 }
 
@@ -232,34 +230,13 @@ export const api = {
     return data;
   },
 
-  async getPlans(): Promise<{ plans: PlanInfo[] }> {
-    return request('/api/subscription/plans');
-  },
-
-  async createSubscriptionOrder(): Promise<any> {
-    return request('/api/subscription/create-order', { method: 'POST' });
-  },
-
-  async verifySubscriptionPayment(payload: {
-    orderId: string;
-  }): Promise<{ success: boolean; message: string; subscription: Subscription; isPro: boolean }> {
-    return request('/api/subscription/verify', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async adminLogin(adminKey: string): Promise<{ user: UserProfile; sessionToken: string; isPro: boolean }> {
-    const data = await request<{ user: UserProfile; sessionToken: string; isPro: boolean }>(
+  async adminLogin(adminKey: string): Promise<{ user: UserProfile; sessionToken: string }> {
+    const data = await request<{ user: UserProfile; sessionToken: string }>(
       '/api/auth/admin-login',
       { method: 'POST', body: JSON.stringify({ adminKey }) }
     );
     if (data.sessionToken) setStoredSessionToken(data.sessionToken);
     return data;
-  },
-
-  async cancelSubscription(): Promise<{ success: boolean; message: string; subscription: Subscription }> {
-    return request('/api/subscription/cancel', { method: 'POST' });
   },
 
   async submitReport(payload: {
@@ -308,7 +285,7 @@ export const api = {
     return request('/api/system/health');
   },
 
-  async getUserPreferences(): Promise<{ preferences: any; isPro: boolean }> {
+  async getUserPreferences(): Promise<{ preferences: any }> {
     return request('/api/user/preferences');
   },
 
@@ -321,7 +298,7 @@ export const api = {
     preferredGender?: 'any' | 'male' | 'female';
     chatMode?: 'video' | 'text';
     interests?: string[];
-  }): Promise<{ success: boolean; preferences: any; isPro: boolean }> {
+  }): Promise<{ success: boolean; preferences: any }> {
     return request('/api/user/preferences', {
       method: 'POST',
       body: JSON.stringify(prefs),
@@ -336,8 +313,6 @@ export const api = {
     totalUsers: number;
     activeQueueLength: number;
     activeMatchesCount: number;
-    proSubscribers: number;
-    monthlyRevenueInr: number;
     pendingReportsCount: number;
     totalReportsCount: number;
   }> {
@@ -362,7 +337,7 @@ export const api = {
     });
   },
 
-  async getAdminUsers(): Promise<{ users: (UserProfile & { isPro: boolean })[] }> {
+  async getAdminUsers(): Promise<{ users: UserProfile[] }> {
     return request('/api/admin/users');
   },
 

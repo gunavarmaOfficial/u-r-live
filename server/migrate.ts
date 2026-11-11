@@ -70,8 +70,6 @@ export async function runMigration(databaseUrl?: string) {
     // 2. Import existing JSON data if available
     let importCounts = {
       users: 0,
-      subscriptions: 0,
-      paymentEvents: 0,
       reports: 0,
       blocks: 0,
       auditLogs: 0,
@@ -126,75 +124,6 @@ export async function runMigration(databaseUrl?: string) {
             ]
           );
           importCounts.users++;
-        }
-      }
-
-      // Import Subscriptions
-      if (data.subscriptions && typeof data.subscriptions === 'object') {
-        const subs = Object.values(data.subscriptions) as any[];
-        for (const s of subs) {
-          // Ensure user exists first before adding foreign key
-          const userCheck = await client.query('SELECT id FROM users WHERE id = $1', [s.userId]);
-          if (userCheck.rowCount === 0) {
-            await client.query(
-              `INSERT INTO users (id, display_name, role, status, created_at, last_active_at)
-               VALUES ($1, $2, 'user', 'active', $3, $3)
-               ON CONFLICT (id) DO NOTHING`,
-              [s.userId, 'Subscriber', Number(s.createdAt || Date.now())]
-            );
-          }
-
-          await client.query(
-            `INSERT INTO subscriptions (
-              id, user_id, provider, provider_customer_id, provider_subscription_id,
-              plan_code, status, current_period_start, current_period_end, cancel_at_period_end,
-              created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            ON CONFLICT (id) DO UPDATE SET
-              status = EXCLUDED.status,
-              current_period_start = EXCLUDED.current_period_start,
-              current_period_end = EXCLUDED.current_period_end,
-              cancel_at_period_end = EXCLUDED.cancel_at_period_end,
-              updated_at = EXCLUDED.updated_at`,
-            [
-              s.id,
-              s.userId,
-              s.provider || 'cashfree',
-              s.providerCustomerId || 'cust_' + s.userId,
-              s.providerSubscriptionId || s.id,
-              s.planCode || 'pro_monthly_299',
-              s.status || 'active',
-              Number(s.currentPeriodStart || Date.now()),
-              Number(s.currentPeriodEnd || Date.now() + 30 * 86400000),
-              s.cancelAtPeriodEnd ?? false,
-              Number(s.createdAt || Date.now()),
-              Number(s.updatedAt || Date.now()),
-            ]
-          );
-          importCounts.subscriptions++;
-        }
-      }
-
-      // Import Payment Events
-      if (data.paymentEvents && typeof data.paymentEvents === 'object') {
-        const events = Object.values(data.paymentEvents) as any[];
-        for (const pe of events) {
-          await client.query(
-            `INSERT INTO payment_events (
-              id, provider, provider_event_id, event_type, processing_status, received_at, payload
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (provider, provider_event_id) DO NOTHING`,
-            [
-              pe.id,
-              pe.provider || 'cashfree',
-              pe.providerEventId,
-              pe.eventType || 'unknown',
-              pe.processingStatus || 'processed',
-              Number(pe.receivedAt || Date.now()),
-              JSON.stringify(pe.payload || {}),
-            ]
-          );
-          importCounts.paymentEvents++;
         }
       }
 
@@ -342,7 +271,7 @@ export async function runMigration(databaseUrl?: string) {
       await client.query('COMMIT');
       console.log('[Migration] Idempotent data import completed successfully.');
       console.log(
-        `[Migration Summary] Imported/Synchronized: ${importCounts.users} users, ${importCounts.subscriptions} subscriptions, ${importCounts.paymentEvents} payment events, ${importCounts.reports} reports, ${importCounts.blocks} blocks, ${importCounts.auditLogs} audit logs, ${importCounts.preferences} preferences.`
+        `[Migration Summary] Imported/Synchronized: ${importCounts.users} users, ${importCounts.reports} reports, ${importCounts.blocks} blocks, ${importCounts.auditLogs} audit logs, ${importCounts.preferences} preferences.`
       );
     } else {
       console.log('[Migration] No local JSON file found to import. Ready for fresh operations.');

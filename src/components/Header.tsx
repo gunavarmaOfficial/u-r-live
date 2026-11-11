@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  SparklesIcon,
   WebProtectionIcon,
   Settings02Icon,
   Logout01Icon,
@@ -34,10 +33,8 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const {
     user,
-    isPro,
     isGoogleUser,
     googleEnabled,
-    openUpgrade,
     openSettings,
     openGoogle,
     signOut,
@@ -151,23 +148,6 @@ export const Header: React.FC = () => {
             <WebProtectionIcon className="h-4 w-4" />
           </Link>
 
-          {!isPro ? (
-            <button
-              onClick={() => openUpgrade()}
-              title="Unlock gender, country and language filters"
-              className="group inline-flex h-9 items-center gap-1.5 rounded-full border border-[#fbbf24]/35 bg-gradient-to-r from-[#fbbf24]/15 via-[#f472b6]/15 to-[#8b5cf6]/15 px-3 text-xs font-extrabold text-amber-100 transition-all hover:border-[#fbbf24]/60 hover:shadow-[0_0_24px_-6px_rgba(251,191,36,0.6)] active:scale-95 sm:px-4"
-            >
-              <SparklesIcon className="h-3.5 w-3.5 text-amber-300 transition-transform group-hover:rotate-12" />
-              <span className="hidden sm:inline">Go Pro</span>
-              <span className="hidden font-mono text-[10px] text-amber-200/70 lg:inline">₹299</span>
-            </button>
-          ) : (
-            <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 text-[11px] font-black uppercase tracking-wider text-amber-200">
-              <SparklesIcon className="h-3.5 w-3.5" />
-              Pro
-            </span>
-          )}
-
           {!user ? (
             <Link
               to="/live"
@@ -240,8 +220,8 @@ export const Header: React.FC = () => {
                         {user.isAdultVerified ? '18+ confirmed' : 'Age not confirmed'}
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] font-bold text-neutral-300">
-                        <SparklesIcon className="h-2.5 w-2.5 text-amber-300" />
-                        {isPro ? 'Pro member' : 'Free plan'}
+                        <Shield02Icon className="h-2.5 w-2.5 text-emerald-400" />
+                        {user.gender !== 'unspecified' ? 'Profile set' : 'Profile incomplete'}
                       </span>
                     </div>
                   </div>
@@ -277,19 +257,6 @@ export const Header: React.FC = () => {
                       <span>Live video chat</span>
                       <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400" />
                     </Link>
-
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        openUpgrade();
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 font-semibold text-amber-200 transition-colors hover:bg-amber-400/[0.07]"
-                    >
-                      <SparklesIcon className="h-4 w-4 text-amber-300" />
-                      <span>Pro features</span>
-                      <span className="ml-auto font-mono text-[10px] text-neutral-500">₹299/mo</span>
-                    </button>
 
                     <Link
                       to="/live"

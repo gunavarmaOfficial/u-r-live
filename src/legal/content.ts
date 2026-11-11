@@ -36,7 +36,7 @@ const TERMS: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Service',
   description:
-    'The rules for using U-R-LIVE, an adults-only live video chat service. Covers eligibility, acceptable use, Pro billing, moderation and liability.',
+    'The rules for using U-R-LIVE, an adults-only live video chat service. Covers eligibility, acceptable use, moderation and liability.',
   intro:
     'These Terms of Service form a binding agreement between you and the operator of U-R-LIVE. By creating a session, browsing the site or starting a video chat, you accept these terms.',
   sections: [
@@ -74,7 +74,7 @@ const TERMS: LegalDoc = {
       blocks: [
         {
           type: 'p',
-          text: 'You can use U-R-LIVE as an anonymous guest. Guest sessions are stored in your browser and are not portable across devices. Optional sign-in providers (for example Google) let you keep preferences and a Pro subscription across devices.',
+          text: 'You can use U-R-LIVE as an anonymous guest. Guest sessions are stored in your browser and are not portable across devices. Optional sign-in providers (for example Google) let you keep preferences and your profile across devices.',
         },
         {
           type: 'ul',
@@ -128,29 +128,8 @@ const TERMS: LegalDoc = {
       ],
     },
     {
-      id: 'pro',
-      heading: '6. Pro subscription and payments',
-      blocks: [
-        {
-          type: 'ul',
-          items: [
-            'Pro is an optional recurring subscription billed through Cashfree. The price and billing period are shown before checkout.',
-            'Subscriptions renew automatically until cancelled. Cancelling stops future renewals; access continues until the end of the paid period.',
-            'Payments are processed by Cashfree. We do not store full card details.',
-            'Prices include applicable taxes unless stated otherwise. Currency is Indian Rupees (INR) unless the checkout states otherwise.',
-            `Refunds: if you believe a charge is incorrect, contact ${LEGAL.supportEmail} within ${LEGAL.refundWindowDays} days. Refunds are issued at our discretion where required by law.`,
-            'Chargebacks or payment fraud may result in suspension of Pro access.',
-          ],
-        },
-        {
-          type: 'p',
-          text: 'Pro features (such as gender, country and language filters or priority queue placement) depend on the availability of compatible users. A Pro subscription does not guarantee a specific match, outcome or connection quality.',
-        },
-      ],
-    },
-    {
       id: 'moderation',
-      heading: '7. Moderation and enforcement',
+      heading: '6. Moderation and enforcement',
       blocks: [
         {
           type: 'p',
@@ -164,7 +143,7 @@ const TERMS: LegalDoc = {
     },
     {
       id: 'privacy',
-      heading: '8. Privacy',
+      heading: '7. Privacy',
       blocks: [
         {
           type: 'p',
@@ -174,17 +153,17 @@ const TERMS: LegalDoc = {
     },
     {
       id: 'availability',
-      heading: '9. Availability and changes',
+      heading: '8. Availability and changes',
       blocks: [
         {
           type: 'p',
-          text: 'The service is provided on an “as available” basis. We may change, suspend or discontinue features, including during maintenance. We aim to give reasonable notice of material changes that affect paid features.',
+          text: 'The service is provided on an “as available” basis. We may change, suspend or discontinue features, including during maintenance. We aim to give reasonable notice of material changes.',
         },
       ],
     },
     {
       id: 'liability',
-      heading: '10. Disclaimers and limitation of liability',
+      heading: '9. Disclaimers and limitation of liability',
       blocks: [
         {
           type: 'p',
@@ -198,7 +177,7 @@ const TERMS: LegalDoc = {
     },
     {
       id: 'indemnity',
-      heading: '11. Indemnity',
+      heading: '10. Indemnity',
       blocks: [
         {
           type: 'p',
@@ -208,7 +187,7 @@ const TERMS: LegalDoc = {
     },
     {
       id: 'law',
-      heading: '12. Governing law, disputes and contact',
+      heading: '11. Governing law, disputes and contact',
       blocks: [
         {
           type: 'p',
@@ -223,7 +202,7 @@ const TERMS: LegalDoc = {
     },
     {
       id: 'changes',
-      heading: '13. Changes to these terms',
+      heading: '12. Changes to these terms',
       blocks: [
         {
           type: 'p',
@@ -240,7 +219,7 @@ const PRIVACY: LegalDoc = {
   description:
     'What U-R-LIVE collects, why, how long it is kept, who processes it, and the rights you have over your personal data.',
   intro:
-    'U-R-LIVE is designed to collect as little as possible. This policy explains the data we process to run matchmaking, payments and safety, and the choices you have.',
+    'U-R-LIVE is designed to collect as little as possible. This policy explains the data we process to run matchmaking and safety, and the choices you have.',
   sections: [
     {
       id: 'controller',
@@ -263,7 +242,6 @@ const PRIVACY: LegalDoc = {
             'Profile data you choose to provide: display name, gender, country, language and matching preferences.',
             'Consent records: the version of the terms you accepted, the time of acceptance, and a hashed record of the request context.',
             'Safety data: reports, blocks, moderation notes and audit logs.',
-            'Payment data: a subscription record and payment event identifiers from Cashfree. Full card details are handled by Cashfree and are not stored by us.',
             'Technical data: IP address and coarse device information used for rate limiting, abuse prevention and aggregate traffic metrics.',
           ],
         },
@@ -290,9 +268,8 @@ const PRIVACY: LegalDoc = {
         {
           type: 'ul',
           items: [
-            'To provide the service: matchmaking, preferences, sessions and Pro entitlements (performance of a contract).',
+            'To provide the service: matchmaking, preferences and sessions (performance of a contract).',
             'To keep the platform safe: age assurance, reports, blocks and rate limiting (legitimate interests and legal obligations).',
-            'To process payments and meet tax/accounting duties (contract and legal obligation).',
             'To improve reliability: aggregate, cookie-less usage metrics (legitimate interests).',
             'To comply with lawful requests from authorities (legal obligation).',
           ],
@@ -320,7 +297,6 @@ const PRIVACY: LegalDoc = {
         {
           type: 'ul',
           items: [
-            'Cashfree Payments — subscription checkout, payment processing and webhooks.',
             'Cloud infrastructure (Google Cloud) — hosting, database, queueing and content delivery.',
             'Cloudflare Turnstile — bot protection on report submissions when enabled.',
             'Google Sign-In — optional authentication; governed by Google’s privacy policy.',
@@ -344,7 +320,6 @@ const PRIVACY: LegalDoc = {
             'Account and preference data: while your account is active, then deleted or anonymised on request unless retention is legally required.',
             'Consent records: for as long as you use the service, to demonstrate compliance.',
             'Safety reports and audit logs: up to 24 months, or longer if needed for an investigation or legal claim.',
-            'Payment and tax records: for the period required by applicable financial law.',
           ],
         },
       ],
@@ -470,7 +445,6 @@ const COOKIES: LegalDoc = {
         {
           type: 'ul',
           items: [
-            'Cashfree — loaded only when you open the Pro checkout. Its own policy applies to payment data.',
             'Cloudflare Turnstile — may set a challenge token when you submit a report, to stop spam.',
             'Google Sign-In — loaded only if you choose to sign in with Google.',
           ],

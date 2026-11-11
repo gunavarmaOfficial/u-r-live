@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cancel01Icon, UserCircleIcon, AlertCircleIcon } from 'hugeicons-react';
 import { api } from '../services/api';
-import { UserProfile, Subscription } from '../types';
+import { UserProfile } from '../types';
 import { LEGAL } from '../legal/config';
 import { Logo } from './Logo';
 import { ModalShell } from './ModalShell';
@@ -11,7 +11,7 @@ interface GoogleAuthModalProps {
   isOpen: boolean;
   clientId: string | null;
   onClose: () => void;
-  onSuccess: (user: UserProfile, isPro: boolean, sub: Subscription | null) => void;
+  onSuccess: (user: UserProfile) => void;
 }
 
 interface GoogleIdentity {
@@ -91,7 +91,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
           termsVersion: LEGAL.termsVersion,
           ageConfirmed: true,
         });
-        onSuccess(res.user, res.isPro, res.subscription);
+        onSuccess(res.user);
         onClose();
       } catch (err: any) {
         setError(err.message || 'Google sign-in failed');

@@ -4,7 +4,6 @@ import {
   Search01Icon,
   Tick02Icon,
   Globe02Icon,
-  LockIcon,
   SparklesIcon,
 } from 'hugeicons-react';
 import { COUNTRIES, CountryOption, SUPPORTED_LANGUAGES, LanguageOption } from '../data/constants';
@@ -12,8 +11,6 @@ import { COUNTRIES, CountryOption, SUPPORTED_LANGUAGES, LanguageOption } from '.
 export interface CountryFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isPro: boolean;
-  onOpenUpgradeModal: (reason?: string) => void;
   // Country state
   selectedCountry: string; // primary / legacy single country
   selectedCountries: string[]; // multiple selected countries
@@ -32,8 +29,6 @@ export interface CountryFilterModalProps {
 export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
   isOpen,
   onClose,
-  isPro,
-  onOpenUpgradeModal,
   selectedCountry,
   selectedCountries,
   onApplyCountries,
@@ -120,12 +115,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
 
   // Selection handlers
   const handleSelectCountry = (code: string) => {
-    // Non-Pro users selecting specific country: Trigger Upgrade modal
-    if (!isPro && code !== 'GLOBAL') {
-      onOpenUpgradeModal('country_filter');
-      return;
-    }
-
     if (code === 'GLOBAL') {
       // Global clears any specific multi-selection
       setDraftCountries(['GLOBAL']);
@@ -148,12 +137,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
   };
 
   const handleSelectLanguage = (code: string) => {
-    // Non-Pro users selecting custom language: Trigger Upgrade modal
-    if (!isPro && code !== 'en') {
-      onOpenUpgradeModal('language_filter');
-      return;
-    }
-
     if (draftMultiple) {
       if (draftLanguages.includes(code)) {
         const remaining = draftLanguages.filter((l) => l !== code);
@@ -167,10 +150,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
   };
 
   const handleToggleMultipleMode = () => {
-    if (!isPro) {
-      onOpenUpgradeModal('country_filter_multiple');
-      return;
-    }
     const nextVal = !draftMultiple;
     setDraftMultiple(nextVal);
     onToggleMultiple(nextVal);
@@ -195,16 +174,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
   };
 
   const handleApply = () => {
-    // Non-Pro check: Fail safe and enforce GLOBAL if not Pro
-    if (!isPro) {
-      const hasSpecificCountry = draftCountries.some((c) => c !== 'GLOBAL');
-      const hasSpecificLanguage = draftLanguages.some((l) => l !== 'en');
-      if (hasSpecificCountry || hasSpecificLanguage || draftMultiple) {
-        onOpenUpgradeModal('country_filter');
-        return;
-      }
-    }
-
     onApplyCountries(draftCountries);
     onApplyLanguages(draftLanguages);
     onToggleMultiple(draftMultiple);
@@ -262,23 +231,12 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
             </span>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2
-                  id="country-filter-title"
-                  className="font-display text-lg sm:text-xl font-bold tracking-tight text-white"
-                >
-                  {activeTab === 'country' ? 'Country filter' : 'Language filter'}
-                </h2>
-                <span
-                  className="inline-flex items-center gap-1 rounded-full border border-violet-400/40 bg-violet-500/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-violet-200"
-                  title="Exclusive Premium Feature"
-                >
-                  <svg className="h-2.5 w-2.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                  </svg>
-                  Pro
-                </span>
-              </div>
+              <h2
+                id="country-filter-title"
+                className="font-display text-lg sm:text-xl font-bold tracking-tight text-white"
+              >
+                {activeTab === 'country' ? 'Country filter' : 'Language filter'}
+              </h2>
               <p className="mt-1 text-[11px] text-white/45">
                 Choose who you get matched with across the network.
               </p>
@@ -412,7 +370,7 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
                   ? 'border-violet-400/40 bg-violet-500/15 text-violet-100'
                   : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/[0.07]'
               }`}
-              title={isPro ? 'Toggle multiple selection' : 'Multiple selection is a Pro feature'}
+              title="Toggle multiple selection"
             >
               <span className="text-[11px] font-semibold whitespace-nowrap">
                 <span className="hidden sm:inline">Select </span>Multiple
@@ -450,32 +408,12 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
           </div>
         </div>
 
-        {/* Non-Pro Banner */}
-        {!isPro && (
-          <div className="mx-5 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <LockIcon className="h-3.5 w-3.5 shrink-0 text-violet-300" />
-              <span className="text-[11px] leading-tight text-white/60">
-                Country &amp; language filters are part of{' '}
-                <strong className="font-semibold text-white/85">U-R-LIVE Pro</strong>.
-              </span>
-            </div>
-            <button
-              onClick={() => onOpenUpgradeModal('country_filter_banner')}
-              className="shrink-0 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-[0_8px_20px_-10px_rgba(99,102,241,0.9)] transition hover:brightness-110 active:scale-95"
-            >
-              Upgrade
-            </button>
-          </div>
-        )}
-
         {/* C & E. Scrollable selection grid */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-1">
           {activeTab === 'country' ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {filteredCountries.map((country: CountryOption) => {
                 const isSelected = draftCountries.includes(country.code);
-                const isRestrictedForFree = !isPro && country.code !== 'GLOBAL';
 
                 return (
                   <button
@@ -506,8 +444,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
                         <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-[0_0_12px_-2px_rgba(139,92,246,0.9)]">
                           <Tick02Icon className="h-3.5 w-3.5" />
                         </span>
-                      ) : isRestrictedForFree ? (
-                        <LockIcon className="h-3.5 w-3.5 text-white/25 transition-colors group-hover:text-violet-300" />
                       ) : (
                         <span className="block h-4.5 w-4.5 rounded-full border border-white/20 transition-colors group-hover:border-white/40" />
                       )}
@@ -520,7 +456,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {filteredLanguages.map((lang: LanguageOption) => {
                 const isSelected = draftLanguages.includes(lang.code);
-                const isRestrictedForFree = !isPro && lang.code !== 'en';
 
                 return (
                   <button
@@ -551,8 +486,6 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
                         <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-[0_0_12px_-2px_rgba(139,92,246,0.9)]">
                           <Tick02Icon className="h-3.5 w-3.5" />
                         </span>
-                      ) : isRestrictedForFree ? (
-                        <LockIcon className="h-3.5 w-3.5 text-white/25 transition-colors group-hover:text-violet-300" />
                       ) : (
                         <span className="block h-4.5 w-4.5 rounded-full border border-white/20 transition-colors group-hover:border-white/40" />
                       )}
@@ -575,14 +508,10 @@ export const CountryFilterModal: React.FC<CountryFilterModalProps> = ({
         {/* Footer */}
         <div className="mt-1 flex items-center justify-between gap-3 border-t border-white/[0.07] bg-[#08060f]/80 px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
           <div className="hidden text-[11px] sm:block">
-            {isPro ? (
-              <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-                Pro filters active
-              </span>
-            ) : (
-              <span className="text-white/35">Free tier · global random chat</span>
-            )}
+            <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+              Filters apply to your next match
+            </span>
           </div>
 
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto">

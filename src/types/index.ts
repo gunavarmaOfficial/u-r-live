@@ -19,21 +19,6 @@ export interface UserProfile {
   lastActiveAt: number;
 }
 
-export interface Subscription {
-  id: string;
-  userId: string;
-  provider: 'cashfree';
-  providerCustomerId: string;
-  providerSubscriptionId: string;
-  planCode: 'pro_monthly_299';
-  status: 'active' | 'cancelled' | 'expired' | 'pending';
-  currentPeriodStart: number;
-  currentPeriodEnd: number;
-  cancelAtPeriodEnd: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
 export type ChatMode = 'video' | 'text';
 
 export interface MatchPreferences {
@@ -94,13 +79,4 @@ export interface UserReport {
   resolvedAt?: number;
   actionTaken?: 'none' | 'warned' | 'suspended' | 'banned';
   moderatorNotes?: string;
-}
-
-export interface PlanInfo {
-  code: string;
-  name: string;
-  priceInr: number;
-  billingCycle: string;
-  features: string[];
-  restrictions: string[];
 }

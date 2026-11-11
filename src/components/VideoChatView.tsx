@@ -10,7 +10,6 @@ import {
   Clock01Icon,
   FullScreenIcon,
   Globe02Icon,
-  LockIcon,
   Message01Icon,
   Mic01Icon,
   MicOff01Icon,
@@ -30,8 +29,6 @@ import { CountryFilterModal } from './CountryFilterModal';
 
 interface VideoChatViewProps {
   user: UserProfile;
-  isPro: boolean;
-  onOpenUpgradeModal: (reason?: string) => void;
   onOpenReportModal: (partnerId: string, partnerName: string) => void;
   onRequireAgeVerification: () => void;
   onOpenOnboarding?: () => void;
@@ -140,8 +137,6 @@ const genderLabel = (gender: string) => {
 
 export const VideoChatView: React.FC<VideoChatViewProps> = ({
   user,
-  isPro,
-  onOpenUpgradeModal,
   onOpenReportModal,
   onRequireAgeVerification,
   onOpenOnboarding,
@@ -311,18 +306,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     return {
       mode: 'video',
       preferredCountry: selectedCountry,
-      preferredCountries: isPro ? selectedCountries : ['GLOBAL'],
-      isMultipleCountries: isPro && isMultipleCountries,
-      preferredGender: isPro ? preferredGender : 'any',
-      languages: isPro ? selectedLanguages : ['en'],
-      preferredLanguages: isPro ? selectedLanguages : ['en'],
+      preferredCountries: selectedCountries,
+      isMultipleCountries: isMultipleCountries,
+      preferredGender,
+      languages: selectedLanguages,
+      preferredLanguages: selectedLanguages,
       primaryLanguage: selectedLanguage,
     };
   }, [
     selectedCountry,
     selectedCountries,
     isMultipleCountries,
-    isPro,
     preferredGender,
     selectedLanguage,
     selectedLanguages,
@@ -1197,7 +1191,6 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             >
               <span className="text-base leading-none">{currentCountryObj.flag}</span>
               <span className="truncate">{currentCountryObj.name}</span>
-              {!isPro && <LockIcon size={12} className="shrink-0 text-amber-300" />}
             </button>
 
             <button
@@ -1328,8 +1321,6 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       <CountryFilterModal
         isOpen={showCountryModal}
         onClose={() => setShowCountryModal(false)}
-        isPro={isPro}
-        onOpenUpgradeModal={onOpenUpgradeModal}
         selectedCountry={selectedCountry}
         selectedCountries={selectedCountries}
         onApplyCountries={handleApplyCountries}

@@ -44,10 +44,6 @@ services:
         value: https://u-r-live.onrender.com
       - key: LEGAL_TERMS_VERSION
         value: "2026-10-28"
-      # Cashfree: TEST (sandbox) until you go live, then PRODUCTION.
-      - key: CASHFREE_ENV
-        sync: false
-        value: TEST
       # Only needed if you keep the static frontend on another origin (e.g.
       # Vercel) and set VITE_API_URL there. Comma-separated origins.
       - key: CORS_ORIGINS

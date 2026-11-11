@@ -10,8 +10,6 @@ import crypto from 'crypto';
 import pg from 'pg';
 import {
   UserProfile,
-  Subscription,
-  PaymentEvent,
   UserReport,
   UserBlock,
   AdminAuditLog,
@@ -44,8 +42,6 @@ export interface UserPreferences {
 
 interface DatabaseSchema {
   users: Record<string, UserProfile>;
-  subscriptions: Record<string, Subscription>; // keyed by userId
-  paymentEvents: Record<string, PaymentEvent>; // keyed by providerEventId
   reports: Record<string, UserReport>;
   blocks: Record<string, UserBlock>;
   auditLogs: AdminAuditLog[];
@@ -72,8 +68,6 @@ export class Database {
     users: {
       [DEFAULT_ADMIN.id]: DEFAULT_ADMIN,
     },
-    subscriptions: {},
-    paymentEvents: {},
     reports: {},
     blocks: {},
     auditLogs: [],
@@ -144,8 +138,6 @@ export class Database {
           ...this.data,
           ...parsed,
           users: { ...this.data.users, ...(parsed.users || {}) },
-          subscriptions: { ...this.data.subscriptions, ...(parsed.subscriptions || {}) },
-          paymentEvents: { ...this.data.paymentEvents, ...(parsed.paymentEvents || {}) },
           reports: { ...this.data.reports, ...(parsed.reports || {}) },
           blocks: { ...this.data.blocks, ...(parsed.blocks || {}) },
           auditLogs: parsed.auditLogs || this.data.auditLogs,
@@ -203,39 +195,6 @@ export class Database {
             ageConfirmedAt: row.age_confirmed_at ? Number(row.age_confirmed_at) : undefined,
             createdAt: Number(row.created_at),
             lastActiveAt: Number(row.last_active_at),
-          };
-        }
-
-        // Subscriptions
-        const subsRes = await client.query('SELECT * FROM subscriptions');
-        for (const row of subsRes.rows) {
-          this.data.subscriptions[row.user_id] = {
-            id: row.id,
-            userId: row.user_id,
-            provider: row.provider,
-            providerCustomerId: row.provider_customer_id,
-            providerSubscriptionId: row.provider_subscription_id,
-            planCode: row.plan_code,
-            status: row.status,
-            currentPeriodStart: Number(row.current_period_start),
-            currentPeriodEnd: Number(row.current_period_end),
-            cancelAtPeriodEnd: row.cancel_at_period_end,
-            createdAt: Number(row.created_at),
-            updatedAt: Number(row.updated_at),
-          };
-        }
-
-        // Payment Events
-        const peRes = await client.query('SELECT * FROM payment_events');
-        for (const row of peRes.rows) {
-          this.data.paymentEvents[row.provider_event_id] = {
-            id: row.id,
-            provider: row.provider,
-            providerEventId: row.provider_event_id,
-            eventType: row.event_type,
-            processingStatus: row.processing_status,
-            receivedAt: Number(row.received_at),
-            payload: row.payload,
           };
         }
 
@@ -606,243 +565,6 @@ export class Database {
     }
 
     return updated;
-  }
-
-  // --- Subscriptions ---
-  getSubscription(userId: string): Subscription | undefined {
-    return this.data.subscriptions[userId];
-  }
-
-  isUserPro(userId: string): boolean {
-    const sub = this.data.subscriptions[userId];
-    if (!sub) return false;
-    if (sub.status === 'active') {
-      if (sub.currentPeriodEnd > Date.now()) {
-        return true;
-      } else {
-        // Expired
-        sub.status = 'expired';
-        this.save();
-        if (this.pool) {
-          this.pool
-            .query("UPDATE subscriptions SET status = 'expired' WHERE id = $1", [sub.id])
-            .catch((err) => {
-              console.error('[Database] Failed to expire subscription in PostgreSQL:', err.message);
-            });
-        }
-        return false;
-      }
-    }
-    return false;
-  }
-
-  private subscriptionUpsertQuery(sub: Subscription): { sql: string; values: any[] } {
-    return {
-      sql: `INSERT INTO subscriptions (
-            id, user_id, provider, provider_customer_id, provider_subscription_id,
-            plan_code, status, current_period_start, current_period_end, cancel_at_period_end,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          ON CONFLICT (id) DO UPDATE SET
-            status = EXCLUDED.status,
-            current_period_start = EXCLUDED.current_period_start,
-            current_period_end = EXCLUDED.current_period_end,
-            cancel_at_period_end = EXCLUDED.cancel_at_period_end,
-            updated_at = EXCLUDED.updated_at`,
-      values: [
-        sub.id,
-        sub.userId,
-        sub.provider,
-        sub.providerCustomerId,
-        sub.providerSubscriptionId,
-        sub.planCode,
-        sub.status,
-        sub.currentPeriodStart,
-        sub.currentPeriodEnd,
-        sub.cancelAtPeriodEnd,
-        sub.createdAt,
-        sub.updatedAt,
-      ],
-    };
-  }
-
-  saveSubscription(sub: Subscription): Subscription {
-    this.data.subscriptions[sub.userId] = sub;
-    this.save();
-
-    if (this.pool) {
-      const { sql, values } = this.subscriptionUpsertQuery(sub);
-      this.pool.query(sql, values).catch((err) => {
-        console.error('[Database] Failed to save subscription in PostgreSQL:', err.message);
-      });
-    }
-
-    return sub;
-  }
-
-  /** Awaited entitlement write: Pro must never be granted on an unpersisted row. */
-  async saveSubscriptionAwait(sub: Subscription): Promise<Subscription> {
-    this.data.subscriptions[sub.userId] = sub;
-    this.save();
-
-    if (this.pool) {
-      const { sql, values } = this.subscriptionUpsertQuery(sub);
-      await this.pool.query(sql, values);
-    }
-
-    return sub;
-  }
-
-  cancelSubscription(userId: string): Subscription | undefined {
-    const sub = this.data.subscriptions[userId];
-    if (!sub) return undefined;
-    sub.cancelAtPeriodEnd = true;
-    sub.updatedAt = Date.now();
-    this.save();
-
-    if (this.pool) {
-      this.pool
-        .query(
-          'UPDATE subscriptions SET cancel_at_period_end = TRUE, updated_at = $1 WHERE user_id = $2',
-          [sub.updatedAt, userId]
-        )
-        .catch((err) => {
-          console.error('[Database] Failed to cancel subscription in PostgreSQL:', err.message);
-        });
-    }
-
-    return sub;
-  }
-
-  /** Awaited cancellation so the UI never reports success on an unpersisted change. */
-  async cancelSubscriptionAwait(userId: string): Promise<Subscription | undefined> {
-    const sub = this.data.subscriptions[userId];
-    if (!sub) return undefined;
-    sub.cancelAtPeriodEnd = true;
-    sub.updatedAt = Date.now();
-    this.save();
-
-    if (this.pool) {
-      await this.pool.query(
-        'UPDATE subscriptions SET cancel_at_period_end = TRUE, updated_at = $1 WHERE user_id = $2',
-        [sub.updatedAt, userId]
-      );
-    }
-
-    return sub;
-  }
-
-  // --- Payment Events (Idempotency) ---
-  hasPaymentEvent(eventId: string): boolean {
-    return !!this.data.paymentEvents[eventId];
-  }
-
-  /**
-   * Claims a provider event for processing. Returns false when the event was
-   * already claimed, which is the authoritative duplicate check across instances.
-   */
-  async claimPaymentEvent(event: PaymentEvent): Promise<boolean> {
-    if (this.data.paymentEvents[event.providerEventId]) return false;
-    this.data.paymentEvents[event.providerEventId] = event;
-    this.save();
-
-    if (!this.pool) return true;
-
-    const result = await this.pool.query(
-      `INSERT INTO payment_events (
-        id, provider, provider_event_id, event_type, processing_status, received_at, payload
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT (provider_event_id) DO NOTHING
-      RETURNING id`,
-      [
-        event.id,
-        event.provider,
-        event.providerEventId,
-        event.eventType,
-        event.processingStatus,
-        event.receivedAt,
-        JSON.stringify(event.payload),
-      ]
-    );
-
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  /** Persists an already-claimed event's final processing status. */
-  async updatePaymentEvent(event: PaymentEvent): Promise<void> {
-    this.data.paymentEvents[event.providerEventId] = event;
-    this.save();
-
-    if (!this.pool) return;
-
-    await this.pool.query(
-      `UPDATE payment_events SET processing_status = $2, payload = $3
-       WHERE provider_event_id = $1`,
-      [event.providerEventId, event.processingStatus, JSON.stringify(event.payload)]
-    );
-  }
-
-  /**
-   * Grants entitlement and records the causing payment event atomically, so a
-   * crash cannot leave Pro activated without an idempotency record (or vice versa).
-   */
-  async activateSubscriptionWithEvent(sub: Subscription, event: PaymentEvent): Promise<void> {
-    this.data.subscriptions[sub.userId] = sub;
-    const stored = { ...event, processingStatus: 'processed' as const };
-    this.data.paymentEvents[stored.providerEventId] = stored;
-    this.save();
-
-    if (!this.pool) return;
-
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      const subQuery = this.subscriptionUpsertQuery(sub);
-      await client.query(subQuery.sql, subQuery.values);
-      await client.query(
-        `UPDATE payment_events SET processing_status = 'processed', payload = $2
-         WHERE provider_event_id = $1`,
-        [stored.providerEventId, JSON.stringify(stored.payload)]
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw err;
-    } finally {
-      client.release();
-    }
-  }
-
-  savePaymentEvent(event: PaymentEvent): void {
-    this.data.paymentEvents[event.providerEventId] = event;
-    this.save();
-
-    if (this.pool) {
-      this.pool
-        .query(
-          `INSERT INTO payment_events (
-            id, provider, provider_event_id, event_type, processing_status, received_at, payload
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (provider, provider_event_id) DO UPDATE SET
-            processing_status = EXCLUDED.processing_status`,
-          [
-            event.id,
-            event.provider,
-            event.providerEventId,
-            event.eventType,
-            event.processingStatus,
-            event.receivedAt,
-            JSON.stringify(event.payload),
-          ]
-        )
-        .catch((err) => {
-          console.error('[Database] Failed to save payment event in PostgreSQL:', err.message);
-        });
-    }
-  }
-
-  getAllPaymentEvents(): PaymentEvent[] {
-    return Object.values(this.data.paymentEvents).sort((a, b) => b.receivedAt - a.receivedAt);
   }
 
   // --- Reports ---

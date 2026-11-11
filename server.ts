@@ -17,14 +17,6 @@ import { getMatchmaking, syncBlock } from './server/matchmaking';
 import { pingRedis, getRedisStatus, closeRedis, isRedisConfigured } from './server/redis';
 import { setupSignaling } from './server/webrtc';
 import {
-  PRO_PLAN_PRICE_INR,
-  createSubscriptionOrder,
-  verifyCashfreeOrderStatus,
-  verifyCashfreeWebhookSignature,
-  activateProSubscriptionPersisted,
-  processCashfreeWebhook,
-} from './server/payments';
-import {
   resolveSessionUser,
   peekSessionUser,
   createSessionToken,
@@ -70,25 +62,19 @@ app.use(
               objectSrc: ["'none'"],
               scriptSrc: [
                 "'self'",
-                // Inline JSON-LD + Google Identity Services + Cashfree checkout bootstrap
+                // Inline JSON-LD + Google Identity Services
                 "'unsafe-inline'",
                 'https://accounts.google.com',
                 'https://www.gstatic.com',
-                'https://sdk.cashfree.com',
               ],
               styleSrc: ["'self'", "'unsafe-inline'"],
               imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
               fontSrc: ["'self'", 'data:'],
               connectSrc: ["'self'", 'https:', 'wss:', 'ws:'],
               mediaSrc: ["'self'", 'blob:'],
-              frameSrc: [
-                'https://accounts.google.com',
-                'https://sdk.cashfree.com',
-                'https://api.cashfree.com',
-                'https://sandbox.cashfree.com',
-              ],
+              frameSrc: ['https://accounts.google.com'],
               workerSrc: ["'self'", 'blob:'],
-              formAction: ["'self'", 'https://api.cashfree.com', 'https://sandbox.cashfree.com'],
+              formAction: ["'self'"],
               frameAncestors: ["'none'"],
               upgradeInsecureRequests: [],
             },
@@ -229,8 +215,6 @@ app.post('/api/legal/accept', async (req: Request, res: Response) => {
     res.json({
       user: updated,
       sessionToken: session.sessionToken,
-      isPro: db.isUserPro(updated.id),
-      subscription: db.getSubscription(updated.id) || null,
       acceptedAt: updated.termsAcceptedAt,
     });
   } catch (err: any) {
@@ -244,15 +228,10 @@ app.post('/api/legal/accept', async (req: Request, res: Response) => {
 // -------------------------------------------------------------
 app.get('/api/auth/session', (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
-  const user = session.user;
-  const isPro = db.isUserPro(user.id);
-  const subscription = db.getSubscription(user.id);
 
   res.json({
-    user,
+    user: session.user,
     sessionToken: session.sessionToken,
-    isPro,
-    subscription: subscription || null,
   });
 });
 
@@ -285,8 +264,6 @@ app.post('/api/auth/login', guestSessionRateLimit, (req: Request, res: Response)
   res.json({
     user: updated,
     sessionToken: session.sessionToken,
-    isPro: db.isUserPro(updated.id),
-    subscription: db.getSubscription(updated.id) || null,
   });
 });
 
@@ -295,18 +272,15 @@ app.post('/api/auth/login', guestSessionRateLimit, (req: Request, res: Response)
 // -------------------------------------------------------------
 app.get('/api/user/preferences', (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
-  const isPro = db.isUserPro(session.user.id);
   const preferences = db.getUserPreferences(session.user.id);
 
   res.json({
     preferences: preferences || null,
-    isPro,
   });
 });
 
 app.post('/api/user/preferences', (req: Request, res: Response) => {
   const session = resolveSessionUser(req);
-  const isPro = db.isUserPro(session.user.id);
 
   const schema = z.object({
     preferredCountry: z.string().optional(),
@@ -327,40 +301,20 @@ app.post('/api/user/preferences', (req: Request, res: Response) => {
 
   const data = parsed.data;
 
-  // Strict server-side Pro entitlement check
-  const hasRestrictedCountry =
-    (data.preferredCountry && data.preferredCountry !== 'GLOBAL' && data.preferredCountry !== 'any') ||
-    (Array.isArray(data.preferredCountries) && data.preferredCountries.some((c) => c !== 'GLOBAL' && c !== 'any'));
-  const hasRestrictedLanguage =
-    (Array.isArray(data.languages) && data.languages.some((l) => l !== 'en')) ||
-    (Array.isArray(data.preferredLanguages) && data.preferredLanguages.some((l) => l !== 'en'));
-  const hasRestrictedGender = data.preferredGender && data.preferredGender !== 'any';
-  const hasMultiple = Boolean(data.isMultipleCountries);
-
-  if (!isPro && (hasRestrictedCountry || hasRestrictedLanguage || hasRestrictedGender || hasMultiple)) {
-    res.status(403).json({
-      error: 'Country and language filters are exclusive to U-R-LIVE Pro.',
-      code: 'PRO_REQUIRED',
-      requiresUpgrade: true,
-    });
-    return;
-  }
-
   const updated = db.saveUserPreferences(session.user.id, {
     chatMode: data.chatMode || 'video',
-    preferredGender: isPro ? (data.preferredGender || 'any') : 'any',
-    preferredCountry: isPro ? (data.preferredCountry || 'GLOBAL') : 'GLOBAL',
-    preferredCountries: isPro && data.preferredCountries ? data.preferredCountries : ['GLOBAL'],
-    isMultipleCountries: isPro && Boolean(data.isMultipleCountries),
-    languages: isPro && data.languages ? data.languages : (data.preferredLanguages || []),
-    preferredLanguages: isPro && data.preferredLanguages ? data.preferredLanguages : (data.languages || []),
+    preferredGender: data.preferredGender || 'any',
+    preferredCountry: data.preferredCountry || 'GLOBAL',
+    preferredCountries: data.preferredCountries || ['GLOBAL'],
+    isMultipleCountries: Boolean(data.isMultipleCountries),
+    languages: data.languages || data.preferredLanguages || [],
+    preferredLanguages: data.preferredLanguages || data.languages || [],
     interests: data.interests || [],
   });
 
   res.json({
     success: true,
     preferences: updated,
-    isPro,
   });
 });
 
@@ -439,8 +393,6 @@ app.post('/api/auth/admin-login', adminLoginRateLimit, (req: Request, res: Respo
   res.json({
     user: adminUser,
     sessionToken,
-    isPro: true,
-    subscription: null,
   });
 });
 
@@ -543,8 +495,6 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
   res.json({
     user,
     sessionToken,
-    isPro: db.isUserPro(user.id),
-    subscription: db.getSubscription(user.id) || null,
   });
 });
 
@@ -576,245 +526,8 @@ app.post('/api/profile/update', (req: Request, res: Response) => {
   res.json({
     user: updated,
     sessionToken: session.sessionToken,
-    isPro: db.isUserPro(updated.id),
-    subscription: db.getSubscription(updated.id) || null,
   });
 });
-
-// -------------------------------------------------------------
-// Subscription & Payment APIs (Cashfree Payments ₹299/month)
-// -------------------------------------------------------------
-app.get('/api/subscription/plans', (_req: Request, res: Response) => {
-  res.json({
-    plans: [
-      {
-        code: 'free',
-        name: 'Free',
-        priceInr: 0,
-        billingCycle: 'free',
-        features: [
-          'Random one-to-one video chat',
-          'Camera and microphone support',
-          'Next and disconnect controls',
-          'Standard matchmaking queue',
-          'Abuse reporting & blocking',
-          'Community safety access',
-        ],
-        restrictions: ['Cannot choose preferred gender', 'Cannot filter by country'],
-      },
-      {
-        code: 'pro_monthly_299',
-        name: 'Pro',
-        priceInr: PRO_PLAN_PRICE_INR,
-        billingCycle: 'month',
-        gateway: 'cashfree',
-        features: [
-          'All Free features included',
-          'Preferred gender matching (Female / Male filter)',
-          'Country location filter',
-          'Priority queue placement',
-          '100% Ad-free experience',
-          'Instant next match priority',
-        ],
-        restrictions: [],
-      },
-    ],
-  });
-});
-
-app.post('/api/subscription/create-order', async (req: Request, res: Response) => {
-  const session = resolveSessionUser(req);
-  const user = session.user;
-
-  // Enforce account verification before purchasing Pro
-  if (user.authProvider === 'guest' || !user.email) {
-    res.status(403).json({
-      error:
-        'A verified account (Google or email login) is required before purchasing Pro so your subscription can be safely restored.',
-      code: 'ACCOUNT_VERIFICATION_REQUIRED',
-      requiresAuth: true,
-    });
-    return;
-  }
-
-  try {
-    const orderData = await createSubscriptionOrder(user.id);
-    res.json(orderData);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Could not initialize Cashfree order' });
-  }
-});
-
-app.post('/api/subscription/verify', async (req: Request, res: Response) => {
-  const session = resolveSessionUser(req);
-  const user = session.user;
-
-  const schema = z.object({
-    orderId: z.string().min(1, 'orderId is required'),
-  });
-
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0]?.message || 'Missing orderId' });
-    return;
-  }
-
-  const { orderId } = parsed.data;
-
-  // Strict server-to-server verification with Cashfree API
-  const verification = await verifyCashfreeOrderStatus(orderId);
-  if (!verification.success) {
-    res.status(400).json({
-      error:
-        verification.error ||
-        'Cashfree payment verification failed. Order is not paid or invalid.',
-    });
-    return;
-  }
-
-  // A repeated verify for the same order must not extend the entitlement again
-  const verifyEvent = {
-    id: 'evt_cf_' + crypto.randomBytes(6).toString('hex'),
-    provider: 'cashfree' as const,
-    providerEventId: `verify:${orderId}`,
-    eventType: 'ORDER_VERIFIED',
-    processingStatus: 'processing' as const,
-    receivedAt: Date.now(),
-    payload: { orderId, userId: user.id },
-  };
-
-  let claimed = true;
-  try {
-    claimed = await db.claimPaymentEvent(verifyEvent);
-  } catch (err: any) {
-    console.error('[Payments] Failed to record verification attempt:', err.message);
-    res.status(503).json({ error: 'Could not record payment verification. Please retry.' });
-    return;
-  }
-
-  if (!claimed) {
-    res.json({
-      success: true,
-      message: 'This order was already verified. Pro remains active.',
-      subscription: db.getSubscription(user.id) || null,
-      isPro: db.isUserPro(user.id),
-    });
-    return;
-  }
-
-  try {
-    const sub = await activateProSubscriptionPersisted(user.id, 'sub_cf_' + orderId, 'cust_' + user.id);
-    await db.updatePaymentEvent({ ...verifyEvent, processingStatus: 'processed' });
-
-    res.json({
-      success: true,
-      message: 'Pro subscription activated successfully via Cashfree',
-      subscription: sub,
-      isPro: true,
-    });
-  } catch (err: any) {
-    console.error('[Payments] Failed to activate subscription:', err.message);
-    await db
-      .updatePaymentEvent({ ...verifyEvent, processingStatus: 'failed' })
-      .catch(() => {});
-    res.status(503).json({ error: 'Payment verified but activation failed. Our team will reconcile it.' });
-  }
-});
-
-app.post('/api/subscription/cancel', async (req: Request, res: Response) => {
-  const session = resolveSessionUser(req);
-  const user = session.user;
-
-  let sub;
-  try {
-    sub = await db.cancelSubscriptionAwait(user.id);
-  } catch (err: any) {
-    console.error('[Payments] Failed to cancel subscription:', err.message);
-    res.status(503).json({ error: 'Could not cancel the subscription right now. Please retry.' });
-    return;
-  }
-
-  if (!sub) {
-    res.status(404).json({ error: 'No active subscription found to cancel' });
-    return;
-  }
-
-  db.addAuditLog({
-    adminUserId: user.id,
-    action: 'subscription_cancelled',
-    targetType: 'subscription',
-    targetId: sub.id,
-    details: { userId: user.id, provider: 'cashfree' },
-  });
-
-  res.json({
-    success: true,
-    message: 'Subscription will not renew at the end of the billing period.',
-    subscription: sub,
-  });
-});
-
-// Cashfree Webhooks endpoint
-app.post(
-  ['/api/subscription/webhook', '/api/webhooks/cashfree'],
-  async (req: any, res: Response) => {
-    const secretKey = process.env.CASHFREE_SECRET_KEY;
-    if (!secretKey) {
-      res.status(500).json({ error: 'Server misconfiguration: CASHFREE_SECRET_KEY is not configured' });
-      return;
-    }
-
-    const signature =
-      (req.headers['x-webhook-signature'] as string) ||
-      (req.headers['x-cashfree-signature'] as string) ||
-      '';
-    const timestamp = (req.headers['x-webhook-timestamp'] as string) || '';
-    const rawBody = req.rawBody || JSON.stringify(req.body);
-
-    if (!signature) {
-      res.status(400).json({ error: 'Missing x-webhook-signature header' });
-      return;
-    }
-
-    if (!timestamp) {
-      res.status(400).json({ error: 'Missing x-webhook-timestamp header' });
-      return;
-    }
-
-    // Check timestamp freshness (5 minutes window to prevent replay attacks)
-    const timestampNum = Number(timestamp);
-    const tsMs = timestampNum > 1e11 ? timestampNum : timestampNum * 1000;
-    if (isNaN(timestampNum) || Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
-      res.status(400).json({ error: 'Webhook timestamp expired or outside tolerance window' });
-      return;
-    }
-
-    // Cryptographically verify HMAC-SHA256 signature BEFORE any state mutation
-    const isValid = verifyCashfreeWebhookSignature(rawBody, signature, timestamp, secretKey);
-    if (!isValid) {
-      res.status(401).json({ error: 'Invalid Cashfree webhook signature' });
-      return;
-    }
-
-    const event = req.body;
-    const eventId = event?.event_id || event?.data?.order?.order_id || event?.id;
-
-    if (!eventId || typeof eventId !== 'string' || eventId.length > 128) {
-      res.status(400).json({ error: 'Missing or invalid event ID in webhook payload' });
-      return;
-    }
-
-    const eventType = event?.type || event?.event || 'ORDER_PAID';
-    try {
-      const result = await processCashfreeWebhook(eventId, eventType, event?.payload || req.body);
-      // Ask Cashfree to retry transient processing failures instead of dropping them
-      res.status(result.processed || result.duplicate ? 200 : 500).json(result);
-    } catch (err: any) {
-      console.error('[Payments] Webhook processing error:', err.message);
-      res.status(500).json({ processed: false, duplicate: false, message: 'Webhook processing error' });
-    }
-  }
-);
 
 // -------------------------------------------------------------
 // Safety & Moderation APIs
@@ -1010,20 +723,13 @@ app.get('/api/admin/overview', requireAdmin, (_req: Request, res: Response) => {
   const reports = db.getReports();
   const queueLength = getMatchmaking().getQueueLength();
   const activeMatches = getMatchmaking().getActiveMatchesCount();
-  const paymentEvents = db.getAllPaymentEvents();
-
-  const proCount = users.filter((u) => db.isUserPro(u.id)).length;
-  const estimatedRevenue = proCount * PRO_PLAN_PRICE_INR;
 
   res.json({
     totalUsers: users.length,
     activeQueueLength: queueLength,
     activeMatchesCount: activeMatches,
-    proSubscribers: proCount,
-    monthlyRevenueInr: estimatedRevenue,
     pendingReportsCount: reports.filter((r) => r.status === 'pending').length,
     totalReportsCount: reports.length,
-    paymentEventsCount: paymentEvents.length,
   });
 });
 
@@ -1078,11 +784,7 @@ app.post('/api/admin/reports/:reportId/action', requireAdmin, (req: Request, res
 });
 
 app.get('/api/admin/users', requireAdmin, (_req: Request, res: Response) => {
-  const users = db.getAllUsers().map((u) => ({
-    ...u,
-    isPro: db.isUserPro(u.id),
-    subscription: db.getSubscription(u.id) || null,
-  }));
+  const users = db.getAllUsers();
   res.json({ users });
 });
 

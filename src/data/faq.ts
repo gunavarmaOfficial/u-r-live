@@ -7,12 +7,12 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Is U-R-LIVE free to use?',
     answer:
-      'Yes. Random one-to-one video chat is free and does not require an account. Pro is an optional subscription that unlocks gender, country and language filters plus priority queue placement.',
+      'Yes. Random one-to-one video chat is completely free, including gender, country and language filters, and does not require an account.',
   },
   {
     question: 'Do I need to create an account?',
     answer:
-      'No. You can start as an anonymous guest. An optional Google sign-in lets you keep preferences and a Pro subscription across devices.',
+      'No. You can start as an anonymous guest. An optional Google sign-in lets you keep your profile and preferences across devices.',
   },
   {
     question: 'Are my video calls recorded?',
@@ -28,10 +28,5 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'What happens when I report someone?',
     answer:
       'The report is sent to the safety team with the category you select. The other person is blocked from matching with you again, and the report is reviewed for enforcement.',
-  },
-  {
-    question: 'Can I cancel Pro at any time?',
-    answer:
-      'Yes. Cancelling stops future renewals and your Pro features stay active until the end of the period you already paid for.',
   },
 ];

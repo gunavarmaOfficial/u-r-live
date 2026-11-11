@@ -1,25 +1,10 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AlertCircleIcon, WebProtectionIcon, CameraVideoIcon, SparklesIcon, Shield02Icon } from 'hugeicons-react';
 import { Logo } from './Logo';
 import { LEGAL, LEGAL_PATHS } from '../legal/config';
 
 export const Footer: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const goToPricing = (event: React.MouseEvent) => {
-    event.preventDefault();
-    if (location.pathname === '/') {
-      document.getElementById('pricing-section')?.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
-    navigate('/');
-    window.setTimeout(() => {
-      document.getElementById('pricing-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 120);
-  };
-
   const linkClass = 'transition-colors hover:text-white';
 
   return (
@@ -59,11 +44,6 @@ export const Footer: React.FC = () => {
                 <Link to="/live" className={linkClass}>
                   Random video chat
                 </Link>
-              </li>
-              <li>
-                <a href="/#pricing-section" onClick={goToPricing} className={linkClass}>
-                  Pro membership
-                </a>
               </li>
               <li>
                 <a href="/#how-it-works" className={linkClass}>
@@ -136,8 +116,8 @@ export const Footer: React.FC = () => {
               to="/live"
               className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-neutral-300 transition-all hover:border-[#8b5cf6]/40 hover:text-white"
             >
-              <SparklesIcon className="h-3.5 w-3.5 text-amber-300" />
-              Explore Pro filters
+              <SparklesIcon className="h-3.5 w-3.5 text-violet-300" />
+              Set match filters
             </Link>
           </div>
         </div>
@@ -151,7 +131,7 @@ export const Footer: React.FC = () => {
             <span>Built for adults 18+</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline">Cashfree recurring payments · India</span>
+            <span className="hidden sm:inline">Free video chat · India</span>
             <span className="hidden text-neutral-700 sm:inline">·</span>
             <a href={`mailto:${LEGAL.supportEmail}`} className="text-neutral-600 transition-colors hover:text-neutral-300">
               Support

@@ -4,8 +4,6 @@ import {
   ArrowRight01Icon as ArrowNextIcon,
   CallEnd01Icon,
   CameraVideoIcon,
-  Cancel01Icon,
-  CheckmarkCircle01Icon,
   LanguageSkillIcon,
   LockIcon,
   Message01Icon,
@@ -22,10 +20,8 @@ import { ThreeDFemaleAvatar, ThreeDMaleAvatar } from './ThreeDIcons';
 
 interface LandingViewProps {
   onStartChat: () => void;
-  onOpenUpgradeModal: () => void;
   onOpenGoogleModal: () => void;
   onNavigateToSafety: () => void;
-  isPro: boolean;
   isGoogleUser: boolean;
   googleEnabled: boolean;
 }
@@ -49,7 +45,7 @@ const FEATURES = [
   {
     icon: SparklesIcon,
     title: 'Precision filters',
-    body: 'Pro members choose preferred gender, multiple countries, languages and shared interests — or leave it open for the fastest match.',
+    body: 'Choose preferred gender, multiple countries, languages and shared interests — or leave it open for the fastest match.',
     tone: 'from-[#fbbf24]/25 to-[#f472b6]/10 text-[#fcd34d]',
   },
   {
@@ -95,10 +91,8 @@ const STEPS = [
 
 export const LandingView: React.FC<LandingViewProps> = ({
   onStartChat,
-  onOpenUpgradeModal,
   onOpenGoogleModal,
   onNavigateToSafety,
-  isPro,
   isGoogleUser,
   googleEnabled,
 }) => {
@@ -191,11 +185,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 <button onClick={onOpenGoogleModal} className="btn-secondary h-12 px-5 text-sm sm:h-[52px]">
                   <GoogleGlyph />
                   <span>Continue with Google</span>
-                </button>
-              ) : isGoogleUser ? (
-                <button onClick={onOpenUpgradeModal} className="btn-secondary h-12 px-5 text-sm sm:h-[52px]">
-                  <SparklesIcon className="h-4 w-4 text-amber-300" />
-                  <span>Explore Pro · ₹299</span>
                 </button>
               ) : null}
             </div>
@@ -386,120 +375,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <p className="mt-3 text-xs leading-relaxed text-neutral-400">{step.body}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ---------------- Pricing ---------------- */}
-      <section id="pricing-section" className="relative border-t border-white/[0.06] bg-[#08070f]/60 py-20 sm:py-24">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a67cff]">Simple pricing</p>
-            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-              Two plans. Nothing hidden.
-            </h2>
-            <p className="mt-4 text-sm text-neutral-400">
-              Random video chat is free forever. Pro adds the filters that make matching feel personal.
-            </p>
-          </div>
-
-          <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
-            {/* Free */}
-            <div className="surface flex flex-col rounded-3xl p-7">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-display text-lg font-bold text-white">Free</h3>
-                  <p className="mt-1 text-xs text-neutral-500">Meet anyone, anywhere</p>
-                </div>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-                  Standard
-                </span>
-              </div>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="font-display text-4xl font-extrabold text-white">₹0</span>
-                <span className="text-xs text-neutral-500">forever</span>
-              </div>
-
-              <ul className="mt-6 flex-1 space-y-3 text-[13px]">
-                {[
-                  'Unlimited random one-to-one video',
-                  'Camera and microphone video chat',
-                  'Next / skip and disconnect controls',
-                  'Report, block and safety tools',
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-neutral-300">
-                    <CheckmarkCircle01Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-                {['Gender preference filtering', 'Country and language filters'].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-neutral-600">
-                    <Cancel01Icon className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={onStartChat}
-                className="btn-secondary mt-7 h-11 w-full text-xs font-bold"
-              >
-                Start free chat
-              </button>
-            </div>
-
-            {/* Pro */}
-            <div className="brand-ring relative flex flex-col overflow-hidden rounded-3xl border border-[#8b5cf6]/40 bg-gradient-to-b from-[#16102b] via-[#0f0c1e] to-[#0b0916] p-7 shadow-[0_40px_100px_-40px_rgba(139,92,246,0.65)]">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#8b5cf6]/20 blur-3xl" />
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="flex items-center gap-2 font-display text-lg font-bold text-white">
-                    Pro
-                    <SparklesIcon className="h-4 w-4 text-amber-300" />
-                  </h3>
-                  <p className="mt-1 text-xs text-neutral-400">Filters, priority and a cleaner queue</p>
-                </div>
-                <span className="rounded-full border border-[#8b5cf6]/40 bg-[#8b5cf6]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#c4b5fd]">
-                  Recommended
-                </span>
-              </div>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="font-display text-4xl font-extrabold text-white">₹299</span>
-                <span className="text-xs text-neutral-400">/ month</span>
-              </div>
-
-              <ul className="mt-6 flex-1 space-y-3 text-[13px]">
-                {[
-                  'Everything in Free',
-                  'Preferred gender matching',
-                  'Country and multi-country filters',
-                  'Language and interest matching',
-                  'Priority queue placement',
-                  'Ad-free experience',
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-neutral-200">
-                    <CheckmarkCircle01Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#c4b5fd]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {!isPro ? (
-                <button onClick={onOpenUpgradeModal} className="btn-primary mt-7 h-11 w-full text-xs">
-                  <SparklesIcon className="h-4 w-4" />
-                  Upgrade to Pro — ₹299/mo
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="mt-7 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 text-xs font-bold text-emerald-300"
-                >
-                  <CheckmarkCircle01Icon className="h-4 w-4" />
-                  Current plan active
-                </button>
-              )}
-              <p className="mt-3 text-center text-[10px] text-neutral-500">Cancel anytime from account settings</p>
-            </div>
-          </div>
         </div>
       </section>
 

@@ -168,7 +168,6 @@ describe('Phase 3: Matchmaking Abuse & Identity Spoofing Prevention', () => {
       socketId: 'sock_a',
       gender: 'female',
       country: 'GLOBAL',
-      isPro: false,
       preferences: {},
       joinedAt: Date.now(),
     };
@@ -178,7 +177,6 @@ describe('Phase 3: Matchmaking Abuse & Identity Spoofing Prevention', () => {
       socketId: 'sock_b',
       gender: 'male',
       country: 'GLOBAL',
-      isPro: false,
       preferences: {},
       joinedAt: Date.now(),
     };

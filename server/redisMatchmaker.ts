@@ -213,9 +213,8 @@ export class RedisMatchmaker {
     await this.dequeue(socketId);
     const endedMatch = await this.endMatchBySocket(socketId);
 
-    const isPro = db.isUserPro(userId);
     const entry: RedisQueueEntry = {
-      ...buildQueueEntry(socketId, userId, gender, country, rawPreferences, isPro),
+      ...buildQueueEntry(socketId, userId, gender, country, rawPreferences),
       instanceId: this.instanceId,
       displayName: displayName || user?.displayName,
     };
@@ -323,11 +322,7 @@ export class RedisMatchmaker {
       const blockedPairs = new Set(await client.smembers(BLOCKS_KEY));
       const isBlocked = (a: string, b: string) => blockedPairs.has(blockPairKey(a, b));
 
-      const candidates = entries.sort((a, b) => {
-        if (a.isPro && !b.isPro) return -1;
-        if (!a.isPro && b.isPro) return 1;
-        return a.joinedAt - b.joinedAt;
-      });
+      const candidates = entries.sort((a, b) => a.joinedAt - b.joinedAt);
 
       const matched = new Set<string>();
       const newMatches: ActiveMatch[] = [];

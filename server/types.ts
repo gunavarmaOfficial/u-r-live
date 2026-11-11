@@ -50,33 +50,6 @@ export interface LegalConsent {
   userAgentHash?: string;
 }
 
-export type SubscriptionPlan = 'free' | 'pro';
-
-export interface Subscription {
-  id: string;
-  userId: string;
-  provider: 'cashfree';
-  providerCustomerId: string;
-  providerSubscriptionId: string;
-  planCode: 'pro_monthly_299';
-  status: 'active' | 'cancelled' | 'expired' | 'pending';
-  currentPeriodStart: number;
-  currentPeriodEnd: number;
-  cancelAtPeriodEnd: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface PaymentEvent {
-  id: string;
-  provider: 'cashfree';
-  providerEventId: string;
-  eventType: string;
-  processingStatus: 'processing' | 'processed' | 'ignored' | 'failed';
-  receivedAt: number;
-  payload: Record<string, unknown>;
-}
-
 export type ReportCategory =
   | 'harassment'
   | 'suspected_underage'
@@ -150,7 +123,7 @@ export interface AdminAuditLog {
   id: string;
   adminUserId: string;
   action: string;
-  targetType: 'user' | 'report' | 'subscription' | 'system';
+  targetType: 'user' | 'report' | 'system';
   targetId: string;
   details?: Record<string, unknown>;
   createdAt: number;
@@ -165,12 +138,9 @@ export interface MatchPreferences {
   isMultipleCountries?: boolean;
   interests?: string[];
   interestMatchingEnabled?: boolean;
-  strictInterests?: boolean; // Pro only
   languages?: string[];
   preferredLanguages?: string[];
   primaryLanguage?: string;
-  strictLanguage?: boolean; // Pro only
-  priorityQueue?: boolean; // Pro only
 }
 
 export interface QueueEntry {
@@ -178,7 +148,6 @@ export interface QueueEntry {
   socketId: string;
   gender: UserGender;
   country: string;
-  isPro: boolean;
   mode?: ChatMode;
   interests?: string[];
   languages?: string[];

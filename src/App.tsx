@@ -13,7 +13,6 @@ import { HomePage } from "./pages/HomePage";
 import { SafetyPage } from "./pages/SafetyPage";
 import { LegalPage } from "./pages/LegalPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { ProUpgradeModal } from "./components/ProUpgradeModal";
 import { AccountSettingsModal } from "./components/AccountSettingsModal";
 import { GoogleAuthModal } from "./components/GoogleAuthModal";
 import { ReportModal } from "./components/ReportModal";
@@ -23,7 +22,7 @@ import {
   SessionStatus,
 } from "./context/AppContext";
 import { useVisibility } from "./hooks/useVisibility";
-import { Subscription, UserProfile } from "./types";
+import { UserProfile } from "./types";
 import {
   api,
   clearStoredSessionToken,
@@ -57,8 +56,6 @@ export default function App() {
   useVisibility();
 
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isPro, setIsPro] = useState(false);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [preferredGender, setPreferredGender] =
     useState<PreferredGender>("any");
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("idle");
@@ -66,8 +63,6 @@ export default function App() {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState("");
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{
@@ -77,19 +72,10 @@ export default function App() {
 
   const sessionInFlight = useRef(false);
 
-  const applySession = useCallback(
-    (payload: {
-      user: UserProfile;
-      isPro?: boolean;
-      subscription?: Subscription | null;
-    }) => {
-      setUser(payload.user);
-      setIsPro(Boolean(payload.isPro));
-      setSubscription(payload.subscription ?? null);
-      setSessionError(null);
-    },
-    [],
-  );
+  const applySession = useCallback((payload: { user: UserProfile }) => {
+    setUser(payload.user);
+    setSessionError(null);
+  }, []);
 
   const loadSession = useCallback(async () => {
     if (sessionInFlight.current) return;
@@ -137,14 +123,6 @@ export default function App() {
     };
   }, [loadSession]);
 
-  const openUpgrade = useCallback((reason?: string) => {
-    setUpgradeReason(
-      reason ||
-        "Upgrade to U-R-LIVE Pro to unlock priority queue, country filters and verified badge.",
-    );
-    setIsUpgradeModalOpen(true);
-  }, []);
-
   const updateUser = useCallback((next: UserProfile) => {
     setUser(next);
   }, []);
@@ -153,8 +131,6 @@ export default function App() {
     clearStoredSessionToken();
     clearStoredUserId();
     setUser(null);
-    setIsPro(false);
-    setSubscription(null);
     setSessionStatus("idle");
     setSessionError(null);
     if (window.location.pathname === "/live") {
@@ -169,8 +145,6 @@ export default function App() {
   const contextValue = React.useMemo(
     () => ({
       user,
-      isPro,
-      subscription,
       preferredGender,
       sessionStatus,
       sessionError,
@@ -181,7 +155,6 @@ export default function App() {
       updateUser,
       setPreferredGender,
       signOut,
-      openUpgrade,
       openSettings: () => setIsSettingsModalOpen(true),
       openGoogle: () => {
         if (googleEnabled) setIsGoogleModalOpen(true);
@@ -191,8 +164,6 @@ export default function App() {
     }),
     [
       user,
-      isPro,
-      subscription,
       preferredGender,
       sessionStatus,
       sessionError,
@@ -202,7 +173,6 @@ export default function App() {
       applySession,
       updateUser,
       signOut,
-      openUpgrade,
     ],
   );
 
@@ -255,27 +225,10 @@ export default function App() {
           isOpen={isGoogleModalOpen}
           clientId={googleClientId}
           onClose={() => setIsGoogleModalOpen(false)}
-          onSuccess={(googleUser, googleIsPro, googleSub) => {
-            applySession({
-              user: googleUser,
-              isPro: googleIsPro,
-              subscription: googleSub,
-            });
+          onSuccess={(googleUser) => {
+            applySession({ user: googleUser });
             setSessionStatus("ready");
           }}
-        />
-
-        <ProUpgradeModal
-          isOpen={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-          onSuccess={(sub: Subscription) => {
-            setSubscription(sub);
-            setIsPro(true);
-            if (upgradeReason.includes("Female")) setPreferredGender("female");
-            else if (upgradeReason.includes("Male")) setPreferredGender("male");
-          }}
-          activeSubscription={subscription}
-          upgradeReason={upgradeReason}
         />
 
         {reportTarget && (
@@ -293,18 +246,9 @@ export default function App() {
             isOpen={isSettingsModalOpen}
             onClose={() => setIsSettingsModalOpen(false)}
             user={user}
-            isPro={isPro}
-            subscription={subscription}
-            onProfileUpdated={(updated, pro, sub) => {
+            onProfileUpdated={(updated) => {
               setUser(updated);
-              setIsPro(pro);
-              setSubscription(sub);
             }}
-            onOpenUpgradeModal={() =>
-              openUpgrade(
-                "Upgrade to U-R-LIVE Pro to unlock gender filters and priority queue.",
-              )
-            }
             onOpenGoogleModal={() => {
               if (googleEnabled) setIsGoogleModalOpen(true);
             }}

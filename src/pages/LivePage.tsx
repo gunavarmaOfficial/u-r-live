@@ -22,14 +22,12 @@ const LiveSkeleton: React.FC<{ label: string }> = ({ label }) => (
 export const LivePage: React.FC = () => {
   const {
     user,
-    isPro,
     preferredGender,
     sessionStatus,
     sessionError,
     loadSession,
     updateUser,
     setPreferredGender,
-    openUpgrade,
     openReport,
   } = useApp();
   const [forceOnboarding, setForceOnboarding] = useState(false);
@@ -87,7 +85,6 @@ export const LivePage: React.FC = () => {
         <Seo path="/live" />
         <OnboardingView
           user={user}
-          isPro={isPro}
           onComplete={(gender: UserGender, pref: 'any' | 'male' | 'female') => {
             updateUser({
               ...user,
@@ -100,9 +97,6 @@ export const LivePage: React.FC = () => {
             setPreferredGender(pref);
             setForceOnboarding(false);
           }}
-          onOpenUpgradeModal={() =>
-            openUpgrade('Connecting with Female partners alone requires U-R-LIVE Pro (₹299/month).')
-          }
         />
       </>
     );
@@ -113,12 +107,8 @@ export const LivePage: React.FC = () => {
       <Seo path="/live" />
       <VideoChatView
         user={user}
-        isPro={isPro}
         preferredGender={preferredGender}
         onChangePreferredGender={setPreferredGender}
-        onOpenUpgradeModal={(reason) =>
-          openUpgrade(reason || 'Connecting with Female partners alone requires U-R-LIVE Pro (₹299/month).')
-        }
         onOpenReportModal={(partnerId, partnerName) => openReport(partnerId, partnerName)}
         onRequireAgeVerification={() => setForceOnboarding(true)}
         onOpenOnboarding={() => setForceOnboarding(true)}

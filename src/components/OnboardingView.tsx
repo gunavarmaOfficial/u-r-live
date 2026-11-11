@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  SparklesIcon,
   CheckmarkCircle01Icon,
   AlertCircleIcon,
   ArrowRight01Icon,
   ArrowLeft01Icon,
-  LockIcon,
   Shield02Icon,
   CameraVideoIcon,
   UserCheck01Icon,
@@ -25,9 +23,7 @@ import {
 
 interface OnboardingViewProps {
   user: UserProfile;
-  isPro: boolean;
   onComplete: (gender: UserGender, preferredGender: 'any' | 'male' | 'female') => void;
-  onOpenUpgradeModal: () => void;
 }
 
 const GENDER_OPTIONS: Array<{
@@ -70,9 +66,7 @@ const GENDER_OPTIONS: Array<{
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({
   user,
-  isPro,
   onComplete,
-  onOpenUpgradeModal,
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
@@ -103,9 +97,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
     setTargetPreference(pref);
   };
 
-  const handleFinishOnboarding = async (overridePreference?: 'any') => {
+  const handleFinishOnboarding = async () => {
     setError('');
-    const effectivePref = overridePreference || targetPreference;
+    const effectivePref = targetPreference;
 
     if (!selectedGender || selectedGender === 'unspecified') {
       setCurrentStep(1);
@@ -120,11 +114,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
 
     if (!acceptedTerms) {
       setError('Please accept the Terms of Service and Privacy Policy to continue.');
-      return;
-    }
-
-    if (effectivePref === 'female' && !isPro) {
-      onOpenUpgradeModal();
       return;
     }
 
@@ -178,7 +167,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
               {
                 icon: ZapIcon,
                 title: 'Choose your match type',
-                body: 'Anyone is instant and free. Gender filters unlock with Pro.',
+                body: 'Anyone is instant. Gender filters are free for everyone.',
               },
               {
                 icon: Shield02Icon,
@@ -349,12 +338,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                         <ArrowLeft01Icon className="h-3.5 w-3.5" />
                         Back to gender
                       </button>
-                      {isPro && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-                          <SparklesIcon className="h-2.5 w-2.5" />
-                          Pro active
-                        </span>
-                      )}
                     </div>
 
                     <div className="mb-2 mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#8b5cf6]/25 bg-[#8b5cf6]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#c4b5fd]">
@@ -365,7 +348,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                       Who should we match you with?
                     </h2>
                     <p className="mt-2 text-xs leading-relaxed text-neutral-400 sm:text-[13px]">
-                      Pick a partner category. "Anyone" is free and gives you the fastest queue.
+                      Pick a partner category. "Anyone" gives you the fastest queue.
                     </p>
                   </div>
 
@@ -388,7 +371,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                           <span className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-bold text-white">Anyone</span>
                             <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">
-                              Free · fastest
+                              Fastest
                             </span>
                           </span>
                           <span className="mt-1 block text-[11px] leading-relaxed text-neutral-400">
@@ -421,10 +404,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-bold text-white">Female partners</span>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#fbbf24] to-[#f472b6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1a0a12]">
-                                <SparklesIcon className="h-2.5 w-2.5" />
-                                Pro · ₹299
-                              </span>
                             </div>
                             <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
                               Connect exclusively with verified female adults.
@@ -435,25 +414,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                           {targetPreference === 'female' && <CheckmarkCircle01Icon className="h-3.5 w-3.5" />}
                         </span>
                       </div>
-
-                      {!isPro && (
-                        <div className="mt-3 flex flex-col gap-2 border-t border-[#f472b6]/15 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-[10px] leading-tight text-[#f9a8d4]/80">
-                            Exclusive Pro filter for female-only matching
-                          </p>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpenUpgradeModal();
-                            }}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#fbbf24] to-[#f472b6] px-3 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[#1a0a12] shadow-sm transition-transform active:scale-95"
-                          >
-                            <LockIcon className="h-3 w-3" />
-                            Unlock with Pro
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     {/* Male */}
@@ -476,10 +436,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-bold text-white">Male partners</span>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#fbbf24] to-[#60a5fa] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#0a1220]">
-                                <SparklesIcon className="h-2.5 w-2.5" />
-                                Pro · ₹299
-                              </span>
                             </div>
                             <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
                               Connect exclusively with male adults worldwide.
@@ -490,25 +446,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                           {targetPreference === 'male' && <CheckmarkCircle01Icon className="h-3.5 w-3.5" />}
                         </span>
                       </div>
-
-                      {!isPro && (
-                        <div className="mt-3 flex flex-col gap-2 border-t border-[#60a5fa]/15 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-[10px] leading-tight text-[#93c5fd]/80">
-                            Exclusive Pro filter for male-only matching
-                          </p>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpenUpgradeModal();
-                            }}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-[#fbbf24] to-[#60a5fa] px-3 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[#0a1220] shadow-sm transition-transform active:scale-95"
-                          >
-                            <LockIcon className="h-3 w-3" />
-                            Unlock with Pro
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
 

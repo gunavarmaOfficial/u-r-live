@@ -7,7 +7,7 @@ import { db } from './db';
 const STALE_QUEUE_TIMEOUT_MS = 60 * 1000; // 60s without ping = stale
 
 /**
- * Builds a queue entry with server-enforced Pro entitlements.
+ * Builds a queue entry with the user's saved match preferences applied.
  * Shared by the in-process matchmaker and the Redis-backed distributed one so
  * both enforce identical preference rules.
  */
@@ -16,45 +16,40 @@ export function buildQueueEntry(
   userId: string,
   gender: UserGender,
   country: string,
-  rawPreferences: MatchPreferences,
-  isPro: boolean
+  rawPreferences: MatchPreferences
 ): QueueEntry {
   const mode = rawPreferences?.mode === 'text' ? 'text' : 'video';
   const interests = Array.isArray(rawPreferences?.interests) ? rawPreferences.interests : [];
 
-  // Strictly enforce Pro-only country and language filtering on server-side
   let preferredCountries: string[] = ['GLOBAL'];
   let preferredCountry = 'GLOBAL';
   let languages: string[] = [];
 
-  if (isPro) {
-    if (Array.isArray(rawPreferences?.preferredCountries) && rawPreferences.preferredCountries.length > 0) {
-      preferredCountries = rawPreferences.preferredCountries;
-      preferredCountry = preferredCountries[0] || 'GLOBAL';
-    } else if (rawPreferences?.preferredCountry) {
-      preferredCountry = rawPreferences.preferredCountry;
-      preferredCountries = [rawPreferences.preferredCountry];
-    }
+  if (Array.isArray(rawPreferences?.preferredCountries) && rawPreferences.preferredCountries.length > 0) {
+    preferredCountries = rawPreferences.preferredCountries;
+    preferredCountry = preferredCountries[0] || 'GLOBAL';
+  } else if (rawPreferences?.preferredCountry) {
+    preferredCountry = rawPreferences.preferredCountry;
+    preferredCountries = [rawPreferences.preferredCountry];
+  }
 
-    if (Array.isArray(rawPreferences?.languages) && rawPreferences.languages.length > 0) {
-      languages = rawPreferences.languages;
-    } else if (Array.isArray(rawPreferences?.preferredLanguages) && rawPreferences.preferredLanguages.length > 0) {
-      languages = rawPreferences.preferredLanguages;
-    }
+  if (Array.isArray(rawPreferences?.languages) && rawPreferences.languages.length > 0) {
+    languages = rawPreferences.languages;
+  } else if (Array.isArray(rawPreferences?.preferredLanguages) && rawPreferences.preferredLanguages.length > 0) {
+    languages = rawPreferences.preferredLanguages;
   }
 
   const preferences: MatchPreferences = {
     mode,
-    preferredGender: isPro ? (rawPreferences?.preferredGender || 'any') : 'any',
+    preferredGender: rawPreferences?.preferredGender || 'any',
     preferredCountry,
     preferredCountries,
-    isMultipleCountries: isPro && Boolean(rawPreferences?.isMultipleCountries),
+    isMultipleCountries: Boolean(rawPreferences?.isMultipleCountries),
     interests,
     languages,
     preferredLanguages: languages,
     primaryLanguage: rawPreferences?.primaryLanguage || (languages[0] || 'en'),
     interestMatchingEnabled: interests.length > 0,
-    priorityQueue: isPro,
   };
 
   return {
@@ -62,7 +57,6 @@ export function buildQueueEntry(
     socketId,
     gender,
     country,
-    isPro,
     mode,
     interests,
     languages,
@@ -115,7 +109,7 @@ export function areEntriesCompatible(
 
   // Check A's country preferences regarding B
   const aCountries = a.preferences.preferredCountries || (a.preferences.preferredCountry ? [a.preferences.preferredCountry] : ['GLOBAL']);
-  const aHasCountryFilter = a.isPro && aCountries.length > 0 && !aCountries.includes('GLOBAL') && !aCountries.includes('any');
+  const aHasCountryFilter = aCountries.length > 0 && !aCountries.includes('GLOBAL') && !aCountries.includes('any');
   if (aHasCountryFilter) {
     if (!aCountries.includes(b.country)) {
       return false;
@@ -124,7 +118,7 @@ export function areEntriesCompatible(
 
   // Check B's country preferences regarding A
   const bCountries = b.preferences.preferredCountries || (b.preferences.preferredCountry ? [b.preferences.preferredCountry] : ['GLOBAL']);
-  const bHasCountryFilter = b.isPro && bCountries.length > 0 && !bCountries.includes('GLOBAL') && !bCountries.includes('any');
+  const bHasCountryFilter = bCountries.length > 0 && !bCountries.includes('GLOBAL') && !bCountries.includes('any');
   if (bHasCountryFilter) {
     if (!bCountries.includes(a.country)) {
       return false;
@@ -133,7 +127,7 @@ export function areEntriesCompatible(
 
   // Check A's language preferences regarding B
   const aLangs = a.preferences.languages || a.preferences.preferredLanguages || [];
-  const aHasLangFilter = a.isPro && aLangs.length > 0 && !aLangs.includes('any');
+  const aHasLangFilter = aLangs.length > 0 && !aLangs.includes('any');
   if (aHasLangFilter) {
     const bLanguages = b.languages || b.preferences?.languages || [];
     if (bLanguages.length > 0 && !aLangs.some((lang) => bLanguages.includes(lang))) {
@@ -143,7 +137,7 @@ export function areEntriesCompatible(
 
   // Check B's language preferences regarding A
   const bLangs = b.preferences.languages || b.preferences.preferredLanguages || [];
-  const bHasLangFilter = b.isPro && bLangs.length > 0 && !bLangs.includes('any');
+  const bHasLangFilter = bLangs.length > 0 && !bLangs.includes('any');
   if (bHasLangFilter) {
     const aLanguages = a.languages || a.preferences?.languages || [];
     if (aLanguages.length > 0 && !bLangs.some((lang) => aLanguages.includes(lang))) {
@@ -167,7 +161,7 @@ export class Matchmaker {
 
   /**
    * Enqueue a user into the matchmaking system.
-   * If the user is Free, server enforces random matching by overriding any custom preferences.
+   * All users keep their custom match preferences (gender, country, language).
    */
   public enqueue(
     socketId: string,
@@ -186,9 +180,7 @@ export class Matchmaker {
     this.dequeue(socketId);
     const endedMatch = this.endMatchBySocket(socketId);
 
-    // Enforce preferences with Pro priority
-    const isPro = db.isUserPro(userId);
-    const entry: QueueEntry = buildQueueEntry(socketId, userId, gender, country, rawPreferences, isPro);
+    const entry: QueueEntry = buildQueueEntry(socketId, userId, gender, country, rawPreferences);
 
     this.queue.set(socketId, entry);
     return { success: true, endedMatch };
@@ -246,12 +238,8 @@ export class Matchmaker {
     const newMatches: ActiveMatch[] = [];
 
     try {
-      // Sort candidates: Pro users get priority queue placement, then by join time (FIFO)
-      const candidates = Array.from(this.queue.values()).sort((a, b) => {
-        if (a.isPro && !b.isPro) return -1;
-        if (!a.isPro && b.isPro) return 1;
-        return a.joinedAt - b.joinedAt;
-      });
+      // FIFO by join time
+      const candidates = Array.from(this.queue.values()).sort((a, b) => a.joinedAt - b.joinedAt);
 
       const matchedSockets = new Set<string>();
 

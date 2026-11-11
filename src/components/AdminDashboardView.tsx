@@ -3,7 +3,6 @@ import {
   AlertCircleIcon,
   Search01Icon,
   UserCircleIcon,
-  SparklesIcon,
   Cancel01Icon,
   Globe02Icon,
 } from 'hugeicons-react';
@@ -19,7 +18,7 @@ export const AdminDashboardView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'users' | 'health'>('overview');
   const [overview, setOverview] = useState<any>(null);
   const [reports, setReports] = useState<UserReport[]>([]);
-  const [users, setUsers] = useState<(UserProfile & { isPro: boolean })[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [systemHealth, setSystemHealth] = useState<any>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -182,12 +181,9 @@ export const AdminDashboardView: React.FC = () => {
               </p>
             </div>
             <div className={`${CARD} p-5`}>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Pro subscribers</p>
-              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-amber-300">
-                {overview.proSubscribers}{' '}
-                <span className="text-xs font-normal text-white/30">
-                  ₹{overview.monthlyRevenueInr}/mo
-                </span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/35">Pending reports</p>
+              <p className="mt-1.5 font-display text-2xl font-extrabold tabular-nums text-rose-300">
+                {overview.pendingReportsCount}
               </p>
             </div>
           </div>
@@ -218,21 +214,25 @@ export const AdminDashboardView: React.FC = () => {
 
             <div className={`${CARD} space-y-4 p-6`}>
               <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                <SparklesIcon className="h-4 w-4 text-violet-300" />
-                Cashfree subscriptions
+                <Globe02Icon className="h-4 w-4 text-emerald-300" />
+                WebRTC &amp; signaling
               </h3>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between border-b border-white/[0.06] py-2">
-                  <span className="text-white/40">Plan code</span>
-                  <span className="font-mono text-white/80">pro_monthly_299</span>
+                  <span className="text-white/40">Matchmaker health</span>
+                  <span className="font-mono font-semibold uppercase text-emerald-300">
+                    {systemHealth?.status ?? '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-white/[0.06] py-2">
-                  <span className="text-white/40">Signature verification</span>
-                  <span className="font-semibold text-emerald-300">HMAC-SHA256</span>
+                  <span className="text-white/40">Process uptime</span>
+                  <span className="font-mono text-white/80">
+                    {systemHealth ? `${systemHealth.uptimeSeconds}s` : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-white/40">Webhook idempotency</span>
-                  <span className="font-semibold text-emerald-300">Active</span>
+                  <span className="text-white/40">Video retention</span>
+                  <span className="font-semibold text-emerald-300">None</span>
                 </div>
               </div>
             </div>
@@ -355,7 +355,6 @@ export const AdminDashboardView: React.FC = () => {
               <thead className="border-b border-white/[0.07] bg-white/[0.03]">
                 <tr>
                   <th className={TH}>User</th>
-                  <th className={TH}>Plan</th>
                   <th className={TH}>18+ verified</th>
                   <th className={TH}>Status</th>
                   <th className={`${TH} text-right`}>Actions</th>
@@ -367,15 +366,6 @@ export const AdminDashboardView: React.FC = () => {
                     <td className="p-3.5">
                       <p className="font-semibold text-white/85">{u.displayName}</p>
                       <p className="mt-0.5 font-mono text-[11px] text-white/25">{u.email || u.id}</p>
-                    </td>
-                    <td className="p-3.5">
-                      {u.isPro ? (
-                        <span className="inline-flex items-center gap-1 font-semibold text-violet-300">
-                          <SparklesIcon className="h-3 w-3" /> Pro
-                        </span>
-                      ) : (
-                        <span className="text-white/30">Free</span>
-                      )}
                     </td>
                     <td className="p-3.5">
                       {u.isAdultVerified ? (

@@ -1,15 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import crypto from 'crypto';
 import { db } from '../db';
 import { Matchmaker } from '../matchmaker';
-import {
-  verifyCashfreePaymentSignature,
-  verifyCashfreeWebhookSignature,
-  verifyCashfreeOrderStatus,
-  processCashfreeWebhook,
-  PRO_PLAN_PRICE_INR,
-  activateProSubscription,
-} from '../payments';
 import {
   createSessionToken,
   verifySessionToken,
@@ -18,176 +9,7 @@ import {
 } from '../auth';
 import { QueueEntry } from '../types';
 
-describe('1. Subscription Entitlement & Free vs Pro Permissions', () => {
-  const testUserId = 'test_user_' + Math.random().toString(36).substring(2, 8);
-
-  beforeEach(() => {
-    db.saveUser({
-      id: testUserId,
-      displayName: 'Test User',
-      gender: 'female',
-      country: 'IN',
-      isAdultVerified: true,
-      role: 'user',
-      status: 'active',
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    });
-  });
-
-  it('newly created user defaults to Free tier (isPro = false)', () => {
-    expect(db.isUserPro(testUserId)).toBe(false);
-  });
-
-  it('pro membership costs exactly ₹299 INR', () => {
-    expect(PRO_PLAN_PRICE_INR).toBe(299);
-  });
-
-  it('activating pro subscription grants active entitlement for 30 days', () => {
-    const sub = activateProSubscription(testUserId, 'sub_test_123');
-    expect(sub.status).toBe('active');
-    expect(sub.currentPeriodEnd).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000);
-    expect(db.isUserPro(testUserId)).toBe(true);
-  });
-
-  it('expired subscription automatically invalidates Pro access', () => {
-    const sub = db.getSubscription(testUserId)!;
-    sub.currentPeriodEnd = Date.now() - 1000; // Expired 1 second ago
-    db.saveSubscription(sub);
-
-    expect(db.isUserPro(testUserId)).toBe(false);
-  });
-
-  it('cancelling subscription keeps it active until end of period', () => {
-    activateProSubscription(testUserId, 'sub_test_renew');
-    const cancelled = db.cancelSubscription(testUserId);
-
-    expect(cancelled?.cancelAtPeriodEnd).toBe(true);
-    expect(db.isUserPro(testUserId)).toBe(true);
-  });
-});
-
-describe('2. Payment Security & Bypass Prevention', () => {
-  const secret = 'test_cf_secret_key_12345';
-
-  it('rejects mock signatures starting with cf_sig_ or mock_sig_', () => {
-    const orderId = 'order_test_999';
-    const paymentId = 'pay_test_999';
-
-    expect(verifyCashfreePaymentSignature(orderId, paymentId, 'cf_sig_fake_signature_abc', secret)).toBe(false);
-    expect(verifyCashfreePaymentSignature(orderId, paymentId, 'mock_sig_fake_signature_xyz', secret)).toBe(false);
-  });
-
-  it('rejects empty, null, or missing payment verification parameters', () => {
-    expect(verifyCashfreePaymentSignature('', 'pay_123', 'some_sig', secret)).toBe(false);
-    expect(verifyCashfreePaymentSignature('ord_123', '', 'some_sig', secret)).toBe(false);
-    expect(verifyCashfreePaymentSignature('ord_123', 'pay_123', '', secret)).toBe(false);
-  });
-
-  it('verifies genuine HMAC-SHA256 payment signature strictly', () => {
-    const orderId = 'order_valid_001';
-    const paymentId = 'pay_valid_001';
-    const payload = `${orderId}|${paymentId}`;
-    const validSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
-    expect(verifyCashfreePaymentSignature(orderId, paymentId, validSignature, secret)).toBe(true);
-
-    const tamperedSignature = crypto.createHmac('sha256', 'wrong_secret').update(payload).digest('hex');
-    expect(verifyCashfreePaymentSignature(orderId, paymentId, tamperedSignature, secret)).toBe(false);
-  });
-
-  it('verifyCashfreeOrderStatus fails closed if server credentials are not set', async () => {
-    const originalAppId = process.env.CASHFREE_APP_ID;
-    const originalSecret = process.env.CASHFREE_SECRET_KEY;
-
-    try {
-      delete process.env.CASHFREE_APP_ID;
-      delete process.env.CASHFREE_CLIENT_ID;
-      delete process.env.CASHFREE_SECRET_KEY;
-
-      const result = await verifyCashfreeOrderStatus('order_test_unconfigured');
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('not configured');
-    } finally {
-      if (originalAppId) process.env.CASHFREE_APP_ID = originalAppId;
-      if (originalSecret) process.env.CASHFREE_SECRET_KEY = originalSecret;
-    }
-  });
-});
-
-describe('3. Cashfree Payment Webhook HMAC Verification & Idempotency', () => {
-  const secret = 'test_webhook_secret_key';
-  const timestamp = String(Date.now());
-
-  it('verifies HMAC-SHA256 signature with timestamp accurately and rejects altered bodies', () => {
-    const payload = JSON.stringify({ event: 'payment.captured', id: 'evt_100' });
-    const dataToSign = `${timestamp}${payload}`;
-    const validSignature = crypto.createHmac('sha256', secret).update(dataToSign).digest('hex');
-
-    expect(verifyCashfreeWebhookSignature(payload, validSignature, timestamp, secret)).toBe(true);
-
-    const tamperedPayload = JSON.stringify({ event: 'payment.captured', id: 'evt_999' });
-    expect(verifyCashfreeWebhookSignature(tamperedPayload, validSignature, timestamp, secret)).toBe(false);
-  });
-
-  it('rejects webhooks with missing timestamp or empty signature', () => {
-    const payload = JSON.stringify({ event: 'payment.captured' });
-    expect(verifyCashfreeWebhookSignature(payload, '', timestamp, secret)).toBe(false);
-    expect(verifyCashfreeWebhookSignature(payload, 'some_sig', '', secret)).toBe(false);
-  });
-
-  it('idempotently processes webhooks without duplicate execution', async () => {
-    const targetUserId = 'user_target_' + Date.now();
-    db.saveUser({
-      id: targetUserId,
-      displayName: 'Webhook Target',
-      gender: 'unspecified',
-      country: 'IN',
-      isAdultVerified: true,
-      role: 'user',
-      status: 'active',
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    });
-
-    const eventId = 'evt_test_unique_' + Date.now();
-    const eventPayload = {
-      event: 'subscription.charged',
-      event_id: eventId,
-      order: { order_amount: 299 },
-      customer_details: { customer_id: targetUserId },
-    };
-
-    // First attempt
-    const res1 = await processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
-    expect(res1.processed).toBe(true);
-    expect(res1.duplicate).toBe(false);
-
-    // Second attempt with identical eventId
-    const res2 = await processCashfreeWebhook(eventId, 'subscription.charged', eventPayload);
-    expect(res2.processed).toBe(true);
-    expect(res2.duplicate).toBe(true);
-    expect(res2.message).toContain('idempotent');
-  });
-
-  it('rejects webhook order activation if payment amount is less than ₹299', async () => {
-    const underpaidEventId = 'evt_underpaid_' + Date.now();
-    const underpaidPayload = {
-      event: 'ORDER_PAID',
-      event_id: underpaidEventId,
-      order: { order_amount: 50 }, // Underpaid ₹50 instead of ₹299
-      customer_details: { customer_id: 'user_cheap' },
-    };
-
-    const res = await processCashfreeWebhook(underpaidEventId, 'ORDER_PAID', underpaidPayload);
-    expect(res.processed).toBe(false);
-    expect(res.duplicate).toBe(false);
-    expect(res.message).toContain('less than required');
-    expect(db.isUserPro('user_cheap')).toBe(false);
-  });
-});
-
-describe('4. Authentication Security & Role Authorization', () => {
+describe('1. Authentication Security & Role Authorization', () => {
   it('creates and verifies cryptographically signed session tokens', () => {
     const token = createSessionToken('user_test_token_1', 'user');
     expect(typeof token).toBe('string');
@@ -259,7 +81,7 @@ describe('4. Authentication Security & Role Authorization', () => {
   });
 });
 
-describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => {
+describe('2. Matchmaking Preference Compatibility & Disconnect Handling', () => {
   let matchmaker: Matchmaker;
 
   beforeEach(() => {
@@ -272,7 +94,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_1',
       gender: 'female',
       country: 'IN',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -281,7 +102,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_2',
       gender: 'female',
       country: 'IN',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -289,13 +109,12 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
     expect(matchmaker.isCompatible(entryA, entrySelf)).toBe(false);
   });
 
-  it('matches two compatible free users randomly', () => {
+  it('matches two compatible users randomly', () => {
     const userA: QueueEntry = {
       userId: 'user_a',
       socketId: 'sock_a',
       gender: 'male',
       country: 'US',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -304,7 +123,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_b',
       gender: 'female',
       country: 'GB',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -320,7 +138,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_blocker',
       gender: 'male',
       country: 'US',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -329,7 +146,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_spammer',
       gender: 'female',
       country: 'US',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -338,13 +154,12 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
     expect(matchmaker.isCompatible(spammer, blocker)).toBe(false);
   });
 
-  it('honors Pro gender filter: fails if candidate does not match preferred gender', () => {
-    const proMaleSeekingFemale: QueueEntry = {
-      userId: 'pro_user_male',
-      socketId: 'sock_pro',
+  it('honors gender filter: fails if candidate does not match preferred gender', () => {
+    const userSeekingFemale: QueueEntry = {
+      userId: 'user_male',
+      socketId: 'sock_filter',
       gender: 'male',
       country: 'IN',
-      isPro: true,
       preferences: { preferredGender: 'female', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -354,7 +169,6 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_male_candidate',
       gender: 'male',
       country: 'IN',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
@@ -364,13 +178,44 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
       socketId: 'sock_female_candidate',
       gender: 'female',
       country: 'IN',
-      isPro: false,
       preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
       joinedAt: Date.now(),
     };
 
-    expect(matchmaker.isCompatible(proMaleSeekingFemale, maleCandidate)).toBe(false);
-    expect(matchmaker.isCompatible(proMaleSeekingFemale, femaleCandidate)).toBe(true);
+    expect(matchmaker.isCompatible(userSeekingFemale, maleCandidate)).toBe(false);
+    expect(matchmaker.isCompatible(userSeekingFemale, femaleCandidate)).toBe(true);
+  });
+
+  it('honors country filter: fails if candidate country is not in preferred list', () => {
+    const userSeekingIndia: QueueEntry = {
+      userId: 'user_in',
+      socketId: 'sock_country_filter',
+      gender: 'male',
+      country: 'IN',
+      preferences: { preferredGender: 'any', preferredCountry: 'IN', preferredCountries: ['IN'] },
+      joinedAt: Date.now(),
+    };
+
+    const usCandidate: QueueEntry = {
+      userId: 'candidate_us',
+      socketId: 'sock_us_candidate',
+      gender: 'female',
+      country: 'US',
+      preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
+      joinedAt: Date.now(),
+    };
+
+    const inCandidate: QueueEntry = {
+      userId: 'candidate_in',
+      socketId: 'sock_in_candidate',
+      gender: 'female',
+      country: 'IN',
+      preferences: { preferredGender: 'any', preferredCountry: 'GLOBAL' },
+      joinedAt: Date.now(),
+    };
+
+    expect(matchmaker.isCompatible(userSeekingIndia, usCandidate)).toBe(false);
+    expect(matchmaker.isCompatible(userSeekingIndia, inCandidate)).toBe(true);
   });
 
   it('cleanly ends match and resolves peer socket on disconnect', () => {
@@ -395,7 +240,7 @@ describe('5. Matchmaking Preference Compatibility & Disconnect Handling', () => 
   });
 });
 
-describe('6. Safety & Report System', () => {
+describe('3. Safety & Report System', () => {
   it('creates reports and automatically records them in moderation queue', () => {
     const report = db.createReport({
       reporterId: 'user_rep_1',

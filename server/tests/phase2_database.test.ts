@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db, Database } from '../db';
-import { resolveSessionUser, createSessionToken } from '../auth';
-import { createSubscriptionOrder, activateProSubscription, processCashfreeWebhook } from '../payments';
-import { UserProfile } from '../types';
+import { resolveSessionUser } from '../auth';
 
 describe('Phase 2: Database Operations & Schema Integrity', () => {
   const userId = 'p2_user_' + Math.random().toString(36).substring(2, 8);
@@ -38,14 +36,12 @@ describe('Phase 2: Database Operations & Schema Integrity', () => {
       preferredCountry: 'IN',
       interests: ['coding', 'music'],
       interestMatchingEnabled: true,
-      strictInterests: true,
-      priorityQueue: true,
     });
 
     expect(prefs.userId).toBe(userId);
     expect(prefs.preferredGender).toBe('female');
     expect(prefs.interests).toEqual(['coding', 'music']);
-    expect(prefs.strictInterests).toBe(true);
+    expect(prefs.interestMatchingEnabled).toBe(true);
 
     const retrieved = db.getUserPreferences(userId);
     expect(retrieved).toBeDefined();
@@ -83,105 +79,6 @@ describe('Phase 2: Guest-First Architecture & Account Verification Boundary', ()
     expect(session.user.role).toBe('user');
     expect(session.user.authProvider).toBe('guest');
     expect(session.sessionToken).toBeDefined();
-
-    // Guest is free by default
-    expect(db.isUserPro(session.user.id)).toBe(false);
-  });
-
-  it('prevents anonymous guest users from purchasing Pro without linking an account', async () => {
-    const guestUser: UserProfile = {
-      id: 'guest_anon_' + Math.random().toString(36).substring(2, 8),
-      displayName: 'Stranger Anon',
-      gender: 'unspecified',
-      country: 'GLOBAL',
-      isAdultVerified: false,
-      role: 'user',
-      authProvider: 'guest',
-      status: 'active',
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    };
-    db.saveUser(guestUser);
-
-    await expect(createSubscriptionOrder(guestUser.id)).rejects.toThrow(
-      /Account verification required/i
-    );
-  });
-
-  it('allows verified registered accounts to proceed with subscription creation', async () => {
-    const verifiedUser: UserProfile = {
-      id: 'verified_user_' + Math.random().toString(36).substring(2, 8),
-      displayName: 'Verified User',
-      email: 'subscriber@example.com',
-      gender: 'male',
-      country: 'IN',
-      isAdultVerified: true,
-      role: 'user',
-      authProvider: 'google',
-      status: 'active',
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    };
-    db.saveUser(verifiedUser);
-
-    // Should pass the auth verification check and only fail if Cashfree API keys are absent in dev
-    try {
-      await createSubscriptionOrder(verifiedUser.id);
-    } catch (err: any) {
-      // Must not be account verification error
-      expect(err.message).not.toMatch(/Account verification required/i);
-    }
-  });
-});
-
-describe('Phase 2: Subscription Persistence & Idempotent Payment Events', () => {
-  const subUserId = 'sub_persist_' + Math.random().toString(36).substring(2, 8);
-
-  beforeEach(() => {
-    db.saveUser({
-      id: subUserId,
-      displayName: 'Sub Tester',
-      email: 'sub@test.local',
-      role: 'user',
-      status: 'active',
-      gender: 'unspecified',
-      country: 'IN',
-      isAdultVerified: true,
-      createdAt: Date.now(),
-      lastActiveAt: Date.now(),
-    });
-  });
-
-  it('persists subscription attributes and validates active period', () => {
-    const sub = activateProSubscription(subUserId, 'sub_order_p2_123', 'cust_p2');
-    expect(sub.userId).toBe(subUserId);
-    expect(sub.status).toBe('active');
-    expect(sub.planCode).toBe('pro_monthly_299');
-
-    const fetched = db.getSubscription(subUserId);
-    expect(fetched).toBeDefined();
-    expect(fetched?.id).toBe(sub.id);
-    expect(db.isUserPro(subUserId)).toBe(true);
-  });
-
-  it('idempotently handles duplicate webhook events across calls', async () => {
-    const eventId = 'evt_p2_unique_' + Date.now();
-    const payload = {
-      event_id: eventId,
-      event: 'ORDER_PAID',
-      order: { order_amount: 299 },
-      customer_details: { customer_id: subUserId },
-    };
-
-    // First call processes
-    const res1 = await processCashfreeWebhook(eventId, 'ORDER_PAID', payload);
-    expect(res1.duplicate).toBe(false);
-    expect(db.hasPaymentEvent(eventId)).toBe(true);
-
-    // Second call is recognized as duplicate without re-executing
-    const res2 = await processCashfreeWebhook(eventId, 'ORDER_PAID', payload);
-    expect(res2.duplicate).toBe(true);
-    expect(res2.processed).toBe(true);
   });
 });
 

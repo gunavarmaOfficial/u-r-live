@@ -561,11 +561,6 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   /* ---------------- Actions ---------------- */
   const requireVerifiedUser = () => {
-    if (!user.isAdultVerified || selfGender === 'unspecified') {
-      if (onOpenOnboarding) onOpenOnboarding();
-      else onRequireAgeVerification();
-      return false;
-    }
     return true;
   };
 
@@ -577,16 +572,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   };
 
   const handleStartSearch = async () => {
-    if (!managerRef.current || !requireVerifiedUser()) return;
+    if (!managerRef.current) return;
     resetConversation();
     setPartner(null);
     setNetwork(null);
     setMobileTab('video');
+    setStopPhase('stop');
     try {
       await managerRef.current.findMatch(
         user.id,
-        selfGender,
-        user.country,
+        selfGender || 'unspecified',
+        user.country || 'GLOBAL',
         buildCurrentPreferences()
       );
     } catch (err) {
@@ -715,6 +711,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   };
 
   const handleOmegleStop = useCallback(() => {
+    // If not connected and not searching, clicking Start always begins searching immediately
+    if (!isConnected && !isSearching && state !== 'match_found' && state !== 'connecting') {
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      handleStartSearch();
+      setStopPhase('stop');
+      return;
+    }
+
     if (stopPhase === 'stop') {
       if (isConnected || state === 'match_found' || state === 'connecting') {
         setStopPhase('really');
@@ -726,8 +730,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         handleStop();
         setStopPhase('new');
       } else {
-        handleStop();
-        setStopPhase('new');
+        handleStartSearch();
+        setStopPhase('stop');
       }
     } else if (stopPhase === 'really') {
       if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
@@ -742,6 +746,19 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   const handleOmegleStopRef = useRef(handleOmegleStop);
   handleOmegleStopRef.current = handleOmegleStop;
+
+  const handleStartSearchRef = useRef(handleStartSearch);
+  handleStartSearchRef.current = handleStartSearch;
+
+  // Auto-start matchmaking when landing on live view
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (managerRef.current && state === 'idle') {
+        handleStartSearchRef.current();
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Space starts a search or skips to the next partner; Esc triggers Omegle Stop/Really/New.
   const primaryActionRef = useRef(handlePrimaryAction);
@@ -987,6 +1004,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                     <>
                       <CameraOff01Icon size={28} className="text-neutral-500" />
                       <p className="text-xs font-medium text-neutral-400">Press Start to connect with a stranger</p>
+                      <button
+                        type="button"
+                        onClick={handleStartSearch}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#6d28d9] hover:bg-[#5b21b6] px-4 py-2 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer"
+                      >
+                        <PlayIcon size={14} />
+                        <span>Start</span>
+                      </button>
                     </>
                   )}
                 </div>

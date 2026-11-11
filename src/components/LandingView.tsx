@@ -59,20 +59,20 @@ export const LandingView: React.FC<LandingViewProps> = ({
   ];
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] w-full overflow-hidden bg-[#f8f7ff] dark:bg-[#07060d] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between transition-colors">
-      {/* Decorative ambient background blobs (Image 1 style) */}
+    <div className="relative min-h-[calc(100vh-64px)] w-full overflow-hidden bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between transition-colors">
+      {/* Decorative ambient background blobs (Brand Red style) */}
       <div
-        className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-purple-300/35 dark:bg-purple-900/15 blur-3xl"
+        className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-red-400/20 dark:bg-red-900/20 blur-3xl"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-indigo-300/35 dark:bg-indigo-900/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-rose-400/20 dark:bg-rose-950/25 blur-3xl"
         aria-hidden="true"
       />
 
       <main className="relative z-10 mx-auto w-full max-w-3xl px-4 py-8 sm:py-12 flex-1 flex flex-col justify-center">
         {/* Main Card Container */}
-        <div className="w-full rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#121024] p-6 shadow-[0_20px_60px_-15px_rgba(124,58,237,0.08)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:p-12 transition-colors">
+        <div className="w-full rounded-3xl border border-neutral-200/80 dark:border-white/10 bg-white dark:bg-[#140f11] p-6 shadow-[0_20px_60px_-15px_rgba(239,68,68,0.10)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:p-12 transition-colors">
           {/* Header */}
           <div className="text-center">
             <h1 className="font-display text-3xl font-extrabold tracking-tight text-neutral-900 dark:text-white sm:text-4xl">
@@ -88,7 +88,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <button
               type="button"
               onClick={() => onStartChat('text')}
-              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl border-2 border-[#7c3aed] bg-white dark:bg-transparent px-8 text-lg font-bold text-[#7c3aed] dark:text-[#a78bfa] shadow-sm transition hover:bg-[#7c3aed]/10 active:scale-95 cursor-pointer"
+              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl border-2 border-[#ef4444] bg-white dark:bg-transparent px-8 text-lg font-bold text-[#ef4444] dark:text-[#f87171] shadow-sm transition hover:bg-[#ef4444]/10 active:scale-95 cursor-pointer"
             >
               Text
             </button>
@@ -96,7 +96,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <button
               type="button"
               onClick={() => onStartChat('video')}
-              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl bg-[#6d28d9] hover:bg-[#5b21b6] px-8 text-lg font-bold text-white shadow-lg shadow-purple-600/30 transition hover:shadow-purple-600/40 active:scale-95 cursor-pointer"
+              className="flex h-14 min-w-[130px] items-center justify-center rounded-2xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-8 text-lg font-bold text-white shadow-lg shadow-red-600/30 transition hover:shadow-red-600/40 active:scale-95 cursor-pointer"
             >
               Video
             </button>
@@ -108,11 +108,11 @@ export const LandingView: React.FC<LandingViewProps> = ({
               What do you want to talk about?
             </h2>
 
-            <div className="mx-auto flex max-w-md flex-wrap items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50/70 dark:bg-white/[0.03] p-2 transition focus-within:border-[#7c3aed] focus-within:ring-2 focus-within:ring-[#7c3aed]/20">
+            <div className="mx-auto flex max-w-md flex-wrap items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50/70 dark:bg-white/[0.03] p-2 transition focus-within:border-[#ef4444] focus-within:ring-2 focus-within:ring-[#ef4444]/20">
               {interests.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[#7c3aed]/10 dark:bg-[#7c3aed]/25 px-2.5 py-1 text-xs font-bold text-[#6d28d9] dark:text-[#c4b5fd]"
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-200/60 dark:border-red-900/40 bg-red-500/10 dark:bg-red-950/40 px-2.5 py-1 text-xs font-bold text-[#dc2626] dark:text-[#f87171]"
                 >
                   #{tag}
                   <button
@@ -138,7 +138,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
           {/* 18+ Moderation Pill */}
           <div className="mt-5 flex justify-center">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 bg-purple-50 dark:bg-purple-950/40 px-4 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-900/50 bg-red-50/80 dark:bg-red-950/30 px-4 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
               <span className="text-sm">💬</span>
               <span>18+ Only · Chats are moderated</span>
             </div>
@@ -147,7 +147,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {/* 4 Feature Highlights Grid */}
           <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40 text-[#ef4444] dark:text-[#f87171]">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <circle cx="12" cy="12" r="6" />
@@ -161,7 +161,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
 
             <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40 text-[#ef4444] dark:text-[#f87171]">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <path d="M9 12l2 2 4-4" />
@@ -174,7 +174,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
 
             <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40 text-[#ef4444] dark:text-[#f87171]">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="2" y1="12" x2="22" y2="12" />
@@ -188,7 +188,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
 
             <div className="flex flex-col items-center rounded-2xl border border-neutral-100 dark:border-white/[0.06] bg-neutral-50/60 dark:bg-white/[0.02] p-4 text-center">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40 text-[#ef4444] dark:text-[#f87171]">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
@@ -216,7 +216,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setOpenFaq(isOpen ? null : i)}
-                      className="flex w-full items-center justify-between px-4 py-3.5 text-left text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                      className="flex w-full items-center justify-between px-4 py-3.5 text-left text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-red-600 dark:hover:text-red-400 transition"
                     >
                       <span>{faq.q}</span>
                       <span className="text-base leading-none text-neutral-400">{isOpen ? '−' : '+'}</span>

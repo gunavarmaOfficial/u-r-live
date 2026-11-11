@@ -34,7 +34,7 @@ export const Header: React.FC = () => {
             className="flex h-8 w-14 items-center rounded-full border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-white/[0.06] p-1 transition-colors cursor-pointer hover:border-neutral-300 dark:hover:border-white/20"
           >
             <div
-              className={`flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-[#7c3aed] text-neutral-700 dark:text-white shadow-sm transition-transform duration-200 ${
+              className={`flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-[#ef4444] text-neutral-700 dark:text-white shadow-sm transition-transform duration-200 ${
                 theme === 'dark' ? 'translate-x-6' : 'translate-x-0'
               }`}
             >
@@ -64,7 +64,7 @@ export const Header: React.FC = () => {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-[#6d28d9] dark:text-[#a78bfa] font-extrabold tracking-tight">
+            <span className="text-[#ef4444] dark:text-[#f87171] font-extrabold tracking-tight">
               {onlineCount}+
             </span>
             <span className="text-neutral-500 dark:text-neutral-400 font-medium">online</span>

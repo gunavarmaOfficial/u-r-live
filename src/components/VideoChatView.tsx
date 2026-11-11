@@ -826,8 +826,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           Welcome to U-R-LIVE.
         </h2>
         <div className="mt-2.5 flex items-center gap-2">
-          <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-black text-white">18+</span>
-          <span className="text-sm font-bold text-[#6d28d9] dark:text-[#a78bfa]">You must be 18 or older</span>
+          <span className="rounded bg-[#ef4444] px-2 py-0.5 text-xs font-black text-white">18+</span>
+          <span className="text-sm font-bold text-[#ef4444] dark:text-[#f87171]">You must be 18 or older</span>
         </div>
         <ul className="mt-2 space-y-1 text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300">
           <li>No nudity, hate speech, or harassment</li>
@@ -852,7 +852,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <div key={msg.id} className="leading-relaxed break-words py-0.5">
             {msg.isLocal ? (
               <>
-                <strong className="font-bold text-[#6d28d9] dark:text-[#a78bfa] mr-1.5 select-none">You:</strong>
+                <strong className="font-bold text-[#ef4444] dark:text-[#f87171] mr-1.5 select-none">You:</strong>
                 <span className="text-neutral-800 dark:text-neutral-200">{msg.text}</span>
               </>
             ) : (
@@ -903,7 +903,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <button
             type="button"
             onClick={() => setShowSettingsModal(true)}
-            className="flex items-center gap-1 rounded-lg bg-[#6d28d9] px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#5b21b6] transition cursor-pointer"
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
           >
             <span>⚡</span>
             <span>Get Premium</span>
@@ -913,7 +913,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <button
               type="button"
               onClick={() => onChangeMode(mode === 'video' ? 'text' : 'video')}
-              className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+              className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-[#ef4444] dark:text-[#f87171] hover:underline cursor-pointer"
             >
               {mode === 'video' ? 'Switch to Text' : 'Switch to Video'}
             </button>
@@ -925,14 +925,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <button
             type="button"
             onClick={handleOmegleStop}
-            className={`flex h-12 w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md cursor-pointer ${
+            className={`flex h-12 w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md shadow-red-600/25 cursor-pointer ${
               stopPhase === 'really'
                 ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
                 : stopPhase === 'new'
-                  ? 'bg-[#6d28d9] hover:bg-[#5b21b6]'
+                  ? 'bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626]'
                   : isConnected
                     ? 'bg-rose-600 hover:bg-rose-700'
-                    : 'bg-[#6d28d9] hover:bg-[#5b21b6]'
+                    : 'bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626]'
             }`}
           >
             <span className="leading-tight">
@@ -956,13 +956,13 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                 onChange={(e) => handleChatInput(e.target.value)}
                 disabled={!isConnected}
                 placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
-                className="h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-4 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#6d28d9] focus:ring-2 focus:ring-[#6d28d9]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-4 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={!isConnected || !chatInput.trim()}
                 aria-label="Send message"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#6d28d9] dark:hover:text-purple-400 disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#ef4444] dark:hover:text-[#f87171] disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
               >
                 <svg className="h-5 w-5 rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -976,7 +976,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#f8f7ff] dark:bg-[#07060d] text-neutral-900 dark:text-neutral-100 transition-colors">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 transition-colors">
       {/* Workspace */}
       {mode === 'text' ? (
         <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-3 sm:p-4">
@@ -997,7 +997,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
                   {isSearching ? (
                     <>
-                      <div className="h-10 w-10 animate-spin rounded-full border-3 border-purple-500/20 border-t-purple-500" />
+                      <div className="h-10 w-10 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
                       <p className="text-xs font-semibold text-neutral-400">Looking for someone to chat with…</p>
                     </>
                   ) : (
@@ -1007,7 +1007,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                       <button
                         type="button"
                         onClick={handleStartSearch}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#6d28d9] hover:bg-[#5b21b6] px-4 py-2 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
                       >
                         <PlayIcon size={14} />
                         <span>Start</span>
@@ -1019,7 +1019,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
               {/* Watermark badge (Image 2 style) */}
               <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-                <span className="text-purple-400">💬</span>
+                <span className="text-[#ef4444]">💬</span>
                 <span>u-r-live.com</span>
               </div>
 
@@ -1126,7 +1126,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           >
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Settings02Icon size={16} className="text-[#c4b5fd]" />
+                <Settings02Icon size={16} className="text-[#ef4444]" />
                 <h2 className="text-sm font-bold text-white">Audio & video</h2>
               </div>
               <button
@@ -1231,14 +1231,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                     onClick={() => handleSelectGender(option.value)}
                     className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-center transition disabled:opacity-60 ${
                       active
-                        ? 'border-[#8b5cf6]/60 bg-[#8b5cf6]/15'
+                        ? 'border-[#ef4444]/60 bg-[#ef4444]/15'
                         : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
                     }`}
                   >
                     {genderAvatar(option.value, 'h-11 w-11')}
                     <span className="text-[11px] font-semibold text-neutral-100">{option.label}</span>
                     {active && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-[#c4b5fd]">
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-[#f87171]">
                         <CheckmarkCircle01Icon size={10} />
                         Selected
                       </span>

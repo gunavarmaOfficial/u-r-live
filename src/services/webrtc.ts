@@ -206,16 +206,16 @@ export class WebRTCManager {
         const r = 82 + i * 22 + Math.sin(t * 1.2 + i) * 4;
         ctx.beginPath();
         ctx.arc(320, 226, r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(139,92,246,${0.34 - i * 0.08})`;
+        ctx.strokeStyle = `rgba(239,68,68,${0.34 - i * 0.08})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
 
       // Core medallion
       const coreGrad = ctx.createLinearGradient(260, 170, 380, 290);
-      coreGrad.addColorStop(0, '#7c3aed');
-      coreGrad.addColorStop(0.5, '#4f46e5');
-      coreGrad.addColorStop(1, '#06b6d4');
+      coreGrad.addColorStop(0, '#ef4444');
+      coreGrad.addColorStop(0.5, '#dc2626');
+      coreGrad.addColorStop(1, '#f43f5e');
       ctx.beginPath();
       ctx.arc(320, 226, 62, 0, Math.PI * 2);
       ctx.fillStyle = coreGrad;

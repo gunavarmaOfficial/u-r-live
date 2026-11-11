@@ -180,15 +180,15 @@ export default function App() {
     <AppContext.Provider value={contextValue}>
       <div
         className={`relative flex flex-col bg-[#07060d] font-sans text-neutral-100 ${isLiveRoute
-            ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
-            : "min-h-[100dvh]"
+          ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
+          : "min-h-[100dvh]"
           }`}
       >
         <a
           href="#main-content"
           className="sr-only z-[100] rounded-lg bg-white px-4 py-2 text-sm font-bold text-black focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
         >
-          Skip to content.
+          Skip to content
         </a>
 
         <Header />

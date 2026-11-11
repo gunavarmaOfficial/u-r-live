@@ -10,6 +10,7 @@ import {
   Clock01Icon,
   FullScreenIcon,
   Globe02Icon,
+  LockIcon,
   Message01Icon,
   Mic01Icon,
   MicOff01Icon,
@@ -18,6 +19,7 @@ import {
   SentIcon,
   Settings02Icon,
   Share01Icon,
+  SparklesIcon,
   StopCircleIcon,
   WebProtectionIcon,
 } from 'hugeicons-react';
@@ -27,6 +29,16 @@ import { api } from '../services/api';
 import { COUNTRIES } from '../data/constants';
 import { ThreeDMaleAvatar, ThreeDFemaleAvatar, ThreeDOtherAvatar, ThreeDGlobeIcon } from './ThreeDIcons';
 import { CountryFilterModal } from './CountryFilterModal';
+import { ProPaymentModal } from './ProPaymentModal';
+
+const PREVIEW_STREAMS = [
+  { id: 1, src: '/previews/stream-1.jpg', name: 'Simran', viewers: '2.4k' },
+  { id: 2, src: '/previews/stream-2.png', name: 'Ananya', viewers: '1.9k' },
+  { id: 3, src: '/previews/stream-3.jpg', name: 'Priya', viewers: '3.1k' },
+  { id: 4, src: '/previews/stream-4.jpg', name: 'Kavya', viewers: '1.7k' },
+  { id: 5, src: '/previews/stream-5.jpg', name: 'Ritu', viewers: '2.8k' },
+  { id: 6, src: '/previews/stream-6.jpg', name: 'Sneha', viewers: '3.5k' },
+];
 
 interface VideoChatViewProps {
   user: UserProfile;
@@ -214,6 +226,24 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [inviteState, setInviteState] = useState<'idle' | 'copied'>('idle');
+
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [isPro, setIsPro] = useState(() => {
+    try {
+      return localStorage.getItem('ur_live_is_pro') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [showProModal, setShowProModal] = useState(false);
+
+  useEffect(() => {
+    if (remoteStream) return;
+    const interval = setInterval(() => {
+      setPreviewIndex((prev) => (prev + 1) % PREVIEW_STREAMS.length);
+    }, 3800);
+    return () => clearInterval(interval);
+  }, [remoteStream]);
 
   const isSearching = SEARCHING_STATES.includes(state);
   const isConnected = state === 'connected';
@@ -905,7 +935,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
           <button
             type="button"
-            onClick={() => setShowSettingsModal(true)}
+            onClick={() => setShowProModal(true)}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
           >
             <span>⚡</span>
@@ -990,66 +1020,150 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             {/* Top Box: Stranger Video */}
             <div
               ref={stageRef}
-              className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
+              className="relative flex-1 min-h-[240px] sm:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
             >
               <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
 
               {!remoteStream && (
-                <div
-                  onClick={!isSearching && state !== 'failed' ? handleStartSearch : undefined}
-                  role={!isSearching && state !== 'failed' ? 'button' : undefined}
-                  tabIndex={!isSearching && state !== 'failed' ? 0 : -1}
-                  onKeyDown={(e) => {
-                    if (!isSearching && state !== 'failed' && (e.key === 'Enter' || e.key === ' ')) {
-                      e.preventDefault();
-                      handleStartSearch();
-                    }
-                  }}
-                  className={`absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4 select-none ${
-                    !isSearching && state !== 'failed' ? 'cursor-pointer hover:bg-white/[0.04] transition' : ''
-                  }`}
-                >
-                  {isSearching ? (
-                    <>
-                      <div className="h-10 w-10 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
-                      <p className="text-xs font-semibold text-neutral-400">Looking for someone to chat with…</p>
-                      <p className="text-[11px] text-neutral-500">Searching matching queue…</p>
-                    </>
-                  ) : state === 'failed' ? (
-                    <>
-                      <CameraOff01Icon size={28} className="text-rose-400" />
-                      <p className="text-xs font-bold text-rose-400 max-w-xs">{statusMessage || 'Connection failed'}</p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartSearch();
-                        }}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
-                      >
-                        <RefreshIcon size={14} />
-                        <span>Try Again</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <CameraOff01Icon size={28} className="text-neutral-500" />
-                      <p className="text-xs font-semibold text-neutral-300 hover:text-white transition">
-                        Press Start to connect with a stranger
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartSearch();
-                        }}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
-                      >
-                        <PlayIcon size={14} />
-                        <span>Start</span>
-                      </button>
-                    </>
-                  )}
+                <div className="absolute inset-0 overflow-hidden bg-black select-none">
+                  {/* Rotating live stream preview images */}
+                  {PREVIEW_STREAMS.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`absolute inset-0 transition-opacity duration-1000 ${
+                        idx === previewIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      }`}
+                    >
+                      <img
+                        src={item.src}
+                        alt={`Live video stream ${item.id}`}
+                        className={`h-full w-full object-cover transition-transform duration-3000 ${
+                          isPro
+                            ? 'filter-none scale-100'
+                            : 'filter blur-[16px] brightness-75 contrast-125 scale-110'
+                        }`}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Top Overlay: Live badge & viewer count */}
+                  <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5 rounded-full bg-red-600/90 backdrop-blur px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                        LIVE
+                      </span>
+                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-neutral-300">
+                        {PREVIEW_STREAMS[previewIndex].viewers} online
+                      </span>
+                    </div>
+
+                    {isPro ? (
+                      <span className="flex items-center gap-1 rounded-full bg-amber-500/95 backdrop-blur px-2.5 py-0.5 text-[10px] font-black text-black shadow-md">
+                        <SparklesIcon size={12} />
+                        PRO UNLOCKED
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold text-neutral-300">
+                        HD 1080p
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Central Overlay Actions */}
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center">
+                    {isSearching ? (
+                      <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-black/80 backdrop-blur-md p-5 border border-white/15 shadow-2xl max-w-xs">
+                        <div className="h-9 w-9 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
+                        <p className="text-xs font-bold text-white">Looking for someone to chat with…</p>
+                        <p className="text-[11px] text-neutral-400">Searching matching queue…</p>
+                        {!isPro && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowProModal(true);
+                            }}
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-3.5 py-1.5 text-[11px] font-black text-white shadow-md shadow-red-600/30 transition cursor-pointer"
+                          >
+                            <SparklesIcon size={13} />
+                            <span>Upgrade for Pro Plan — ₹299</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : state === 'failed' ? (
+                      <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-4 border border-rose-500/30 max-w-xs">
+                        <CameraOff01Icon size={26} className="text-rose-400" />
+                        <p className="text-xs font-bold text-rose-400 max-w-xs">{statusMessage || 'Connection failed'}</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartSearch();
+                          }}
+                          className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                        >
+                          <RefreshIcon size={14} />
+                          <span>Try Again</span>
+                        </button>
+                      </div>
+                    ) : !isPro ? (
+                      <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-black/80 backdrop-blur-md p-5 sm:p-6 border border-white/15 shadow-2xl max-w-sm">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/40">
+                          <LockIcon size={22} />
+                        </div>
+
+                        <div className="space-y-1">
+                          <h3 className="text-sm sm:text-base font-black text-white tracking-tight">
+                            Live Video Blurred
+                          </h3>
+                          <p className="text-[11px] text-neutral-300 leading-snug">
+                            Click below to upgrade for Pro Plan to unlock clear HD live video and VIP matching.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowProModal(true);
+                          }}
+                          className="mt-1 w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-red-600/40 transition active:scale-95 cursor-pointer"
+                        >
+                          <SparklesIcon size={14} />
+                          <span>Click to Upgrade for Pro Plan — ₹299</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartSearch();
+                          }}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-400 hover:text-white transition cursor-pointer"
+                        >
+                          <PlayIcon size={12} />
+                          <span>or Press Start to connect with a stranger</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/75 backdrop-blur-md p-4 border border-emerald-500/30 text-center max-w-xs">
+                        <span className="text-xs font-bold text-emerald-400">👑 Pro Plan Active • HD Unlocked</span>
+                        <p className="text-[11px] text-neutral-300">Enjoying unlocked live stream preview</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartSearch();
+                          }}
+                          className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                        >
+                          <PlayIcon size={14} />
+                          <span>Press Start to Match</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1145,6 +1259,16 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         isMultipleEnabled={isMultipleCountries}
         onToggleMultiple={setIsMultipleCountries}
         onReset={handleResetFilters}
+      />
+
+      {/* ---------- Pro Plan UPI Payment Modal ---------- */}
+      <ProPaymentModal
+        isOpen={showProModal}
+        onClose={() => setShowProModal(false)}
+        onSuccess={() => {
+          setIsPro(true);
+        }}
+        amount={299}
       />
 
       {/* ---------- Settings ---------- */}

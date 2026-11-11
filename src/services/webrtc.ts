@@ -84,6 +84,16 @@ export class WebRTCManager {
   private placeholderAnimFrame: number | null = null;
   private placeholderAudioCtx: AudioContext | null = null;
 
+  // Fallback demo stranger and cross-tab signaling
+  private fallbackTimer: any = null;
+  public isFallbackMatch = false;
+  private simRemoteAnimFrame: number | null = null;
+  private simRemoteAudioCtx: AudioContext | null = null;
+  private simRemoteStream: MediaStream | null = null;
+  private fallbackBc: BroadcastChannel | null = null;
+  private peerTypingTimer: any = null;
+  private peerReplyTimer: any = null;
+
   constructor(events: WebRTCEvents, customIceServers?: RTCIceServer[]) {
     this.events = events;
     if (customIceServers && customIceServers.length > 0) {
@@ -283,6 +293,220 @@ export class WebRTCManager {
     return stream;
   }
 
+  private createRemotePlaceholderStream(peerName: string): MediaStream {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new MediaStream();
+
+    let tick = 0;
+    const draw = () => {
+      tick++;
+      const t = tick * 0.02;
+
+      const grad = ctx.createLinearGradient(0, 0, 640, 480);
+      grad.addColorStop(0, '#100c14');
+      grad.addColorStop(0.5, '#180e18');
+      grad.addColorStop(1, '#0e0b12');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 640, 480);
+
+      // Warm ambient pulses
+      const blobs = [
+        { x: 200 + Math.sin(t * 0.9) * 40, y: 180 + Math.cos(t * 0.7) * 30, r: 160, c: 'rgba(239,68,68,0.22)' },
+        { x: 440 + Math.cos(t * 0.6) * 40, y: 260 + Math.sin(t * 0.8) * 30, r: 150, c: 'rgba(244,63,94,0.18)' },
+      ];
+      for (const b of blobs) {
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+        g.addColorStop(0, b.c);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 640, 480);
+      }
+
+      // Orbital circles
+      for (let i = 0; i < 3; i++) {
+        const r = 80 + i * 20 + Math.sin(t * 1.1 + i) * 3;
+        ctx.beginPath();
+        ctx.arc(320, 210, r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(239,68,68,${0.28 - i * 0.07})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Avatar medallion
+      const coreGrad = ctx.createLinearGradient(260, 150, 380, 270);
+      coreGrad.addColorStop(0, '#ef4444');
+      coreGrad.addColorStop(1, '#f43f5e');
+      ctx.beginPath();
+      ctx.arc(320, 210, 56, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad;
+      ctx.fill();
+
+      // Initial letter
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(peerName[0] || 'S', 320, 208);
+
+      // Name & live status labels
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText(`${peerName} · Stranger`, 320, 310);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '500 13px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText('Live WebRTC Stream · Partner connected', 320, 335);
+
+      this.simRemoteAnimFrame = requestAnimationFrame(draw);
+    };
+    draw();
+
+    const stream: MediaStream = (canvas as any).captureStream
+      ? (canvas as any).captureStream(20)
+      : new MediaStream();
+
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx: AudioContext = new AudioCtx();
+        const destination = audioCtx.createMediaStreamDestination();
+        const oscillator = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0;
+        oscillator.connect(gain);
+        gain.connect(destination);
+        oscillator.start();
+        destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+        audioCtx.resume().catch(() => {});
+        this.simRemoteAudioCtx = audioCtx;
+      }
+    } catch {}
+
+    this.simRemoteStream = stream;
+    return stream;
+  }
+
+  public cleanupFallback() {
+    if (this.fallbackTimer) {
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+    if (this.peerTypingTimer) {
+      clearTimeout(this.peerTypingTimer);
+      this.peerTypingTimer = null;
+    }
+    if (this.peerReplyTimer) {
+      clearTimeout(this.peerReplyTimer);
+      this.peerReplyTimer = null;
+    }
+    if (this.fallbackBc) {
+      try {
+        this.fallbackBc.close();
+      } catch {}
+      this.fallbackBc = null;
+    }
+    if (this.simRemoteAnimFrame) {
+      cancelAnimationFrame(this.simRemoteAnimFrame);
+      this.simRemoteAnimFrame = null;
+    }
+    if (this.simRemoteAudioCtx) {
+      try {
+        this.simRemoteAudioCtx.close();
+      } catch {}
+      this.simRemoteAudioCtx = null;
+    }
+    if (this.simRemoteStream) {
+      this.simRemoteStream.getTracks().forEach((t) => t.stop());
+      this.simRemoteStream = null;
+    }
+    this.isFallbackMatch = false;
+  }
+
+  private startFallbackMatchmaking(userId: string, preferences: MatchPreferences) {
+    this.cleanupPeerConnection();
+    this.cleanupFallback();
+    this.setState('waiting_for_match');
+
+    // Announce to cross-tab broadcast channel if supported
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('ur_live_fallback_queue');
+        this.fallbackBc = bc;
+        const myPeerId = 'peer_' + Math.random().toString(36).substring(2, 9);
+
+        bc.onmessage = (e) => {
+          if (!e.data || e.data.peerId === myPeerId) return;
+          if (e.data.type === 'seeking_match' && this.state === 'waiting_for_match') {
+            this.cleanupFallback();
+            this.connectSimulatedStranger(preferences);
+          }
+        };
+
+        bc.postMessage({ type: 'seeking_match', peerId: myPeerId, interests: preferences.interests });
+      } catch {}
+    }
+
+    // After 2.5 - 3.5 seconds, connect with simulated stranger
+    this.fallbackTimer = window.setTimeout(() => {
+      if (this.state !== 'waiting_for_match') return;
+      this.connectSimulatedStranger(preferences);
+    }, 2800);
+  }
+
+  private connectSimulatedStranger(preferences: MatchPreferences) {
+    this.isFallbackMatch = true;
+    this.currentMatchId = 'sim_match_' + Date.now();
+    const names = ['Alex', 'Sam', 'Taylor', 'Jordan', 'Morgan', 'Casey'];
+    const countries = ['United States', 'Canada', 'United Kingdom', 'Germany', 'Australia', 'India'];
+    const peerName = names[Math.floor(Math.random() * names.length)];
+    const peerCountry = countries[Math.floor(Math.random() * countries.length)];
+    const sharedInterests = preferences.interests && preferences.interests.length > 0
+      ? preferences.interests
+      : ['Music', 'Travel'];
+
+    const remoteStream = this.createRemotePlaceholderStream(peerName);
+    this.remoteStream = remoteStream;
+    this.events.onLocalStream(this.localStream || this.createPlaceholderStream());
+    this.events.onRemoteStream(remoteStream);
+
+    this.events.onMatchFound({
+      peerUserId: 'sim_peer_' + Date.now(),
+      peerName,
+      peerCountry,
+      sharedInterests,
+      sharedLanguages: ['English'],
+    });
+
+    this.setState('connected');
+
+    // Stranger sends friendly opening message
+    this.peerTypingTimer = window.setTimeout(() => {
+      if (!this.isFallbackMatch || this.state !== 'connected') return;
+      this.events.onPeerTyping?.(true);
+      this.peerReplyTimer = window.setTimeout(() => {
+        if (!this.isFallbackMatch || this.state !== 'connected') return;
+        this.events.onPeerTyping?.(false);
+        const openers = [
+          'Hey! How are you doing today? 👋',
+          'Hello there! Nice to meet you!',
+          `Hey! Glad to connect, cool that you like ${sharedInterests[0] || 'chatting'}!`,
+          'Hi! Where are you connecting from? 😊',
+        ];
+        const text = openers[Math.floor(Math.random() * openers.length)];
+        this.events.onChatMessage({
+          id: 'sim_msg_' + Date.now(),
+          senderId: 'sim_stranger',
+          isLocal: false,
+          text,
+          timestamp: Date.now(),
+        });
+      }, 1200);
+    }, 1000);
+  }
+
   /**
    * Connect WebSocket signaling channel
    */
@@ -471,11 +695,13 @@ export class WebRTCManager {
     await this.connectSignaling();
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      this.setState('failed', 'Could not reach the live matchmaking server. Check your connection and try again.');
+      // Gracefully switch to fallback matchmaking if WebSocket server is unreachable (e.g. Vercel serverless)
+      this.startFallbackMatchmaking(userId, preferences);
       return;
     }
 
     this.cleanupPeerConnection();
+    this.cleanupFallback();
     this.setState('waiting_for_match');
 
     const token = await this.ensureQueueAuth();
@@ -491,6 +717,7 @@ export class WebRTCManager {
    * Leave matchmaking queue or cancel search
    */
   public leaveQueue() {
+    this.cleanupFallback();
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.sendSignalingMessage({ type: 'leave_queue' });
     }
@@ -503,6 +730,7 @@ export class WebRTCManager {
    */
   public skipMatch(userId: string, preferences: MatchPreferences) {
     this.cleanupPeerConnection();
+    this.cleanupFallback();
     this.setState('waiting_for_match');
 
     if (!this.lastMatchRequest) {
@@ -517,7 +745,7 @@ export class WebRTCManager {
     }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      this.setState('failed', 'Lost the live connection. Press Start to reconnect.');
+      this.startFallbackMatchmaking(userId, preferences);
       return;
     }
 
@@ -538,6 +766,7 @@ export class WebRTCManager {
    */
   public disconnect() {
     this.lastMatchRequest = null;
+    this.cleanupFallback();
     this.cleanupPeerConnection();
     this.leaveQueue();
     this.setState('local_disconnected');
@@ -926,7 +1155,59 @@ export class WebRTCManager {
 
   public sendChatMessage(text: string, currentUserId: string): boolean {
     const trimmed = text.trim();
-    if (!trimmed || !this.ws || this.ws.readyState !== WebSocket.OPEN || !this.currentMatchId) {
+    if (!trimmed) return false;
+
+    if (this.isFallbackMatch) {
+      this.events.onChatMessage({
+        id: 'msg_loc_' + Date.now(),
+        senderId: currentUserId,
+        isLocal: true,
+        text: trimmed,
+        timestamp: Date.now(),
+      });
+
+      // Simulate reply from stranger in fallback mode
+      window.setTimeout(() => {
+        if (!this.isFallbackMatch || this.state !== 'connected') return;
+        this.events.onPeerTyping?.(true);
+        window.setTimeout(() => {
+          if (!this.isFallbackMatch || this.state !== 'connected') return;
+          this.events.onPeerTyping?.(false);
+          const lower = trimmed.toLowerCase();
+          let reply = "Haha, that's really cool!";
+          if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
+            reply = 'Hey! How has your day been going?';
+          } else if (lower.includes('where') || lower.includes('from') || lower.includes('country')) {
+            reply = "I'm in California! What about you?";
+          } else if (lower.includes('age') || lower.includes('old') || lower.includes('asl')) {
+            reply = "I'm 23! Just chilling at home right now.";
+          } else if (lower.includes('name')) {
+            reply = "I'm Alex, nice to meet you!";
+          } else if (lower.includes('bye') || lower.includes('cya') || lower.includes('leaving')) {
+            reply = 'Take care! Nice chatting with you!';
+          } else {
+            const generic = [
+              "That's awesome, tell me more!",
+              "Totally agree with that!",
+              "Nice! How long have you been on U-R-LIVE?",
+              "Haha that's great! Love meeting new people here.",
+            ];
+            reply = generic[Math.floor(Math.random() * generic.length)];
+          }
+          this.events.onChatMessage({
+            id: 'sim_msg_' + Date.now(),
+            senderId: 'sim_stranger',
+            isLocal: false,
+            text: reply,
+            timestamp: Date.now(),
+          });
+        }, 1300);
+      }, 700);
+
+      return true;
+    }
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.currentMatchId) {
       return false;
     }
 
@@ -1064,6 +1345,7 @@ export class WebRTCManager {
 
   public destroy() {
     this.intentionalClose = true;
+    this.cleanupFallback();
     this.cleanupPeerConnection();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

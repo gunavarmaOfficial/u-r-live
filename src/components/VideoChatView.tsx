@@ -14,6 +14,7 @@ import {
   Mic01Icon,
   MicOff01Icon,
   PlayIcon,
+  RefreshIcon,
   SentIcon,
   Settings02Icon,
   Share01Icon,
@@ -578,6 +579,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     setNetwork(null);
     setMobileTab('video');
     setStopPhase('stop');
+    setState('waiting_for_match');
+    setStatusMessage('Looking for someone to chat with…');
     try {
       await managerRef.current.findMatch(
         user.id,
@@ -928,20 +931,18 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             className={`flex h-12 w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md shadow-red-600/25 cursor-pointer ${
               stopPhase === 'really'
                 ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
-                : stopPhase === 'new'
-                  ? 'bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626]'
-                  : isConnected
-                    ? 'bg-rose-600 hover:bg-rose-700'
+                : isConnected
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : isSearching
+                    ? 'bg-neutral-800 hover:bg-neutral-700 border border-white/20'
                     : 'bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626]'
             }`}
           >
             <span className="leading-tight">
               {stopPhase === 'really'
                 ? 'Really?'
-                : stopPhase === 'new'
-                  ? isSearching
-                    ? 'Stop'
-                    : 'Start'
+                : isSearching
+                  ? 'Stop'
                   : isConnected
                     ? 'Stop'
                     : 'Start'}
@@ -994,19 +995,54 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
 
               {!remoteStream && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4">
+                <div
+                  onClick={!isSearching && state !== 'failed' ? handleStartSearch : undefined}
+                  role={!isSearching && state !== 'failed' ? 'button' : undefined}
+                  tabIndex={!isSearching && state !== 'failed' ? 0 : -1}
+                  onKeyDown={(e) => {
+                    if (!isSearching && state !== 'failed' && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      handleStartSearch();
+                    }
+                  }}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-4 select-none ${
+                    !isSearching && state !== 'failed' ? 'cursor-pointer hover:bg-white/[0.04] transition' : ''
+                  }`}
+                >
                   {isSearching ? (
                     <>
                       <div className="h-10 w-10 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
                       <p className="text-xs font-semibold text-neutral-400">Looking for someone to chat with…</p>
+                      <p className="text-[11px] text-neutral-500">Searching matching queue…</p>
+                    </>
+                  ) : state === 'failed' ? (
+                    <>
+                      <CameraOff01Icon size={28} className="text-rose-400" />
+                      <p className="text-xs font-bold text-rose-400 max-w-xs">{statusMessage || 'Connection failed'}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartSearch();
+                        }}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
+                      >
+                        <RefreshIcon size={14} />
+                        <span>Try Again</span>
+                      </button>
                     </>
                   ) : (
                     <>
                       <CameraOff01Icon size={28} className="text-neutral-500" />
-                      <p className="text-xs font-medium text-neutral-400">Press Start to connect with a stranger</p>
+                      <p className="text-xs font-semibold text-neutral-300 hover:text-white transition">
+                        Press Start to connect with a stranger
+                      </p>
                       <button
                         type="button"
-                        onClick={handleStartSearch}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartSearch();
+                        }}
                         className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
                       >
                         <PlayIcon size={14} />

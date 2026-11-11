@@ -179,17 +179,16 @@ export default function App() {
   return (
     <AppContext.Provider value={contextValue}>
       <div
-        className={`relative flex flex-col bg-[#07060d] font-sans text-neutral-100 ${
-          isLiveRoute
+        className={`relative flex flex-col bg-[#07060d] font-sans text-neutral-100 ${isLiveRoute
             ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
             : "min-h-[100dvh]"
-        }`}
+          }`}
       >
         <a
           href="#main-content"
           className="sr-only z-[100] rounded-lg bg-white px-4 py-2 text-sm font-bold text-black focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
         >
-          Skip to content
+          Skip to content.
         </a>
 
         <Header />
@@ -197,9 +196,8 @@ export default function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={`flex min-h-0 flex-1 flex-col outline-none ${
-            isLiveRoute ? "overflow-hidden" : "overflow-visible"
-          }`}
+          className={`flex min-h-0 flex-1 flex-col outline-none ${isLiveRoute ? "overflow-hidden" : "overflow-visible"
+            }`}
         >
           <Suspense fallback={<RouteFallback />}>
             <Routes>

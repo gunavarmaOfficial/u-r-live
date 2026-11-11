@@ -84,15 +84,11 @@ export class WebRTCManager {
   private placeholderAnimFrame: number | null = null;
   private placeholderAudioCtx: AudioContext | null = null;
 
-  // Fallback demo stranger and cross-tab signaling
-  private fallbackTimer: any = null;
-  public isFallbackMatch = false;
-  private simRemoteAnimFrame: number | null = null;
-  private simRemoteAudioCtx: AudioContext | null = null;
-  private simRemoteStream: MediaStream | null = null;
-  private fallbackBc: BroadcastChannel | null = null;
-  private peerTypingTimer: any = null;
-  private peerReplyTimer: any = null;
+  // Real Cross-Tab P2P Signaling via BroadcastChannel
+  private p2pChannel: BroadcastChannel | null = null;
+  private p2pTabId = 'tab_' + Math.random().toString(36).slice(2, 9);
+  private p2pPartnerTabId: string | null = null;
+  private p2pAnnounceInterval: any = null;
 
   constructor(events: WebRTCEvents, customIceServers?: RTCIceServer[]) {
     this.events = events;
@@ -293,218 +289,136 @@ export class WebRTCManager {
     return stream;
   }
 
-  private createRemotePlaceholderStream(peerName: string): MediaStream {
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return new MediaStream();
-
-    let tick = 0;
-    const draw = () => {
-      tick++;
-      const t = tick * 0.02;
-
-      const grad = ctx.createLinearGradient(0, 0, 640, 480);
-      grad.addColorStop(0, '#100c14');
-      grad.addColorStop(0.5, '#180e18');
-      grad.addColorStop(1, '#0e0b12');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 640, 480);
-
-      // Warm ambient pulses
-      const blobs = [
-        { x: 200 + Math.sin(t * 0.9) * 40, y: 180 + Math.cos(t * 0.7) * 30, r: 160, c: 'rgba(239,68,68,0.22)' },
-        { x: 440 + Math.cos(t * 0.6) * 40, y: 260 + Math.sin(t * 0.8) * 30, r: 150, c: 'rgba(244,63,94,0.18)' },
-      ];
-      for (const b of blobs) {
-        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
-        g.addColorStop(0, b.c);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 640, 480);
+  public cleanupP2PChannel() {
+    if (this.p2pAnnounceInterval) {
+      clearInterval(this.p2pAnnounceInterval);
+      this.p2pAnnounceInterval = null;
+    }
+    if (this.p2pChannel) {
+      if (this.p2pPartnerTabId && this.currentMatchId) {
+        try {
+          this.p2pChannel.postMessage({
+            type: 'p2p_signal',
+            matchId: this.currentMatchId,
+            targetTabId: this.p2pPartnerTabId,
+            message: { type: 'peer_disconnected' },
+          });
+        } catch {}
       }
-
-      // Orbital circles
-      for (let i = 0; i < 3; i++) {
-        const r = 80 + i * 20 + Math.sin(t * 1.1 + i) * 3;
-        ctx.beginPath();
-        ctx.arc(320, 210, r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(239,68,68,${0.28 - i * 0.07})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-
-      // Avatar medallion
-      const coreGrad = ctx.createLinearGradient(260, 150, 380, 270);
-      coreGrad.addColorStop(0, '#ef4444');
-      coreGrad.addColorStop(1, '#f43f5e');
-      ctx.beginPath();
-      ctx.arc(320, 210, 56, 0, Math.PI * 2);
-      ctx.fillStyle = coreGrad;
-      ctx.fill();
-
-      // Initial letter
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(peerName[0] || 'S', 320, 208);
-
-      // Name & live status labels
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.font = 'bold 18px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.fillText(`${peerName} · Stranger`, 320, 310);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.font = '500 13px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.fillText('Live WebRTC Stream · Partner connected', 320, 335);
-
-      this.simRemoteAnimFrame = requestAnimationFrame(draw);
-    };
-    draw();
-
-    const stream: MediaStream = (canvas as any).captureStream
-      ? (canvas as any).captureStream(20)
-      : new MediaStream();
-
-    try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const audioCtx: AudioContext = new AudioCtx();
-        const destination = audioCtx.createMediaStreamDestination();
-        const oscillator = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        gain.gain.value = 0;
-        oscillator.connect(gain);
-        gain.connect(destination);
-        oscillator.start();
-        destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
-        audioCtx.resume().catch(() => {});
-        this.simRemoteAudioCtx = audioCtx;
-      }
-    } catch {}
-
-    this.simRemoteStream = stream;
-    return stream;
+      try {
+        this.p2pChannel.close();
+      } catch {}
+      this.p2pChannel = null;
+    }
+    this.p2pPartnerTabId = null;
   }
 
-  public cleanupFallback() {
-    if (this.fallbackTimer) {
-      clearTimeout(this.fallbackTimer);
-      this.fallbackTimer = null;
-    }
-    if (this.peerTypingTimer) {
-      clearTimeout(this.peerTypingTimer);
-      this.peerTypingTimer = null;
-    }
-    if (this.peerReplyTimer) {
-      clearTimeout(this.peerReplyTimer);
-      this.peerReplyTimer = null;
-    }
-    if (this.fallbackBc) {
-      try {
-        this.fallbackBc.close();
-      } catch {}
-      this.fallbackBc = null;
-    }
-    if (this.simRemoteAnimFrame) {
-      cancelAnimationFrame(this.simRemoteAnimFrame);
-      this.simRemoteAnimFrame = null;
-    }
-    if (this.simRemoteAudioCtx) {
-      try {
-        this.simRemoteAudioCtx.close();
-      } catch {}
-      this.simRemoteAudioCtx = null;
-    }
-    if (this.simRemoteStream) {
-      this.simRemoteStream.getTracks().forEach((t) => t.stop());
-      this.simRemoteStream = null;
-    }
-    this.isFallbackMatch = false;
-  }
-
-  private startFallbackMatchmaking(userId: string, preferences: MatchPreferences) {
+  private startP2PMatchmaking(userId: string, country: string, preferences: MatchPreferences) {
     this.cleanupPeerConnection();
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
-    // Announce to cross-tab broadcast channel if supported
-    if (typeof BroadcastChannel !== 'undefined') {
-      try {
-        const bc = new BroadcastChannel('ur_live_fallback_queue');
-        this.fallbackBc = bc;
-        const myPeerId = 'peer_' + Math.random().toString(36).substring(2, 9);
-
-        bc.onmessage = (e) => {
-          if (!e.data || e.data.peerId === myPeerId) return;
-          if (e.data.type === 'seeking_match' && this.state === 'waiting_for_match') {
-            this.cleanupFallback();
-            this.connectSimulatedStranger(preferences);
-          }
-        };
-
-        bc.postMessage({ type: 'seeking_match', peerId: myPeerId, interests: preferences.interests });
-      } catch {}
+    if (typeof BroadcastChannel === 'undefined') {
+      return;
     }
 
-    // After 2.5 - 3.5 seconds, connect with simulated stranger
-    this.fallbackTimer = window.setTimeout(() => {
-      if (this.state !== 'waiting_for_match') return;
-      this.connectSimulatedStranger(preferences);
-    }, 2800);
-  }
+    try {
+      const channel = new BroadcastChannel('ur_live_p2p_channel');
+      this.p2pChannel = channel;
 
-  private connectSimulatedStranger(preferences: MatchPreferences) {
-    this.isFallbackMatch = true;
-    this.currentMatchId = 'sim_match_' + Date.now();
-    const names = ['Alex', 'Sam', 'Taylor', 'Jordan', 'Morgan', 'Casey'];
-    const countries = ['United States', 'Canada', 'United Kingdom', 'Germany', 'Australia', 'India'];
-    const peerName = names[Math.floor(Math.random() * names.length)];
-    const peerCountry = countries[Math.floor(Math.random() * countries.length)];
-    const sharedInterests = preferences.interests && preferences.interests.length > 0
-      ? preferences.interests
-      : ['Music', 'Travel'];
+      channel.onmessage = async (e) => {
+        const data = e.data;
+        if (!data || data.senderTabId === this.p2pTabId) return;
 
-    const remoteStream = this.createRemotePlaceholderStream(peerName);
-    this.remoteStream = remoteStream;
-    this.events.onLocalStream(this.localStream || this.createPlaceholderStream());
-    this.events.onRemoteStream(remoteStream);
+        // 1. Another real peer announces it's searching in the queue
+        if (data.type === 'p2p_queue_announce' && this.state === 'waiting_for_match') {
+          // Higher tab ID becomes initiator to avoid double pairing
+          if (this.p2pTabId > data.senderTabId) {
+            const matchId = 'p2p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+            this.currentMatchId = matchId;
+            this.p2pPartnerTabId = data.senderTabId;
+            if (this.p2pAnnounceInterval) {
+              clearInterval(this.p2pAnnounceInterval);
+              this.p2pAnnounceInterval = null;
+            }
 
-    this.events.onMatchFound({
-      peerUserId: 'sim_peer_' + Date.now(),
-      peerName,
-      peerCountry,
-      sharedInterests,
-      sharedLanguages: ['English'],
-    });
+            // Notify partner of match
+            channel.postMessage({
+              type: 'p2p_match_paired',
+              matchId,
+              targetTabId: data.senderTabId,
+              initiatorTabId: this.p2pTabId,
+              initiatorUser: {
+                userId,
+                name: 'Stranger',
+                country,
+                preferences,
+              },
+            });
 
-    this.setState('connected');
+            // Start peer connection as initiator
+            await this.handleSignalingMessage({
+              type: 'match_found',
+              matchId,
+              payload: {
+                isInitiator: true,
+                peerUserId: data.userId,
+                peerName: 'Stranger',
+                peerCountry: data.country || 'Global',
+                sharedInterests: data.preferences?.interests || [],
+                sharedLanguages: ['English'],
+              },
+            });
+          }
+        }
 
-    // Stranger sends friendly opening message
-    this.peerTypingTimer = window.setTimeout(() => {
-      if (!this.isFallbackMatch || this.state !== 'connected') return;
-      this.events.onPeerTyping?.(true);
-      this.peerReplyTimer = window.setTimeout(() => {
-        if (!this.isFallbackMatch || this.state !== 'connected') return;
-        this.events.onPeerTyping?.(false);
-        const openers = [
-          'Hey! How are you doing today? 👋',
-          'Hello there! Nice to meet you!',
-          `Hey! Glad to connect, cool that you like ${sharedInterests[0] || 'chatting'}!`,
-          'Hi! Where are you connecting from? 😊',
-        ];
-        const text = openers[Math.floor(Math.random() * openers.length)];
-        this.events.onChatMessage({
-          id: 'sim_msg_' + Date.now(),
-          senderId: 'sim_stranger',
-          isLocal: false,
-          text,
-          timestamp: Date.now(),
-        });
-      }, 1200);
-    }, 1000);
+        // 2. We are notified that another real peer paired with us
+        if (data.type === 'p2p_match_paired' && data.targetTabId === this.p2pTabId && this.state === 'waiting_for_match') {
+          this.currentMatchId = data.matchId;
+          this.p2pPartnerTabId = data.initiatorTabId;
+          if (this.p2pAnnounceInterval) {
+            clearInterval(this.p2pAnnounceInterval);
+            this.p2pAnnounceInterval = null;
+          }
+
+          // Start peer connection as receiver
+          await this.handleSignalingMessage({
+            type: 'match_found',
+            matchId: data.matchId,
+            payload: {
+              isInitiator: false,
+              peerUserId: data.initiatorUser?.userId,
+              peerName: 'Stranger',
+              peerCountry: data.initiatorUser?.country || 'Global',
+              sharedInterests: data.initiatorUser?.preferences?.interests || [],
+              sharedLanguages: ['English'],
+            },
+          });
+        }
+
+        // 3. Forward real WebRTC signaling messages (offer, answer, ice_candidate, chat, typing, disconnect)
+        if (data.type === 'p2p_signal' && data.targetTabId === this.p2pTabId && data.matchId === this.currentMatchId) {
+          await this.handleSignalingMessage(data.message);
+        }
+      };
+
+      // Broadcast presence in queue immediately and periodically while waiting for a real peer
+      const announce = () => {
+        if (this.state === 'waiting_for_match' && this.p2pChannel) {
+          this.p2pChannel.postMessage({
+            type: 'p2p_queue_announce',
+            senderTabId: this.p2pTabId,
+            userId,
+            country,
+            preferences,
+          });
+        }
+      };
+      announce();
+      this.p2pAnnounceInterval = setInterval(announce, 1500);
+    } catch (err) {
+      console.warn('[WebRTC] P2P channel init note:', err);
+    }
   }
 
   /**
@@ -695,13 +609,13 @@ export class WebRTCManager {
     await this.connectSignaling();
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      // Gracefully switch to fallback matchmaking if WebSocket server is unreachable (e.g. Vercel serverless)
-      this.startFallbackMatchmaking(userId, preferences);
+      // Connect real peer-to-peer across tabs/browsers
+      this.startP2PMatchmaking(userId, country, preferences);
       return;
     }
 
     this.cleanupPeerConnection();
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
     const token = await this.ensureQueueAuth();
@@ -717,7 +631,7 @@ export class WebRTCManager {
    * Leave matchmaking queue or cancel search
    */
   public leaveQueue() {
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.sendSignalingMessage({ type: 'leave_queue' });
     }
@@ -730,7 +644,7 @@ export class WebRTCManager {
    */
   public skipMatch(userId: string, preferences: MatchPreferences) {
     this.cleanupPeerConnection();
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
     if (!this.lastMatchRequest) {
@@ -745,7 +659,7 @@ export class WebRTCManager {
     }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      this.startFallbackMatchmaking(userId, preferences);
+      this.startP2PMatchmaking(userId, this.lastMatchRequest.country, preferences);
       return;
     }
 
@@ -766,7 +680,7 @@ export class WebRTCManager {
    */
   public disconnect() {
     this.lastMatchRequest = null;
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     this.cleanupPeerConnection();
     this.leaveQueue();
     this.setState('local_disconnected');
@@ -1155,61 +1069,11 @@ export class WebRTCManager {
 
   public sendChatMessage(text: string, currentUserId: string): boolean {
     const trimmed = text.trim();
-    if (!trimmed) return false;
+    if (!trimmed || !this.currentMatchId) return false;
 
-    if (this.isFallbackMatch) {
-      this.events.onChatMessage({
-        id: 'msg_loc_' + Date.now(),
-        senderId: currentUserId,
-        isLocal: true,
-        text: trimmed,
-        timestamp: Date.now(),
-      });
-
-      // Simulate reply from stranger in fallback mode
-      window.setTimeout(() => {
-        if (!this.isFallbackMatch || this.state !== 'connected') return;
-        this.events.onPeerTyping?.(true);
-        window.setTimeout(() => {
-          if (!this.isFallbackMatch || this.state !== 'connected') return;
-          this.events.onPeerTyping?.(false);
-          const lower = trimmed.toLowerCase();
-          let reply = "Haha, that's really cool!";
-          if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
-            reply = 'Hey! How has your day been going?';
-          } else if (lower.includes('where') || lower.includes('from') || lower.includes('country')) {
-            reply = "I'm in California! What about you?";
-          } else if (lower.includes('age') || lower.includes('old') || lower.includes('asl')) {
-            reply = "I'm 23! Just chilling at home right now.";
-          } else if (lower.includes('name')) {
-            reply = "I'm Alex, nice to meet you!";
-          } else if (lower.includes('bye') || lower.includes('cya') || lower.includes('leaving')) {
-            reply = 'Take care! Nice chatting with you!';
-          } else {
-            const generic = [
-              "That's awesome, tell me more!",
-              "Totally agree with that!",
-              "Nice! How long have you been on U-R-LIVE?",
-              "Haha that's great! Love meeting new people here.",
-            ];
-            reply = generic[Math.floor(Math.random() * generic.length)];
-          }
-          this.events.onChatMessage({
-            id: 'sim_msg_' + Date.now(),
-            senderId: 'sim_stranger',
-            isLocal: false,
-            text: reply,
-            timestamp: Date.now(),
-          });
-        }, 1300);
-      }, 700);
-
-      return true;
-    }
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.currentMatchId) {
-      return false;
-    }
+    const hasWs = Boolean(this.ws && this.ws.readyState === WebSocket.OPEN);
+    const hasP2P = Boolean(this.p2pChannel && this.p2pPartnerTabId);
+    if (!hasWs && !hasP2P) return false;
 
     this.sendSignalingMessage({
       type: 'chat_message',
@@ -1296,6 +1160,13 @@ export class WebRTCManager {
   private sendSignalingMessage(msg: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
+    } else if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
+      this.p2pChannel.postMessage({
+        type: 'p2p_signal',
+        matchId: this.currentMatchId,
+        targetTabId: this.p2pPartnerTabId,
+        message: msg,
+      });
     }
   }
 
@@ -1345,7 +1216,7 @@ export class WebRTCManager {
 
   public destroy() {
     this.intentionalClose = true;
-    this.cleanupFallback();
+    this.cleanupP2PChannel();
     this.cleanupPeerConnection();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

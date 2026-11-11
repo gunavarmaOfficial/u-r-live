@@ -16,6 +16,7 @@ import { db } from './server/db';
 import { getMatchmaking, syncBlock } from './server/matchmaking';
 import { pingRedis, getRedisStatus, closeRedis, isRedisConfigured } from './server/redis';
 import { setupSignaling } from './server/webrtc';
+import { httpSignaling } from './server/httpSignaling';
 import {
   resolveSessionUser,
   peekSessionUser,
@@ -882,6 +883,45 @@ app.get('/readyz', async (_req: Request, res: Response) => {
     database: db.isPostgresConnected() ? 'postgres' : 'memory',
     redis: getRedisStatus(),
   });
+});
+
+// -------------------------------------------------------------
+// HTTP WebRTC Signaling & Matchmaking Endpoints
+// (Used in serverless environments like Vercel where WebSockets are unavailable)
+// -------------------------------------------------------------
+app.post('/api/match/join', (req: Request, res: Response) => {
+  const { userId, country, gender, preferences } = req.body || {};
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  const result = httpSignaling.joinQueue(userId, country, gender, preferences);
+  res.json(result);
+});
+
+app.get('/api/match/poll', (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  const result = httpSignaling.poll(userId);
+  res.json(result);
+});
+
+app.post('/api/match/signal', (req: Request, res: Response) => {
+  const { matchId, senderId, message } = req.body || {};
+  if (!matchId || !senderId || !message) {
+    return res.status(400).json({ error: 'matchId, senderId and message are required' });
+  }
+  const ok = httpSignaling.sendSignal(matchId, senderId, message);
+  res.json({ ok });
+});
+
+app.post('/api/match/leave', (req: Request, res: Response) => {
+  const { userId } = req.body || {};
+  if (userId) {
+    httpSignaling.leave(userId);
+  }
+  res.json({ ok: true });
 });
 
 // Setup WebSocket Signaling (skipped in Vercel serverless functions)

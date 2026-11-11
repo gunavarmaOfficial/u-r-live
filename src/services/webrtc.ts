@@ -90,6 +90,11 @@ export class WebRTCManager {
   private p2pPartnerTabId: string | null = null;
   private p2pAnnounceInterval: any = null;
 
+  // HTTP Signaling & Matchmaking (for Vercel serverless)
+  private isHttpSignalingActive = false;
+  private httpPollInterval: any = null;
+  private currentUserId = '';
+
   constructor(events: WebRTCEvents, customIceServers?: RTCIceServer[]) {
     this.events = events;
     if (customIceServers && customIceServers.length > 0) {
@@ -313,6 +318,116 @@ export class WebRTCManager {
     this.p2pPartnerTabId = null;
   }
 
+  public cleanupHttpSignaling() {
+    this.isHttpSignalingActive = false;
+    if (this.httpPollInterval) {
+      clearInterval(this.httpPollInterval);
+      this.httpPollInterval = null;
+    }
+    if (this.currentUserId) {
+      fetch(`${API_BASE_URL}/api/match/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: this.currentUserId }),
+      }).catch(() => {});
+    }
+  }
+
+  private async startHttpMatchmaking(
+    userId: string,
+    country: string = 'GLOBAL',
+    preferences: MatchPreferences
+  ) {
+    this.currentUserId = userId;
+    this.cleanupPeerConnection();
+    this.cleanupHttpSignaling();
+    this.setState('waiting_for_match');
+
+    // Also activate cross-tab BroadcastChannel for instant local tab pairing
+    this.startP2PMatchmaking(userId, country, preferences);
+    this.isHttpSignalingActive = true;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/match/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          country,
+          gender: this.lastMatchRequest?.gender || 'unspecified',
+          preferences,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.status === 'matched') {
+        this.currentMatchId = data.matchId;
+        await this.handleSignalingMessage({
+          type: 'match_found',
+          matchId: data.matchId,
+          payload: {
+            isInitiator: data.isInitiator,
+            peerUserId: data.peerUserId,
+            peerName: 'Stranger',
+            peerCountry: data.peerCountry || 'Global',
+            sharedInterests: data.sharedInterests || [],
+            sharedLanguages: ['English'],
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('[WebRTC] HTTP join note:', err);
+    }
+
+    // Start HTTP polling
+    const poll = async () => {
+      if (!this.isHttpSignalingActive) return;
+      if (
+        this.state !== 'waiting_for_match' &&
+        this.state !== 'connecting' &&
+        this.state !== 'connected' &&
+        this.state !== 'match_found'
+      ) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/match/poll?userId=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+
+        if (data.status === 'in_match') {
+          // If not matched yet on client side, initialize match
+          if (!this.currentMatchId || this.currentMatchId !== data.matchId) {
+            this.currentMatchId = data.matchId;
+            await this.handleSignalingMessage({
+              type: 'match_found',
+              matchId: data.matchId,
+              payload: {
+                isInitiator: data.isInitiator,
+                peerUserId: data.peerUserId,
+                peerName: 'Stranger',
+                peerCountry: data.peerCountry || 'Global',
+                sharedInterests: data.sharedInterests || [],
+                sharedLanguages: ['English'],
+              },
+            });
+          }
+
+          // Process any buffered signaling messages (offer, answer, ice_candidate, etc.)
+          if (Array.isArray(data.messages) && data.messages.length > 0) {
+            for (const msg of data.messages) {
+              await this.handleSignalingMessage(msg);
+            }
+          }
+        }
+      } catch (err) {
+        // Poll warning ignored
+      }
+    };
+
+    this.httpPollInterval = setInterval(poll, 1200);
+  }
+
   private startP2PMatchmaking(userId: string, country: string, preferences: MatchPreferences) {
     this.cleanupPeerConnection();
     this.cleanupP2PChannel();
@@ -487,6 +602,9 @@ export class WebRTCManager {
           }
           if (this.intentionalClose) return;
 
+          // If already running HTTP or P2P signaling, do not attempt WebSocket reconnect
+          if (this.isHttpSignalingActive || this.p2pChannel) return;
+
           const wasSearching =
             this.state === 'waiting_for_match' ||
             this.state === 'match_found' ||
@@ -533,7 +651,16 @@ export class WebRTCManager {
   private scheduleReconnect() {
     if (this.reconnectTimer) return;
     if (this.reconnectAttempts >= 3) {
-      this.setState('failed', 'Could not reach the live network. Check your connection and try again.');
+      this.reconnectAttempts = 0;
+      // WebSocket is unavailable on this host (e.g. Vercel serverless).
+      // Seamlessly switch to HTTP / P2P matchmaking without failing or showing an error!
+      if (this.lastMatchRequest) {
+        this.startHttpMatchmaking(
+          this.lastMatchRequest.userId,
+          this.lastMatchRequest.country,
+          this.lastMatchRequest.preferences
+        );
+      }
       return;
     }
 
@@ -609,12 +736,13 @@ export class WebRTCManager {
     await this.connectSignaling();
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      // Connect real peer-to-peer across tabs/browsers
-      this.startP2PMatchmaking(userId, country, preferences);
+      // Connect real peer-to-peer across tabs and devices
+      this.startHttpMatchmaking(userId, country, preferences);
       return;
     }
 
     this.cleanupPeerConnection();
+    this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
@@ -631,6 +759,7 @@ export class WebRTCManager {
    * Leave matchmaking queue or cancel search
    */
   public leaveQueue() {
+    this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.sendSignalingMessage({ type: 'leave_queue' });
@@ -644,6 +773,7 @@ export class WebRTCManager {
    */
   public skipMatch(userId: string, preferences: MatchPreferences) {
     this.cleanupPeerConnection();
+    this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
@@ -659,7 +789,7 @@ export class WebRTCManager {
     }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      this.startP2PMatchmaking(userId, this.lastMatchRequest.country, preferences);
+      this.startHttpMatchmaking(userId, this.lastMatchRequest.country, preferences);
       return;
     }
 
@@ -680,6 +810,7 @@ export class WebRTCManager {
    */
   public disconnect() {
     this.lastMatchRequest = null;
+    this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     this.cleanupPeerConnection();
     this.leaveQueue();
@@ -1057,7 +1188,7 @@ export class WebRTCManager {
   }
 
   public setTyping(isTyping: boolean) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.currentMatchId) {
+    if (!this.currentMatchId) {
       return;
     }
     this.sendSignalingMessage({
@@ -1070,10 +1201,6 @@ export class WebRTCManager {
   public sendChatMessage(text: string, currentUserId: string): boolean {
     const trimmed = text.trim();
     if (!trimmed || !this.currentMatchId) return false;
-
-    const hasWs = Boolean(this.ws && this.ws.readyState === WebSocket.OPEN);
-    const hasP2P = Boolean(this.p2pChannel && this.p2pPartnerTabId);
-    if (!hasWs && !hasP2P) return false;
 
     this.sendSignalingMessage({
       type: 'chat_message',
@@ -1160,13 +1287,26 @@ export class WebRTCManager {
   private sendSignalingMessage(msg: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
-    } else if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
-      this.p2pChannel.postMessage({
-        type: 'p2p_signal',
-        matchId: this.currentMatchId,
-        targetTabId: this.p2pPartnerTabId,
-        message: msg,
-      });
+    } else {
+      if (this.isHttpSignalingActive && this.currentMatchId && this.currentUserId) {
+        fetch(`${API_BASE_URL}/api/match/signal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchId: this.currentMatchId,
+            senderId: this.currentUserId,
+            message: msg,
+          }),
+        }).catch(() => {});
+      }
+      if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
+        this.p2pChannel.postMessage({
+          type: 'p2p_signal',
+          matchId: this.currentMatchId,
+          targetTabId: this.p2pPartnerTabId,
+          message: msg,
+        });
+      }
     }
   }
 
@@ -1216,6 +1356,7 @@ export class WebRTCManager {
 
   public destroy() {
     this.intentionalClose = true;
+    this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     this.cleanupPeerConnection();
     if (this.reconnectTimer) {

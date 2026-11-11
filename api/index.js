@@ -2451,6 +2451,159 @@ function setupSignaling(wss2) {
   });
 }
 
+// server/httpSignaling.ts
+var HttpSignalingManager = class {
+  constructor() {
+    this.queue = /* @__PURE__ */ new Map();
+    this.matches = /* @__PURE__ */ new Map();
+    this.userToMatch = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Prune stale entries (users who stopped polling > 20s ago, matches idle > 60s)
+   */
+  pruneStale() {
+    const now = Date.now();
+    for (const [userId, user] of this.queue.entries()) {
+      if (now - user.lastPoll > 2e4) {
+        this.queue.delete(userId);
+      }
+    }
+    for (const [matchId, match] of this.matches.entries()) {
+      if (now - match.lastActivity > 6e4) {
+        this.userToMatch.delete(match.initiatorId);
+        this.userToMatch.delete(match.responderId);
+        this.matches.delete(matchId);
+      }
+    }
+  }
+  joinQueue(userId, country = "GLOBAL", gender = "unspecified", preferences) {
+    this.pruneStale();
+    this.leave(userId);
+    const candidateEntry = buildQueueEntry(
+      "http_" + userId,
+      userId,
+      gender,
+      country,
+      preferences
+    );
+    for (const [otherId, other] of this.queue.entries()) {
+      if (otherId === userId) continue;
+      const otherEntry = buildQueueEntry(
+        "http_" + other.userId,
+        other.userId,
+        other.gender,
+        other.country,
+        other.preferences
+      );
+      if (areEntriesCompatible(candidateEntry, otherEntry)) {
+        this.queue.delete(otherId);
+        const matchId = "m_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+        const candInterests = candidateEntry.interests || [];
+        const othInterests = otherEntry.interests || [];
+        const sharedInterests = candInterests.filter(
+          (i) => othInterests.includes(i)
+        );
+        const match = {
+          matchId,
+          initiatorId: other.userId,
+          // older waiting user initiates WebRTC offer
+          responderId: userId,
+          initiatorCountry: other.country,
+          responderCountry: country,
+          initiatorInterests: othInterests,
+          responderInterests: candInterests,
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+          messagesForInitiator: [],
+          messagesForResponder: []
+        };
+        this.matches.set(matchId, match);
+        this.userToMatch.set(other.userId, matchId);
+        this.userToMatch.set(userId, matchId);
+        return {
+          status: "matched",
+          matchId,
+          isInitiator: false,
+          peerUserId: other.userId,
+          peerCountry: other.country,
+          sharedInterests
+        };
+      }
+    }
+    this.queue.set(userId, {
+      userId,
+      country,
+      gender,
+      preferences,
+      joinedAt: Date.now(),
+      lastPoll: Date.now()
+    });
+    return { status: "waiting" };
+  }
+  poll(userId) {
+    this.pruneStale();
+    const matchId = this.userToMatch.get(userId);
+    if (matchId) {
+      const match = this.matches.get(matchId);
+      if (match) {
+        match.lastActivity = Date.now();
+        const isInitiator = match.initiatorId === userId;
+        const msgQueue = isInitiator ? match.messagesForInitiator : match.messagesForResponder;
+        const messages = [...msgQueue];
+        msgQueue.length = 0;
+        const peerUserId = isInitiator ? match.responderId : match.initiatorId;
+        const peerCountry = isInitiator ? match.responderCountry : match.initiatorCountry;
+        const sharedInterests = match.initiatorInterests.filter(
+          (i) => match.responderInterests.includes(i)
+        );
+        return {
+          status: "in_match",
+          matchId,
+          isInitiator,
+          peerUserId,
+          peerCountry,
+          sharedInterests,
+          messages
+        };
+      }
+    }
+    const queueUser = this.queue.get(userId);
+    if (queueUser) {
+      queueUser.lastPoll = Date.now();
+      return { status: "waiting" };
+    }
+    return { status: "idle" };
+  }
+  sendSignal(matchId, senderId, message) {
+    const match = this.matches.get(matchId);
+    if (!match) return false;
+    match.lastActivity = Date.now();
+    const isSenderInitiator = match.initiatorId === senderId;
+    const targetQueue = isSenderInitiator ? match.messagesForResponder : match.messagesForInitiator;
+    targetQueue.push(message);
+    return true;
+  }
+  leave(userId) {
+    this.queue.delete(userId);
+    const matchId = this.userToMatch.get(userId);
+    if (matchId) {
+      this.userToMatch.delete(userId);
+      const match = this.matches.get(matchId);
+      if (match) {
+        const isInitiator = match.initiatorId === userId;
+        const otherId = isInitiator ? match.responderId : match.initiatorId;
+        this.userToMatch.delete(otherId);
+        const otherQueue = isInitiator ? match.messagesForResponder : match.messagesForInitiator;
+        otherQueue.push({ type: "peer_disconnected", reason: "Stranger disconnected." });
+        setTimeout(() => {
+          this.matches.delete(matchId);
+        }, 5e3);
+      }
+    }
+  }
+};
+var httpSignaling = new HttpSignalingManager();
+
 // server/googleAuth.ts
 import crypto4 from "crypto";
 var CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs";
@@ -3304,6 +3457,37 @@ app.get("/readyz", async (_req, res) => {
     database: db.isPostgresConnected() ? "postgres" : "memory",
     redis: getRedisStatus()
   });
+});
+app.post("/api/match/join", (req, res) => {
+  const { userId, country, gender, preferences } = req.body || {};
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+  const result = httpSignaling.joinQueue(userId, country, gender, preferences);
+  res.json(result);
+});
+app.get("/api/match/poll", (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+  const result = httpSignaling.poll(userId);
+  res.json(result);
+});
+app.post("/api/match/signal", (req, res) => {
+  const { matchId, senderId, message } = req.body || {};
+  if (!matchId || !senderId || !message) {
+    return res.status(400).json({ error: "matchId, senderId and message are required" });
+  }
+  const ok = httpSignaling.sendSignal(matchId, senderId, message);
+  res.json({ ok });
+});
+app.post("/api/match/leave", (req, res) => {
+  const { userId } = req.body || {};
+  if (userId) {
+    httpSignaling.leave(userId);
+  }
+  res.json({ ok: true });
 });
 var wss = new WebSocketServer2(process.env.VERCEL ? { noServer: true } : { server, path: "/ws" });
 if (!process.env.VERCEL) {

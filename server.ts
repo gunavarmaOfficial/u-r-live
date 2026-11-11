@@ -1021,3 +1021,4 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
 }
 
 export { app, server, wss };
+export default app;

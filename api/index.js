@@ -3409,9 +3409,10 @@ if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
   process.on("SIGINT", () => handleSignal("SIGINT"));
 }
-
-// api/index.ts
-var index_default = app;
+var server_default = app;
 export {
-  index_default as default
+  app,
+  server_default as default,
+  server,
+  wss
 };

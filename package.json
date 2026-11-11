@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "npm run build:client && npm run build:ssr && node scripts/prerender.mjs",
+    "build": "npm run build:client && npm run build:ssr && node scripts/prerender.mjs && npm run build:api",
+    "build:api": "esbuild api/index.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js",
     "build:full": "npm run build && npm run build:server",
     "build:client": "NODE_ENV=production vite build",
     "build:ssr": "NODE_ENV=production vite build --ssr src/entry-server.tsx --outDir dist-ssr",

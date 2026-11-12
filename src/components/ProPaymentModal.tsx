@@ -5,18 +5,13 @@ import {
   Clock01Icon,
   Copy01Icon,
   Download01Icon,
-  FlashIcon,
   LockIcon,
   SecurityCheckIcon,
   SparklesIcon,
 } from 'hugeicons-react';
 import { ModalShell } from './ModalShell';
 import {
-  buildStandardUpiUri,
-  getAppUpiLink,
   generateUpiQrDataUrl,
-  UPI_APPS,
-  UpiAppId,
   UpiPaymentConfig,
 } from '../utils/upi';
 
@@ -237,7 +232,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
             </button>
             <div className="flex items-center justify-center gap-2 text-[10px] sm:text-[11px] text-neutral-400">
               <LockIcon size={12} className="text-emerald-500" />
-              <span>Instant UPI Payment • Google Pay, PhonePe, Paytm, BHIM</span>
+              <span>Scan UPI QR Code to Pay • Google Pay, PhonePe, Paytm, BHIM</span>
             </div>
           </div>
         </div>
@@ -329,74 +324,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
               </div>
             ) : (
               <>
-                {/* TAP APP TO PAY INSTANTLY */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
-                      TAP APP TO PAY INSTANTLY
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-500">
-                      <FlashIcon size={12} />
-                      <span>Direct Redirect</span>
-                    </span>
-                  </div>
-
-                  {/* 4 App Cards Grid */}
-                  <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
-                    {(['gpay', 'phonepe', 'paytm', 'bhim'] as const).map((appId) => {
-                      const app = UPI_APPS[appId];
-                      const link = getAppUpiLink(appId, upiConfig);
-                      const openLabel =
-                        appId === 'gpay'
-                          ? 'GPay'
-                          : appId === 'phonepe'
-                          ? 'PhonePe'
-                          : appId === 'paytm'
-                          ? 'Paytm'
-                          : 'BHIM';
-                      return (
-                        <a
-                          key={appId}
-                          href={link}
-                          target="_top"
-                          rel="noopener noreferrer"
-                          className="flex flex-col items-center justify-center rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-2.5 sm:p-3 text-center transition hover:border-red-500/50 hover:bg-neutral-50 dark:hover:bg-white/[0.08] group cursor-pointer shadow-sm no-underline active:scale-95"
-                        >
-                          <img
-                            src={app.logo}
-                            alt={app.displayName}
-                            className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl object-contain mb-1.5 transition group-hover:scale-105"
-                          />
-                          <span className="text-[11px] sm:text-xs font-bold text-neutral-900 dark:text-white leading-tight">
-                            {app.displayName}
-                          </span>
-                          <span className="text-[9px] sm:text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5">
-                            Open {openLabel}
-                          </span>
-                        </a>
-                      );
-                    })}
-                  </div>
-
-                  {/* Pay with Any Installed UPI App Button */}
-                  <a
-                    href={getAppUpiLink('generic', upiConfig)}
-                    target="_top"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 py-3 sm:py-3.5 px-4 font-black text-xs sm:text-sm text-white shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95 cursor-pointer no-underline"
-                  >
-                    <FlashIcon size={16} />
-                    <span>Pay ₹{effectiveAmount} With Any Installed UPI App</span>
-                  </a>
-
-                  {/* Fallback Message */}
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-center">
-                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                      Unable to open your UPI app? Scan the QR code or copy the UPI ID to complete your payment.
-                    </p>
-                  </div>
-                </div>
-
                 {/* QR Code and Instructions */}
                 <div className="flex flex-col items-center justify-center text-center">
                   <div className="relative rounded-2xl bg-white p-3 shadow-md border border-neutral-200">

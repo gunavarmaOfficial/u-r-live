@@ -4,6 +4,7 @@ import {
   CheckmarkCircle01Icon,
   Clock01Icon,
   Copy01Icon,
+  Download01Icon,
   FlashIcon,
   LockIcon,
   SecurityCheckIcon,
@@ -21,64 +22,12 @@ interface ProPaymentModalProps {
 }
 
 // Official Brand Logos for Indian UPI Payment Apps
-const GooglePayLogo: React.FC = () => (
-  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm border border-neutral-100 dark:border-neutral-700 overflow-hidden shrink-0">
-    <svg className="h-6 w-6" viewBox="0 0 48 48" fill="none">
-      <path
-        d="M43.6 24.2C43.6 22.8 43.5 21.4 43.2 20H24V28.3H35C34.5 30.9 33 33.1 30.7 34.6V40H37.7C41.8 36.2 43.6 30.7 43.6 24.2Z"
-        fill="#4285F4"
-      />
-      <path
-        d="M24 44.2C29.5 44.2 34.1 42.4 37.7 39.1L30.7 33.7C28.8 35 26.6 35.8 24 35.8C18.7 35.8 14.2 32.2 12.6 27.3H5.3V32.9C8.9 40.1 16 44.2 24 44.2Z"
-        fill="#34A853"
-      />
-      <path
-        d="M12.6 27.3C12.2 26.1 12 24.8 12 23.5C12 22.2 12.2 20.9 12.6 19.7V14.1H5.3C3.8 17 3 20.2 3 23.5C3 26.8 3.8 30 5.3 32.9L12.6 27.3Z"
-        fill="#FBBC04"
-      />
-      <path
-        d="M24 11.2C27 11.2 29.7 12.2 31.8 14.3L38 8.1C34.1 4.5 29.5 2.8 24 2.8C16 2.8 8.9 6.9 5.3 14.1L12.6 19.7C14.2 14.8 18.7 11.2 24 11.2Z"
-        fill="#EA4335"
-      />
-    </svg>
-  </div>
-);
-
-const PhonePeLogo: React.FC = () => (
-  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#5F259F] text-white shadow-sm overflow-hidden shrink-0">
-    <svg className="h-6 w-6" viewBox="0 0 40 40" fill="none">
-      <path
-        d="M21.5 8H26.5V12.2H23.2C24.5 13.2 25.4 14.8 25.4 16.8C25.4 20.8 22.2 23 18 23H15.5V30H11.5V8H21.5ZM15.5 19.2H17.8C20.2 19.2 21.6 18.2 21.6 16.3C21.6 14.5 20.2 13.4 17.8 13.4H15.5V19.2Z"
-        fill="white"
-      />
-      <path
-        d="M24 21.5L30 30H25L19.5 22.5L24 21.5Z"
-        fill="white"
-      />
-    </svg>
-  </div>
-);
-
-const PaytmLogo: React.FC = () => (
-  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm border border-neutral-100 dark:border-neutral-700 overflow-hidden shrink-0">
-    <svg className="h-4 w-9" viewBox="0 0 88 28" fill="none">
-      <path d="M11 26V2h7c5 0 9 3.5 9 8.5s-4 8.5-9 8.5h-3v7h-4zm4-11h3c2.8 0 4.8-1.8 4.8-4.5s-2-4.5-4.8-4.5h-3v9z" fill="#002970" />
-      <path d="M37 26v-2.5c-1.3 1.8-3.4 3-5.8 3-4.5 0-7.7-3.2-7.7-7.8s3.2-7.8 7.7-7.8c2.4 0 4.5 1.2 5.8 3V11h4v15h-4zm-4.8-4c2.5 0 4.5-1.9 4.5-4.7s-2-4.7-4.5-4.7-4.5 1.9-4.5 4.7 2 4.7 4.5 4.7z" fill="#002970" />
-      <path d="M46 11h4.5l3.8 10 3.8-10H59l-6.8 16.5-3.5 8h-4.5l2.8-6.5L46 11z" fill="#002970" />
-      <path d="M68 5h-5.5V2h15v3H72v15h-4V5z" fill="#00BAF2" />
-      <path d="M80 20V2h4.5l5 11.5L94.5 2H99v18h-4v-11l-4.5 10.5h-2L84 9v11h-4z" fill="#00BAF2" />
-    </svg>
-  </div>
-);
-
-const BhimUpiLogo: React.FC = () => (
-  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm border border-neutral-100 dark:border-neutral-700 overflow-hidden shrink-0">
-    <svg className="h-6 w-8" viewBox="0 0 64 36" fill="none">
-      <path d="M12 4L26 18L12 32H3L17 18L3 4H12Z" fill="#097939" />
-      <path d="M26 4L40 18L26 32H17L31 18L17 4H26Z" fill="#ED752E" />
-      <text x="35" y="27" fill="#1C1C1E" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontSize="16" fontStyle="italic">UPI</text>
-    </svg>
-  </div>
+const PaymentAppLogo: React.FC<{ src: string; alt: string }> = ({ src, alt }) => (
+  <img
+    src={src}
+    alt={alt}
+    className="h-10 w-10 rounded-xl object-cover shadow-sm border border-neutral-200/70 dark:border-neutral-700 overflow-hidden shrink-0"
+  />
 );
 
 export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
@@ -101,57 +50,45 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
 
   const timerRef = useRef<number | null>(null);
 
-  // Exact parameters matching the working QR code (mode=02 for intent/QR payment)
-  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
-  const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
-
-  const baseUpiQuery = `pa=${encodeURIComponent(upiId)}&pn=UR%20Live&am=${amount}&cu=INR&mode=02`;
-  const universalUpiUrl = `upi://pay?${baseUpiQuery}`;
+  // Standard parameters for UPI Intent and QR payment (amount pre-filled, without conflicting mode=02)
+  const upiQuery = `pa=${encodeURIComponent(upiId)}&pn=UR%20Live&am=${amount}&cu=INR&tn=UR%20LIVE%20Pro%20Plan`;
+  const universalUpiUrl = `upi://pay?${upiQuery}`;
 
   const getAppDeepLink = (app: 'gpay' | 'phonepe' | 'paytm' | 'bhim') => {
+    if (typeof navigator === 'undefined') return universalUpiUrl;
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
     if (isAndroid) {
       if (app === 'gpay') {
-        return `intent://pay?${baseUpiQuery}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
+        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`;
       }
       if (app === 'phonepe') {
-        return `intent://pay?${baseUpiQuery}#Intent;scheme=upi;package=com.phonepe.app;end`;
+        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=com.phonepe.app;end;`;
       }
       if (app === 'paytm') {
-        return `intent://pay?${baseUpiQuery}#Intent;scheme=upi;package=net.one97.paytm;end`;
+        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=net.one97.paytm;end;`;
       }
       if (app === 'bhim') {
-        return `intent://pay?${baseUpiQuery}#Intent;scheme=upi;package=in.org.npci.upiapp;end`;
+        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=in.org.npci.upiapp;end;`;
       }
     }
 
     if (isIOS) {
-      if (app === 'gpay') return `gpay://upi/pay?${baseUpiQuery}`;
-      if (app === 'phonepe') return `phonepe://pay?${baseUpiQuery}`;
-      if (app === 'paytm') return `paytmmp://pay?${baseUpiQuery}`;
+      if (app === 'gpay') return `gpay://upi/pay?${upiQuery}`;
+      if (app === 'phonepe') return `phonepe://pay?${upiQuery}`;
+      if (app === 'paytm') return `paytmmp://pay?${upiQuery}`;
     }
 
-    // Default for iOS BHIM or desktop fallback
+    // Default universal fallback
     return universalUpiUrl;
   };
 
   const handleLaunchApp = (
-    app: 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'universal',
-    e?: React.MouseEvent
+    app: 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'universal'
   ) => {
-    if (e) e.preventDefault();
     const targetUrl = app === 'universal' ? universalUpiUrl : getAppDeepLink(app);
-
-    // Direct redirect to selected UPI app
     window.location.href = targetUrl;
-
-    // Gracefully fallback to universal upi://pay only if app failed to open and window is still visible
-    if (app !== 'universal') {
-      setTimeout(() => {
-        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          window.location.href = universalUpiUrl;
-        }
-      }, 1800);
-    }
   };
 
   // Countdown timer
@@ -340,14 +277,26 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="relative rounded-2xl bg-white p-3 shadow-md border border-neutral-200">
                   <img
-                    src="/payment-qr.jpg"
-                    alt="Scan UR Live UPI QR Code to pay ₹299"
-                    className="h-56 w-56 sm:h-64 sm:w-64 object-contain rounded-xl"
+                    src="/payment-qr.png?v=5"
+                    alt={`Scan UR Live UPI QR Code to pay ₹${amount}`}
+                    className="h-56 w-56 sm:h-64 sm:w-64 object-contain rounded-xl mx-auto"
                   />
 
-                  <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-bold text-neutral-800">
-                    <SecurityCheckIcon size={14} className="text-emerald-600" />
-                    <span>Scan with Any UPI App • ₹{amount}</span>
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold text-neutral-800">
+                    <span className="inline-flex items-center gap-1 text-emerald-600">
+                      <SecurityCheckIcon size={14} />
+                      <span>Scan to Pay ₹{amount} (Amount Pre-filled)</span>
+                    </span>
+                    <span className="text-neutral-300">•</span>
+                    <a
+                      href="/payment-qr.png"
+                      download="UR-Live-Payment-QR.png"
+                      className="inline-flex items-center gap-1 rounded-md bg-neutral-100 hover:bg-neutral-200 px-2 py-0.5 text-neutral-700 transition"
+                      title="Save QR code image to your phone gallery"
+                    >
+                      <Download01Icon size={12} />
+                      <span>Save QR</span>
+                    </a>
                   </div>
                 </div>
 
@@ -365,67 +314,62 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {/* Google Pay */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleLaunchApp('gpay', e)}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-blue-500/50 hover:bg-blue-500/5 transition cursor-pointer group active:scale-95"
+                    <a
+                      href={getAppDeepLink('gpay')}
+                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-blue-500/50 hover:bg-blue-500/5 transition cursor-pointer group active:scale-95 no-underline"
                     >
-                      <GooglePayLogo />
+                      <PaymentAppLogo src="/payment-apps/gpay.png" alt="Google Pay" />
                       <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-blue-500">
                         Google Pay
                       </span>
                       <span className="text-[10px] text-neutral-400">Open GPay</span>
-                    </button>
+                    </a>
 
                     {/* PhonePe */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleLaunchApp('phonepe', e)}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#5f259f]/50 hover:bg-[#5f259f]/5 transition cursor-pointer group active:scale-95"
+                    <a
+                      href={getAppDeepLink('phonepe')}
+                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#5f259f]/50 hover:bg-[#5f259f]/5 transition cursor-pointer group active:scale-95 no-underline"
                     >
-                      <PhonePeLogo />
+                      <PaymentAppLogo src="/payment-apps/phonepe.png" alt="PhonePe" />
                       <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-[#5f259f]">
                         PhonePe
                       </span>
                       <span className="text-[10px] text-neutral-400">Open PhonePe</span>
-                    </button>
+                    </a>
 
                     {/* Paytm */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleLaunchApp('paytm', e)}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#00b9f5]/50 hover:bg-[#00b9f5]/5 transition cursor-pointer group active:scale-95"
+                    <a
+                      href={getAppDeepLink('paytm')}
+                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#00b9f5]/50 hover:bg-[#00b9f5]/5 transition cursor-pointer group active:scale-95 no-underline"
                     >
-                      <PaytmLogo />
+                      <PaymentAppLogo src="/payment-apps/paytm.png" alt="Paytm" />
                       <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-[#00b9f5]">
                         Paytm
                       </span>
                       <span className="text-[10px] text-neutral-400">Open Paytm</span>
-                    </button>
+                    </a>
 
                     {/* BHIM / UPI */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleLaunchApp('bhim', e)}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition cursor-pointer group active:scale-95"
+                    <a
+                      href={getAppDeepLink('bhim')}
+                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition cursor-pointer group active:scale-95 no-underline"
                     >
-                      <BhimUpiLogo />
+                      <PaymentAppLogo src="/payment-apps/bhim.png" alt="BHIM UPI" />
                       <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-emerald-500">
                         BHIM UPI
                       </span>
                       <span className="text-[10px] text-neutral-400">Open BHIM</span>
-                    </button>
+                    </a>
                   </div>
 
                   {/* Universal "Open Any UPI App" Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleLaunchApp('universal', e)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer"
+                  <a
+                    href={universalUpiUrl}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer no-underline"
                   >
                     <FlashIcon size={16} />
                     <span>Pay ₹{amount} With Any Installed UPI App</span>
-                  </button>
+                  </a>
                 </div>
               </div>
 

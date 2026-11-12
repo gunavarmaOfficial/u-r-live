@@ -611,6 +611,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     setStopPhase('stop');
     setState('waiting_for_match');
     setStatusMessage('Looking for someone to chat with…');
+
+    // Ensure camera is started during user gesture
+    if (!localStream && managerRef.current) {
+      try {
+        const stream = await managerRef.current.initMedia();
+        if (stream) setLocalStream(stream);
+      } catch (err) {
+        console.warn('Camera request during search:', err);
+      }
+    }
+
     try {
       await managerRef.current.findMatch(
         user.id,
@@ -1192,22 +1203,42 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
             {/* Bottom Box: Self preview (Your Camera) */}
             <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl overflow-hidden bg-black border border-neutral-200/80 dark:border-white/10 shadow-sm">
-              <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
-
-              {!localStream && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0b0a14] text-center">
-                  <CameraOff01Icon size={24} className="text-neutral-600" />
-                  <p className="text-xs text-neutral-500">Camera preview</p>
+              {localStream ? (
+                <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-[#0b0a14] p-4 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-neutral-400">
+                    <CameraVideoIcon size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Camera not active</p>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">Click below to start your live camera view</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      managerRef.current
+                        ?.initMedia()
+                        .then((stream) => setLocalStream(stream))
+                        .catch((err) => console.warn('Camera request error:', err));
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition cursor-pointer"
+                  >
+                    <CameraVideoIcon size={14} />
+                    <span>Turn On Camera</span>
+                  </button>
                 </div>
               )}
-              {!isCamOn && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                  <CameraOff01Icon size={26} className="text-neutral-400" />
+
+              {!isCamOn && localStream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/85 backdrop-blur-sm">
+                  <CameraOff01Icon size={28} className="text-neutral-400" />
+                  <span className="text-xs font-medium text-neutral-400">Camera Off</span>
                 </div>
               )}
 
               {/* You badge */}
-              <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
+              <span className="absolute left-3 top-3 z-10 rounded-md bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold text-white">
                 You
               </span>
 

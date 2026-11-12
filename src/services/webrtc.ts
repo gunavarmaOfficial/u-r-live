@@ -79,11 +79,6 @@ export class WebRTCManager {
 
   public isUsingPlaceholderMedia = false;
 
-  // Placeholder media resources
-  private placeholderCanvas: HTMLCanvasElement | null = null;
-  private placeholderAnimFrame: number | null = null;
-  private placeholderAudioCtx: AudioContext | null = null;
-
   // Real Cross-Tab P2P Signaling via BroadcastChannel
   private p2pChannel: BroadcastChannel | null = null;
   private p2pTabId = 'tab_' + Math.random().toString(36).slice(2, 9);
@@ -118,180 +113,101 @@ export class WebRTCManager {
   }
 
   /**
-   * Acquire local camera & microphone streams. If the device or permission is
-   * unavailable, a generated placeholder stream keeps matchmaking usable.
+   * Acquire local camera & microphone streams. Real webcam video only.
    */
   public async initMedia(): Promise<MediaStream> {
-    if (this.localStream) {
+    if (
+      this.localStream &&
+      this.localStream.active &&
+      this.localStream.getVideoTracks().some((t) => t.readyState === 'live')
+    ) {
       return this.localStream;
     }
 
     this.setState('requesting_permissions');
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Your browser does not support WebRTC media capture.');
-      }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.setState('camera_unavailable', 'Your browser does not support WebRTC media capture.');
+      throw new Error('Your browser does not support WebRTC media capture.');
+    }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+    let stream: MediaStream | null = null;
+    let lastErr: any = null;
+
+    // 1. Attempt preferred constraints (user facing camera + audio)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
         video: {
+          facingMode: 'user',
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: 'user',
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
         },
       });
+    } catch (err: any) {
+      lastErr = err;
+    }
+
+    // 2. Attempt basic unconstrained video + audio
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+
+    // 3. Attempt video only (if microphone device is absent or in use)
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+
+    if (stream) {
+      // Add silent audio track if only video was granted, ensuring symmetric WebRTC SDP
+      if (stream.getAudioTracks().length === 0) {
+        try {
+          const AudioCtx =
+            (window as any).AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            const audioCtx: AudioContext = new AudioCtx();
+            const destination = audioCtx.createMediaStreamDestination();
+            const oscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0;
+            oscillator.connect(gain);
+            gain.connect(destination);
+            oscillator.start();
+            destination.stream.getAudioTracks().forEach((track) => stream!.addTrack(track));
+            audioCtx.resume().catch(() => {});
+          }
+        } catch {}
+      }
 
       this.localStream = stream;
       this.isUsingPlaceholderMedia = false;
       this.events.onLocalStream(stream);
       this.setState('idle');
       return stream;
-    } catch (err: any) {
-      let errorMsg = 'Camera and microphone are unavailable on this device.';
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMsg =
-          'Camera and microphone permission was denied. You can still match and chat with a placeholder preview.';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        errorMsg = 'No camera or microphone found. You can still match with a placeholder preview.';
-      } else if (err.name === 'NotReadableError') {
-        errorMsg = 'Your camera is already in use by another application.';
-      }
-
-      try {
-        const placeholder = this.createPlaceholderStream();
-        this.localStream = placeholder;
-        this.isUsingPlaceholderMedia = true;
-        this.events.onLocalStream(placeholder);
-        this.events.onMediaFallback?.(errorMsg);
-        this.setState('idle');
-        return placeholder;
-      } catch (fallbackErr) {
-        console.warn('Placeholder media fallback failed:', fallbackErr);
-        this.setState('camera_unavailable', errorMsg);
-        this.events.onError(errorMsg);
-        throw new Error(errorMsg);
-      }
-    }
-  }
-
-  private createPlaceholderStream(): MediaStream {
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas 2D context unavailable');
-
-    this.placeholderCanvas = canvas;
-    let tick = 0;
-
-    const draw = () => {
-      tick++;
-      const t = tick * 0.02;
-
-      const grad = ctx.createLinearGradient(0, 0, 640, 480);
-      grad.addColorStop(0, '#0b0a14');
-      grad.addColorStop(0.5, '#141026');
-      grad.addColorStop(1, '#0a1420');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 640, 480);
-
-      // Aurora blobs
-      const blobs = [
-        { x: 180 + Math.sin(t) * 30, y: 160 + Math.cos(t * 0.8) * 26, r: 150, c: 'rgba(124,58,237,0.30)' },
-        { x: 470 + Math.cos(t * 0.7) * 34, y: 300 + Math.sin(t * 0.9) * 24, r: 170, c: 'rgba(6,182,212,0.22)' },
-        { x: 340 + Math.sin(t * 0.5) * 50, y: 210 + Math.cos(t * 0.6) * 34, r: 110, c: 'rgba(236,72,153,0.18)' },
-      ];
-      for (const b of blobs) {
-        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
-        g.addColorStop(0, b.c);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 640, 480);
-      }
-
-      // Orbital rings
-      for (let i = 0; i < 3; i++) {
-        const r = 82 + i * 22 + Math.sin(t * 1.2 + i) * 4;
-        ctx.beginPath();
-        ctx.arc(320, 226, r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(239,68,68,${0.34 - i * 0.08})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-
-      // Core medallion
-      const coreGrad = ctx.createLinearGradient(260, 170, 380, 290);
-      coreGrad.addColorStop(0, '#ef4444');
-      coreGrad.addColorStop(0.5, '#dc2626');
-      coreGrad.addColorStop(1, '#f43f5e');
-      ctx.beginPath();
-      ctx.arc(320, 226, 62, 0, Math.PI * 2);
-      ctx.fillStyle = coreGrad;
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.font = '600 34px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('U', 320, 222);
-
-      ctx.beginPath();
-      ctx.arc(320, 226, 72, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Labels
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
-      ctx.font = '700 22px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.fillText('Camera preview unavailable', 320, 352);
-
-      ctx.fillStyle = 'rgba(196,181,253,0.8)';
-      ctx.font = '500 14px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.fillText('Live placeholder feed · Your partner can still see you here', 320, 382);
-
-      ctx.fillStyle = 'rgba(52,211,153,0.9)';
-      ctx.beginPath();
-      ctx.arc(255, 415, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.textAlign = 'left';
-      ctx.font = '600 13px "Plus Jakarta Sans", system-ui, sans-serif';
-      ctx.fillText('U-R-LIVE secure session', 267, 419);
-
-      this.placeholderAnimFrame = requestAnimationFrame(draw);
-    };
-    draw();
-
-    const stream: MediaStream = (canvas as any).captureStream
-      ? (canvas as any).captureStream(18)
-      : new MediaStream();
-
-    // Add a silent audio track so peer negotiation stays symmetric
-    try {
-      const AudioCtx =
-        (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const audioCtx: AudioContext = new AudioCtx();
-        const destination = audioCtx.createMediaStreamDestination();
-        const oscillator = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        gain.gain.value = 0;
-        oscillator.connect(gain);
-        gain.connect(destination);
-        oscillator.start();
-        destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
-        audioCtx.resume().catch(() => {});
-        this.placeholderAudioCtx = audioCtx;
-      }
-    } catch (e) {
-      console.warn('Silent audio track unavailable for placeholder stream:', e);
     }
 
-    return stream;
+    // Never generate fake canvas stream
+    this.localStream = null;
+    this.isUsingPlaceholderMedia = false;
+    this.events.onLocalStream(null as any);
+    this.setState('idle');
+    throw lastErr || new Error('Could not access camera.');
   }
 
   public cleanupP2PChannel() {
@@ -1366,16 +1282,6 @@ export class WebRTCManager {
     if (this.rotationTimer) {
       clearTimeout(this.rotationTimer);
       this.rotationTimer = null;
-    }
-    if (this.placeholderAnimFrame) {
-      cancelAnimationFrame(this.placeholderAnimFrame);
-      this.placeholderAnimFrame = null;
-    }
-    if (this.placeholderAudioCtx) {
-      try {
-        this.placeholderAudioCtx.close();
-      } catch {}
-      this.placeholderAudioCtx = null;
     }
     if (this.localStream) {
       this.localStream.getTracks().forEach((t) => t.stop());

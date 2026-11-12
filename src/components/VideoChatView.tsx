@@ -1697,8 +1697,8 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         onSuccess={() => {
           setIsPro(true);
         }}
-        upiId="gunavarma0000-5@okicici"
-        amount={299}
+        upiId={import.meta.env.VITE_UPI_ID || 'urlive@slc'}
+        amount={Number(import.meta.env.VITE_PRO_PLAN_PRICE) || 299}
       />
 
       {/* ---------- Settings ---------- */}

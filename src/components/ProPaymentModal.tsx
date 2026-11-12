@@ -72,7 +72,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isVerifyingUtr, setIsVerifyingUtr] = useState(false);
   const [autoCheckTriggered, setAutoCheckTriggered] = useState(false);
-  const [txnRef, setTxnRef] = useState('');
 
   const timerRef = useRef<number | null>(null);
 
@@ -83,17 +82,16 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
     }
   }, [isOpen, initialStep]);
 
-  // NPCI UPI Linking Spec v1.6: pa/pn mandatory, am in decimal format, tr mandatory for merchant/dynamic links
-  const buildUpiQuery = () => {
-    const params = new URLSearchParams();
-    params.set('pa', upiId);
-    params.set('pn', 'U R LIVE');
-    params.set('am', amount.toFixed(2));
-    params.set('cu', 'INR');
-    if (txnRef) params.set('tr', txnRef);
-    params.set('tn', 'UR LIVE Pro Plan');
-    return params.toString();
-  };
+  // P2P UPI link template from the upi-intent registry (used by working payment links):
+  // pa/pn/am/cu/tn only — no tr/mc (those are merchant params). Spaces as %20, not '+'.
+  const buildUpiQuery = () =>
+    [
+      `pa=${encodeURIComponent(upiId)}`,
+      `pn=${encodeURIComponent('U R LIVE')}`,
+      `am=${encodeURIComponent(amount.toFixed(2))}`,
+      `cu=INR`,
+      `tn=${encodeURIComponent('UR LIVE Pro Plan')}`,
+    ].join('&');
 
   const upiQuery = buildUpiQuery();
   const universalUpiUrl = `upi://pay?${upiQuery}`;
@@ -130,7 +128,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
     setPaymentStatus('pending');
     setUtrNumber('');
     setAutoCheckTriggered(false);
-    setTxnRef(`URP${Date.now()}`);
 
     timerRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {

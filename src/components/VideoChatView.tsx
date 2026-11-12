@@ -168,6 +168,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const managerRef = useRef<WebRTCManager | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const mobileChatEndRef = useRef<HTMLDivElement>(null);
   const toastTimerRef = useRef<number | null>(null);
   const typingClearRef = useRef<number | null>(null);
   const inviteTimerRef = useRef<number | null>(null);
@@ -237,17 +238,6 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   });
   const [showProModal, setShowProModal] = useState(false);
   const [proModalStep, setProModalStep] = useState<'promo' | 'payment'>('promo');
-
-  // Entrance popup: Open the promo popup automatically when user enters the site
-  useEffect(() => {
-    if (!isPro) {
-      const timer = setTimeout(() => {
-        setProModalStep('promo');
-        setShowProModal(true);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isPro]);
 
   // When user clicks any in-app payment/upgrade button, go directly to payment view (do not show promo banner)
   const handleOpenPaymentDirectly = (e?: React.MouseEvent) => {
@@ -551,6 +541,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    mobileChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, peerTyping, mobileTab]);
 
   /* ---------------- Timers ---------------- */
@@ -883,6 +874,12 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const micLabel = activeMic?.label || (isMicOn ? 'Default microphone' : 'Microphone muted');
   const usableAudioInputs = audioInputs.filter((device) => Boolean(device.deviceId));
 
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   /* ---------------- Chat pane (Umingle layout matching Image 2) ---------------- */
   const chatPane = (
     <div className="flex min-h-0 flex-1 flex-col font-sans bg-white dark:bg-[#12111f] rounded-2xl border border-neutral-200/80 dark:border-white/10 shadow-sm overflow-hidden">
@@ -1041,6 +1038,378 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     </div>
   );
 
+  /* ---------------- Mobile Immersive Video Layout (< lg) ---------------- */
+  const mobileVideoLayout = (
+    <div className="relative flex lg:hidden h-full min-h-0 flex-1 w-full overflow-hidden bg-black select-none">
+      {/* 1. Main Background Video (Stranger or Live Preview) */}
+      <div
+        onClick={() => {
+          if (!isPro && !remoteStream) {
+            handleOpenPaymentDirectly();
+          }
+        }}
+        className={`absolute inset-0 h-full w-full overflow-hidden bg-black ${
+          !isPro && !remoteStream ? 'cursor-pointer' : ''
+        }`}
+      >
+        <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
+
+        {!remoteStream && (
+          <div className="absolute inset-0 overflow-hidden bg-black select-none">
+            {/* Rotating live stream preview images */}
+            {PREVIEW_STREAMS.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`absolute inset-0 transition-opacity duration-1000 ${
+                  idx === previewIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <img
+                  src={item.src}
+                  alt={`Live video stream ${item.id}`}
+                  className={`h-full w-full object-cover transition-transform duration-3000 ${
+                    isPro
+                      ? 'filter-none scale-100'
+                      : 'filter blur-[16px] brightness-75 contrast-125 scale-110'
+                  }`}
+                />
+              </div>
+            ))}
+
+            {/* Central Overlay Actions (Searching / Locked / Failed) */}
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 text-center">
+              {isSearching ? (
+                <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-black/85 backdrop-blur-md p-5 border border-white/15 shadow-2xl max-w-xs">
+                  <div className="h-9 w-9 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
+                  <p className="text-xs font-bold text-white leading-tight">Looking for someone to chat with…</p>
+                  <p className="text-[10px] text-neutral-400">Searching matching queue…</p>
+                  {!isPro && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleOpenPaymentDirectly(e)}
+                      className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-3.5 py-1.5 text-xs font-black text-white shadow-md shadow-red-600/30 transition cursor-pointer"
+                    >
+                      <SparklesIcon size={13} />
+                      <span>Upgrade for Pro Plan — ₹299</span>
+                    </button>
+                  )}
+                </div>
+              ) : state === 'failed' ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-4 border border-rose-500/30 max-w-xs">
+                  <CameraOff01Icon size={24} className="text-rose-400" />
+                  <p className="text-xs font-bold text-rose-400">{statusMessage || 'Failed'}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartSearch();
+                    }}
+                    className="mt-1 inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                  >
+                    <RefreshIcon size={14} />
+                    <span>Retry</span>
+                  </button>
+                </div>
+              ) : !isPro ? (
+                <div className="flex flex-col items-center gap-2 rounded-3xl bg-black/85 backdrop-blur-md p-5 border border-white/15 shadow-2xl max-w-xs">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-md">
+                    <LockIcon size={22} />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-black text-white tracking-tight leading-tight">
+                      Live Video Blurred
+                    </h3>
+                    <p className="text-[11px] text-neutral-300 leading-tight">
+                      Upgrade to Pro Plan to unlock clear HD live video of girls.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleOpenPaymentDirectly(e)}
+                    className="mt-1 w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition active:scale-95 cursor-pointer"
+                  >
+                    <SparklesIcon size={14} />
+                    <span>Unlock with Pro — ₹299</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartSearch();
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-400 hover:text-white transition cursor-pointer"
+                  >
+                    <PlayIcon size={12} />
+                    <span>Start Match</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/75 backdrop-blur-md p-4 border border-emerald-500/30 text-center max-w-xs">
+                  <span className="text-xs font-bold text-emerald-400">👑 Pro HD Active</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartSearch();
+                    }}
+                    className="mt-1 inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                  >
+                    <PlayIcon size={14} />
+                    <span>Start Match</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Gradient Scrims for text readability */}
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none z-10" />
+
+        {/* Watermark badge */}
+        <div className="absolute bottom-28 right-3 z-20 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white/80 border border-white/10 shadow-sm">
+          <span className="text-[#ef4444]">●</span>
+          <span>u-r-live.com</span>
+        </div>
+      </div>
+
+      {/* 2. Floating Self-Camera PiP ("You") in Top-Right Corner */}
+      <div className="absolute top-14 right-3 z-30 w-24 sm:w-28 h-32 sm:h-38 rounded-2xl overflow-hidden border border-white/25 bg-black/90 shadow-2xl backdrop-blur-sm select-none">
+        {localStream ? (
+          <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center bg-[#100e19]">
+            <CameraVideoIcon size={18} className="text-neutral-500 mb-1" />
+            <span className="text-[9px] font-bold text-white/70">Cam Off</span>
+            <button
+              type="button"
+              onClick={() => {
+                managerRef.current?.initMedia().then((s) => setLocalStream(s)).catch(() => {});
+              }}
+              className="mt-1 rounded-md bg-red-600 px-2 py-0.5 text-[8px] font-black text-white"
+            >
+              Turn On
+            </button>
+          </div>
+        )}
+
+        {!isCamOn && localStream && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+            <CameraOff01Icon size={20} className="text-white/60 mb-0.5" />
+            <span className="text-[8px] font-bold text-white/70">Cam Off</span>
+          </div>
+        )}
+
+        {/* Top Badge: "You" */}
+        <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm border border-white/10">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span>You</span>
+        </div>
+
+        {/* Bottom Quick Controls (Mic & Cam toggles) */}
+        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleToggleMic}
+            className={`flex h-5 w-5 items-center justify-center rounded-full backdrop-blur-md text-[10px] shadow transition cursor-pointer ${
+              isMicOn ? 'bg-black/70 text-white' : 'bg-red-600 text-white'
+            }`}
+            title={isMicOn ? 'Mute' : 'Unmute'}
+          >
+            {isMicOn ? <Mic01Icon size={10} /> : <MicOff01Icon size={10} />}
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleCam}
+            className={`flex h-5 w-5 items-center justify-center rounded-full backdrop-blur-md text-[10px] shadow transition cursor-pointer ${
+              isCamOn ? 'bg-black/70 text-white' : 'bg-red-600 text-white'
+            }`}
+            title={isCamOn ? 'Turn off camera' : 'Turn on camera'}
+          >
+            {isCamOn ? <CameraVideoIcon size={10} /> : <CameraOff01Icon size={10} />}
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Top Header Bar Overlay */}
+      <div className="absolute top-2.5 left-3 right-3 z-30 flex items-center justify-between pointer-events-auto select-none">
+        {/* Left: Stranger Info Pill */}
+        <div className="flex items-center gap-2 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 pl-1.5 pr-3 py-1 shadow-lg">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 text-white text-xs font-black shadow-inner">
+            {partner?.name ? partner.name.charAt(0).toUpperCase() : '👤'}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black text-white leading-tight">
+                {partner?.name || (isConnected ? 'Stranger' : isSearching ? 'Matching…' : 'UR Live')}
+              </span>
+              {partner?.country && (
+                <span className="text-[11px] leading-tight">
+                  {getCountryMeta(partner.country).flag}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-[9px] font-semibold text-neutral-300">
+              <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : isSearching ? 'bg-amber-400' : 'bg-neutral-500'}`} />
+              <span>{isConnected ? 'Connected' : isSearching ? 'Looking for match…' : 'Idle'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Timer pill & Pro button */}
+        <div className="flex items-center gap-1.5">
+          {isConnected && (
+            <div className="flex items-center gap-1 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 px-2.5 py-1 text-xs font-mono font-black text-white shadow-lg">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping" />
+              <span>{formatTimer(elapsedSeconds)}</span>
+            </div>
+          )}
+
+          {!isPro && (
+            <button
+              type="button"
+              onClick={handleOpenPaymentDirectly}
+              className="flex items-center gap-1 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-2.5 py-1 text-[11px] font-black text-white shadow-lg shadow-red-600/30 transition active:scale-95 cursor-pointer"
+            >
+              <SparklesIcon size={11} />
+              <span>₹299</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Floating Stranger Disconnected Banner */}
+      {state === 'remote_disconnected' && (
+        <div className="absolute top-20 inset-x-4 z-30 mx-auto max-w-xs rounded-2xl bg-black/85 backdrop-blur-md p-3 border border-rose-500/40 text-center shadow-2xl animate-in fade-in zoom-in-95">
+          <p className="text-xs font-bold text-rose-400">Stranger has disconnected.</p>
+          <button
+            type="button"
+            onClick={handleNext}
+            className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-3 py-1 text-xs font-black text-white shadow-md active:scale-95 cursor-pointer"
+          >
+            <span>Tap Skip for next match</span>
+            <span>➔</span>
+          </button>
+        </div>
+      )}
+
+      {/* 4. Floating Live Text Chat (Overlaid on Bottom-Left) */}
+      <div className="absolute bottom-[115px] left-3 max-w-[76%] z-20 pointer-events-none flex flex-col justify-end">
+        <div className="pointer-events-auto max-h-40 overflow-y-auto space-y-1.5 pr-1 scrollbar-none flex flex-col justify-end">
+          {messages.length === 0 ? (
+            <div className="inline-flex items-center gap-1.5 rounded-2xl bg-black/55 backdrop-blur-md px-3 py-1.5 border border-white/10 text-white/80 text-[11px] shadow-md">
+              <span>👋 Say hello to start chatting!</span>
+            </div>
+          ) : (
+            messages.slice(-8).map((msg) => (
+              <div
+                key={msg.id}
+                className="inline-flex items-start gap-1.5 rounded-2xl bg-black/60 backdrop-blur-md px-3 py-1.5 border border-white/10 text-white shadow-md text-xs leading-snug break-words max-w-full animate-in fade-in slide-in-from-bottom-2 duration-150"
+              >
+                <span className={`font-black shrink-0 ${msg.isLocal ? 'text-[#ef4444]' : 'text-amber-400'}`}>
+                  {msg.isLocal ? 'You:' : 'Stranger:'}
+                </span>
+                <span className="text-white/95 font-medium">{msg.text}</span>
+              </div>
+            ))
+          )}
+
+          {peerTyping && (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 border border-white/10 text-white/80 text-[11px] animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Stranger is typing…</span>
+            </div>
+          )}
+
+          <div ref={mobileChatEndRef} />
+        </div>
+      </div>
+
+      {/* 5. Bottom Action Controls: Start/Stop, Skip, Smart Match, and Text Input */}
+      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col gap-2 pointer-events-auto">
+        {/* Row 1: Start / Stop Button + Skip Button + Smart Match Filter */}
+        <div className="flex items-center gap-2">
+          {/* Start / Stop Button */}
+          <button
+            type="button"
+            onClick={handleOmegleStop}
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2.5 px-3 text-xs font-black text-white shadow-lg transition active:scale-95 cursor-pointer ${
+              stopPhase === 'really'
+                ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
+                : isConnected
+                  ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-red-600/40'
+                  : isSearching
+                    ? 'bg-neutral-800 hover:bg-neutral-700 border border-white/20'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/40'
+            }`}
+          >
+            {isConnected || isSearching ? (
+              <>
+                <span className="flex h-2 w-2 rounded-full bg-white animate-pulse" />
+                <span>{stopPhase === 'really' ? 'Really Stop?' : 'Stop'}</span>
+              </>
+            ) : (
+              <>
+                <PlayIcon size={14} />
+                <span>Start Video</span>
+              </>
+            )}
+          </button>
+
+          {/* Skip Button */}
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!isConnected && !isSearching}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 py-2.5 px-3 text-xs font-black text-white shadow-lg transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.05 5.05a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L10.71 12 5.05 6.46a1 1 0 0 1 0-1.41zm8 0a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L18.71 12l-5.66-5.54a1 1 0 0 1 0-1.41z" />
+            </svg>
+            <span>Skip</span>
+          </button>
+
+          {/* Smart Match Filter */}
+          <button
+            type="button"
+            onClick={() => setShowCountryModal(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white shadow-lg transition active:scale-95 cursor-pointer shrink-0"
+            title="Filter Country"
+          >
+            <span className="text-base">{currentCountryObj.flag || '🌍'}</span>
+          </button>
+        </div>
+
+        {/* Row 2: Text UI Input (Matching screenshot glass pill + send button) */}
+        <form onSubmit={handleSendMessage} className="flex items-center gap-2 w-full">
+          <div className="relative flex-1 flex items-center">
+            <input
+              value={chatInput}
+              onChange={(e) => handleChatInput(e.target.value)}
+              disabled={!isConnected}
+              placeholder={isConnected ? 'Type here…' : 'Waiting for connection…'}
+              className="h-11 w-full rounded-full border border-white/20 bg-black/60 backdrop-blur-xl pl-4 pr-11 text-xs text-white placeholder-white/45 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 transition disabled:opacity-50 shadow-lg"
+            />
+            <button
+              type="submit"
+              disabled={!isConnected || !chatInput.trim()}
+              aria-label="Send message"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-black hover:bg-red-500 hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-black transition active:scale-90 cursor-pointer shadow"
+            >
+              <svg className="h-4 w-4 rotate-45 -translate-y-0.5 -translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 transition-colors">
       {/* Workspace */}
@@ -1049,9 +1418,12 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           {chatPane}
         </div>
       ) : (
-        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col lg:flex-row gap-2 sm:gap-4 p-2 sm:p-4">
-          {/* Video Container: 2-column side-by-side on mobile, stacked column on desktop */}
-          <div className="grid grid-cols-2 gap-2 h-44 sm:h-56 lg:h-full w-full lg:w-[480px] xl:w-[520px] lg:flex lg:flex-col lg:gap-3 shrink-0">
+        <>
+          {mobileVideoLayout}
+
+          <div className="hidden lg:flex mx-auto min-h-0 w-full max-w-[1600px] flex-1 flex-row gap-4 p-4">
+            {/* Video Container: stacked column on desktop */}
+            <div className="h-full w-[480px] xl:w-[520px] flex flex-col gap-3 shrink-0">
             {/* Box 1: Stranger Video */}
             <div
               ref={stageRef}
@@ -1299,6 +1671,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           {/* Right Column: Chat Box */}
           {chatPane}
         </div>
+      </>
       )}
 
       {/* ---------- Country / language ---------- */}

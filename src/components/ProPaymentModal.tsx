@@ -19,6 +19,7 @@ interface ProPaymentModalProps {
   upiId?: string;
   upiName?: string;
   amount?: number;
+  initialStep?: 'promo' | 'payment';
 }
 
 // Official Brand Logos for Indian UPI Payment Apps
@@ -59,8 +60,9 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   upiId = 'gunavarma0000-5@okicici',
   upiName = 'U-R-LIVE',
   amount = 299,
+  initialStep = 'promo',
 }) => {
-  const [step, setStep] = useState<'promo' | 'payment'>('promo');
+  const [step, setStep] = useState<'promo' | 'payment'>(initialStep);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [paymentStatus, setPaymentStatus] = useState<
@@ -73,6 +75,13 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   const [txnRef, setTxnRef] = useState('');
 
   const timerRef = useRef<number | null>(null);
+
+  // Sync step with initialStep whenever modal opens or initialStep changes
+  useEffect(() => {
+    if (isOpen) {
+      setStep(initialStep);
+    }
+  }, [isOpen, initialStep]);
 
   // NPCI UPI Linking Spec v1.6: pa/pn mandatory, am in decimal format, tr mandatory for merchant/dynamic links
   const buildUpiQuery = () => {
@@ -117,7 +126,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
       return;
     }
 
-    setStep('promo');
     setTimeLeft(600);
     setPaymentStatus('pending');
     setUtrNumber('');
@@ -219,7 +227,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} ariaLabel="Upgrade to Pro Plan">
       {step === 'promo' ? (
-        <div className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-3xl border border-red-500/40 bg-[#0c0306] text-white shadow-[0_0_60px_rgba(239,68,68,0.35)] animate-in fade-in zoom-in-95 duration-200">
+        <div className="relative mx-auto w-full max-w-[420px] max-h-[92vh] flex flex-col overflow-hidden rounded-3xl border border-red-500/40 bg-[#0c0306] text-white shadow-[0_0_60px_rgba(239,68,68,0.35)] animate-in fade-in zoom-in-95 duration-200">
           {/* Floating Close Button */}
           <button
             type="button"
@@ -233,7 +241,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
           {/* The Promo Poster - Clicking anywhere on the banner triggers redirect to payment */}
           <div
             onClick={() => setStep('payment')}
-            className="relative cursor-pointer group select-none block overflow-hidden"
+            className="relative cursor-pointer group select-none block overflow-y-auto flex-1 min-h-0"
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
@@ -247,22 +255,22 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
             <img
               src="/premium-promo.jpg"
               alt="UR Live Go Premium - Match with Girls Only"
-              className="w-full h-auto object-cover rounded-3xl transition duration-300 group-hover:scale-[1.01]"
+              className="w-full h-auto object-contain transition duration-300 group-hover:scale-[1.01]"
             />
           </div>
 
           {/* Bottom Action Footer */}
-          <div className="p-4 sm:p-5 bg-gradient-to-t from-black via-[#140407] to-[#0c0306] text-center space-y-2 border-t border-red-500/20">
+          <div className="shrink-0 p-3.5 sm:p-5 bg-gradient-to-t from-black via-[#140407] to-[#0c0306] text-center space-y-1.5 sm:space-y-2 border-t border-red-500/20">
             <button
               type="button"
               onClick={() => setStep('payment')}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 py-3.5 px-6 font-black text-sm sm:text-base text-white shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 py-3 sm:py-3.5 px-6 font-black text-sm sm:text-base text-white shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95 cursor-pointer"
             >
               <SparklesIcon size={18} />
               <span>Get Premium Now (₹{amount})</span>
               <span className="text-base font-bold">➔</span>
             </button>
-            <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-400">
+            <div className="flex items-center justify-center gap-2 text-[10px] sm:text-[11px] text-neutral-400">
               <LockIcon size={12} className="text-emerald-500" />
               <span>Instant UPI Payment • Google Pay, PhonePe, Paytm, BHIM</span>
             </div>

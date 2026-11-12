@@ -236,6 +236,28 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     }
   });
   const [showProModal, setShowProModal] = useState(false);
+  const [proModalStep, setProModalStep] = useState<'promo' | 'payment'>('promo');
+
+  // Entrance popup: Open the promo popup automatically when user enters the site
+  useEffect(() => {
+    if (!isPro) {
+      const timer = setTimeout(() => {
+        setProModalStep('promo');
+        setShowProModal(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isPro]);
+
+  // When user clicks any in-app payment/upgrade button, go directly to payment view (do not show promo banner)
+  const handleOpenPaymentDirectly = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setProModalStep('payment');
+    setShowProModal(true);
+  };
 
   useEffect(() => {
     if (remoteStream) return;
@@ -948,7 +970,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
           <button
             type="button"
-            onClick={() => setShowProModal(true)}
+            onClick={handleOpenPaymentDirectly}
             className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-sm transition cursor-pointer"
           >
             <span>⚡</span>
@@ -1035,7 +1057,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               ref={stageRef}
               onClick={() => {
                 if (!isPro && !remoteStream) {
-                  setShowProModal(true);
+                  handleOpenPaymentDirectly();
                 }
               }}
               className={`relative h-full lg:flex-1 lg:min-h-[240px] xl:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm ${
@@ -1100,10 +1122,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                         {!isPro && (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowProModal(true);
-                            }}
+                            onClick={(e) => handleOpenPaymentDirectly(e)}
                             className="mt-1 inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-2 sm:px-3.5 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shadow-red-600/30 transition cursor-pointer"
                           >
                             <SparklesIcon size={11} className="sm:size-[13px]" />
@@ -1145,10 +1164,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowProModal(true);
-                          }}
+                          onClick={(e) => handleOpenPaymentDirectly(e)}
                           className="mt-0.5 w-full flex items-center justify-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 px-2 sm:px-4 py-1 sm:py-2.5 text-[10px] sm:text-xs font-black text-white shadow-md transition active:scale-95 cursor-pointer"
                         >
                           <SparklesIcon size={11} className="sm:size-[14px]" />
@@ -1303,6 +1319,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       {/* ---------- Pro Plan UPI Payment Modal ---------- */}
       <ProPaymentModal
         isOpen={showProModal}
+        initialStep={proModalStep}
         onClose={() => setShowProModal(false)}
         onSuccess={() => {
           setIsPro(true);

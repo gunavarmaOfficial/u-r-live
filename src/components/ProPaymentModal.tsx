@@ -26,7 +26,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  upiId = 'gunavarma0000@okaxis',
+  upiId = 'urlive@slc',
   upiName = 'U-R-LIVE',
   amount = 299,
 }) => {
@@ -275,17 +275,11 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
               {/* QR Code and Instructions */}
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="relative rounded-2xl bg-white p-3 shadow-md border border-neutral-200">
-                  {qrCodeDataUrl ? (
-                    <img
-                      src={qrCodeDataUrl}
-                      alt="Scan UPI QR Code to pay ₹299"
-                      className="h-56 w-56 sm:h-64 sm:w-64 object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-56 w-56 sm:h-64 sm:w-64 items-center justify-center text-neutral-400">
-                      <QrCodeIcon size={36} className="animate-pulse" />
-                    </div>
-                  )}
+                  <img
+                    src="/payment-qr.jpg"
+                    alt="Scan UR Live UPI QR Code to pay ₹299"
+                    className="h-56 w-56 sm:h-64 sm:w-64 object-contain rounded-xl"
+                  />
 
                   <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-bold text-neutral-800">
                     <SecurityCheckIcon size={14} className="text-emerald-600" />

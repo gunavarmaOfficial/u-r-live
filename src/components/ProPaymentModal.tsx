@@ -30,6 +30,28 @@ const PaymentAppLogo: React.FC<{ src: string; alt: string }> = ({ src, alt }) =>
   />
 );
 
+type UpiAppId = 'gpay' | 'phonepe' | 'paytm' | 'bhim';
+
+// Deep link registry per NPCI UPI Linking Spec v1.6 / app developer docs
+const UPI_APPS: Record<UpiAppId, { androidPackage: string; iosScheme: string }> = {
+  gpay: {
+    androidPackage: 'com.google.android.apps.nbu.paisa.user',
+    iosScheme: 'gpay://upi/pay',
+  },
+  phonepe: {
+    androidPackage: 'com.phonepe.app',
+    iosScheme: 'phonepe://pay',
+  },
+  paytm: {
+    androidPackage: 'net.one97.paytm',
+    iosScheme: 'paytmmp://pay',
+  },
+  bhim: {
+    androidPackage: 'in.org.npci.upiapp',
+    iosScheme: 'bhim://upi/pay',
+  },
+};
+
 export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   isOpen,
   onClose,
@@ -47,40 +69,43 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isVerifyingUtr, setIsVerifyingUtr] = useState(false);
   const [autoCheckTriggered, setAutoCheckTriggered] = useState(false);
+  const [txnRef, setTxnRef] = useState('');
 
   const timerRef = useRef<number | null>(null);
 
-  // Standard parameters for UPI Intent and QR payment (amount pre-filled, without conflicting mode=02)
-  const upiQuery = `pa=${encodeURIComponent(upiId)}&pn=U%20R%20LIVE&am=${amount}&cu=INR&tn=UR%20LIVE%20Pro%20Plan`;
+  // NPCI UPI Linking Spec v1.6: pa/pn mandatory, am in decimal format, tr mandatory for merchant/dynamic links
+  const buildUpiQuery = () => {
+    const params = new URLSearchParams();
+    params.set('pa', upiId);
+    params.set('pn', 'U R LIVE');
+    params.set('am', amount.toFixed(2));
+    params.set('cu', 'INR');
+    if (txnRef) params.set('tr', txnRef);
+    params.set('tn', 'UR LIVE Pro Plan');
+    return params.toString();
+  };
+
+  const upiQuery = buildUpiQuery();
   const universalUpiUrl = `upi://pay?${upiQuery}`;
 
-  const getAppDeepLink = (app: 'gpay' | 'phonepe' | 'paytm' | 'bhim') => {
+  const getAppDeepLink = (app: UpiAppId) => {
     if (typeof navigator === 'undefined') return universalUpiUrl;
     const isAndroid = /android/i.test(navigator.userAgent);
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const cfg = UPI_APPS[app];
 
     if (isAndroid) {
-      if (app === 'gpay') {
-        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`;
-      }
-      if (app === 'phonepe') {
-        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=com.phonepe.app;end;`;
-      }
-      if (app === 'paytm') {
-        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=net.one97.paytm;end;`;
-      }
-      if (app === 'bhim') {
-        return `intent://pay?${upiQuery}#Intent;scheme=upi;package=in.org.npci.upiapp;end;`;
-      }
+      const storeUrl = encodeURIComponent(
+        `https://play.google.com/store/apps/details?id=${cfg.androidPackage}`
+      );
+      return `intent://pay?${upiQuery}#Intent;scheme=upi;package=${cfg.androidPackage};S.browser_fallback_url=${storeUrl};end`;
     }
 
     if (isIOS) {
-      if (app === 'gpay') return `gpay://upi/pay?${upiQuery}`;
-      if (app === 'phonepe') return `phonepe://pay?${upiQuery}`;
-      if (app === 'paytm') return `paytmmp://pay?${upiQuery}`;
+      return `${cfg.iosScheme}?${upiQuery}`;
     }
 
-    // Default universal fallback
+    // Desktop browsers cannot launch UPI schemes; fall back to the universal link
     return universalUpiUrl;
   };
 
@@ -95,6 +120,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
     setPaymentStatus('pending');
     setUtrNumber('');
     setAutoCheckTriggered(false);
+    setTxnRef(`URP${Date.now()}`);
 
     timerRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {

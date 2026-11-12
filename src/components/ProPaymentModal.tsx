@@ -5,7 +5,6 @@ import {
   Clock01Icon,
   Copy01Icon,
   Download01Icon,
-  FlashIcon,
   LockIcon,
   SecurityCheckIcon,
   SparklesIcon,
@@ -17,48 +16,15 @@ interface ProPaymentModalProps {
   onClose: () => void;
   onSuccess: () => void;
   upiId?: string;
-  upiName?: string;
   amount?: number;
   initialStep?: 'promo' | 'payment';
 }
-
-// Official Brand Logos for Indian UPI Payment Apps
-const PaymentAppLogo: React.FC<{ src: string; alt: string }> = ({ src, alt }) => (
-  <img
-    src={src}
-    alt={alt}
-    className="h-10 w-10 rounded-xl object-cover shadow-sm border border-neutral-200/70 dark:border-neutral-700 overflow-hidden shrink-0"
-  />
-);
-
-type UpiAppId = 'gpay' | 'phonepe' | 'paytm' | 'bhim';
-
-// Deep link registry per NPCI UPI Linking Spec v1.6 / app developer docs
-const UPI_APPS: Record<UpiAppId, { androidPackage: string; iosScheme: string }> = {
-  gpay: {
-    androidPackage: 'com.google.android.apps.nbu.paisa.user',
-    iosScheme: 'gpay://upi/pay',
-  },
-  phonepe: {
-    androidPackage: 'com.phonepe.app',
-    iosScheme: 'phonepe://pay',
-  },
-  paytm: {
-    androidPackage: 'net.one97.paytm',
-    iosScheme: 'paytmmp://pay',
-  },
-  bhim: {
-    androidPackage: 'in.org.npci.upiapp',
-    iosScheme: 'bhim://upi/pay',
-  },
-};
 
 export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
   upiId = 'gunavarma0000-5@okicici',
-  upiName = 'U-R-LIVE',
   amount = 299,
   initialStep = 'promo',
 }) => {
@@ -81,41 +47,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
       setStep(initialStep);
     }
   }, [isOpen, initialStep]);
-
-  // P2P UPI link template from the upi-intent registry (used by working payment links):
-  // pa/pn/am/cu/tn only — no tr/mc (those are merchant params). Spaces as %20, not '+'.
-  const buildUpiQuery = () =>
-    [
-      `pa=${encodeURIComponent(upiId)}`,
-      `pn=${encodeURIComponent('U R LIVE')}`,
-      `am=${encodeURIComponent(amount.toFixed(2))}`,
-      `cu=INR`,
-      `tn=${encodeURIComponent('UR LIVE Pro Plan')}`,
-    ].join('&');
-
-  const upiQuery = buildUpiQuery();
-  const universalUpiUrl = `upi://pay?${upiQuery}`;
-
-  const getAppDeepLink = (app: UpiAppId) => {
-    if (typeof navigator === 'undefined') return universalUpiUrl;
-    const isAndroid = /android/i.test(navigator.userAgent);
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const cfg = UPI_APPS[app];
-
-    if (isAndroid) {
-      const storeUrl = encodeURIComponent(
-        `https://play.google.com/store/apps/details?id=${cfg.androidPackage}`
-      );
-      return `intent://pay?${upiQuery}#Intent;scheme=upi;package=${cfg.androidPackage};S.browser_fallback_url=${storeUrl};end`;
-    }
-
-    if (isIOS) {
-      return `${cfg.iosScheme}?${upiQuery}`;
-    }
-
-    // Desktop browsers cannot launch UPI schemes; fall back to the universal link
-    return universalUpiUrl;
-  };
 
   // Countdown timer
   useEffect(() => {
@@ -252,7 +183,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
             <img
               src="/premium-promo.jpg"
               alt="UR Live Go Premium - Match with Girls Only"
-              className="w-full h-auto object-contain transition duration-300 group-hover:scale-[1.01]"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.01]"
             />
           </div>
 
@@ -386,78 +317,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
                       <span>Save QR</span>
                     </a>
                   </div>
-                </div>
-
-                {/* 1-Click UPI App Direct Redirects */}
-                <div className="mt-4 w-full space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                      Tap App to Pay Instantly
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 dark:text-red-400">
-                      <FlashIcon size={12} />
-                      Direct Redirect
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {/* Google Pay */}
-                    <a
-                      href={getAppDeepLink('gpay')}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-blue-500/50 hover:bg-blue-500/5 transition cursor-pointer group active:scale-95 no-underline"
-                    >
-                      <PaymentAppLogo src="/payment-apps/gpay.png" alt="Google Pay" />
-                      <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-blue-500">
-                        Google Pay
-                      </span>
-                      <span className="text-[10px] text-neutral-400">Open GPay</span>
-                    </a>
-
-                    {/* PhonePe */}
-                    <a
-                      href={getAppDeepLink('phonepe')}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#5f259f]/50 hover:bg-[#5f259f]/5 transition cursor-pointer group active:scale-95 no-underline"
-                    >
-                      <PaymentAppLogo src="/payment-apps/phonepe.png" alt="PhonePe" />
-                      <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-[#5f259f]">
-                        PhonePe
-                      </span>
-                      <span className="text-[10px] text-neutral-400">Open PhonePe</span>
-                    </a>
-
-                    {/* Paytm */}
-                    <a
-                      href={getAppDeepLink('paytm')}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-[#00b9f5]/50 hover:bg-[#00b9f5]/5 transition cursor-pointer group active:scale-95 no-underline"
-                    >
-                      <PaymentAppLogo src="/payment-apps/paytm.png" alt="Paytm" />
-                      <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-[#00b9f5]">
-                        Paytm
-                      </span>
-                      <span className="text-[10px] text-neutral-400">Open Paytm</span>
-                    </a>
-
-                    {/* BHIM / UPI */}
-                    <a
-                      href={getAppDeepLink('bhim')}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] p-3 text-center shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition cursor-pointer group active:scale-95 no-underline"
-                    >
-                      <PaymentAppLogo src="/payment-apps/bhim.png" alt="BHIM UPI" />
-                      <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 group-hover:text-emerald-500">
-                        BHIM UPI
-                      </span>
-                      <span className="text-[10px] text-neutral-400">Open BHIM</span>
-                    </a>
-                  </div>
-
-                  {/* Universal "Open Any UPI App" Button */}
-                  <a
-                    href={universalUpiUrl}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-red-600/30 transition active:scale-95 cursor-pointer no-underline"
-                  >
-                    <FlashIcon size={16} />
-                    <span>Pay ₹{amount} With Any Installed UPI App</span>
-                  </a>
                 </div>
               </div>
 

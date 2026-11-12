@@ -865,20 +865,22 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const chatPane = (
     <div className="flex min-h-0 flex-1 flex-col font-sans bg-white dark:bg-[#12111f] rounded-2xl border border-neutral-200/80 dark:border-white/10 shadow-sm overflow-hidden">
       {/* Welcome & Community Rules Header (matching Image 2) */}
-      <div className="shrink-0 p-5 sm:p-6 border-b border-neutral-100 dark:border-white/[0.06] bg-neutral-50/50 dark:bg-white/[0.01]">
-        <h2 className="text-xl sm:text-2xl font-extrabold text-neutral-900 dark:text-white">
-          Welcome to U-R-LIVE.
-        </h2>
-        <div className="mt-2.5 flex items-center gap-2">
-          <span className="rounded bg-[#ef4444] px-2 py-0.5 text-xs font-black text-white">18+</span>
-          <span className="text-sm font-bold text-[#ef4444] dark:text-[#f87171]">You must be 18 or older</span>
+      <div className="shrink-0 p-2.5 sm:p-5 lg:p-6 border-b border-neutral-100 dark:border-white/[0.06] bg-neutral-50/50 dark:bg-white/[0.01]">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm sm:text-xl lg:text-2xl font-extrabold text-neutral-900 dark:text-white">
+            Welcome to U-R-LIVE.
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded bg-[#ef4444] px-1.5 py-0.5 text-[10px] font-black text-white">18+</span>
+            <span className="text-xs font-bold text-[#ef4444] dark:text-[#f87171] hidden sm:inline">You must be 18 or older</span>
+          </div>
         </div>
-        <ul className="mt-2 space-y-1 text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300">
+        <ul className="mt-1 sm:mt-2 hidden sm:block space-y-1 text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300">
           <li>No nudity, hate speech, or harassment</li>
           <li>Your camera must show you, live</li>
           <li>Do not ask for gender — this is not a dating site</li>
         </ul>
-        <p className="mt-2 text-xs sm:text-sm font-black text-neutral-900 dark:text-white">
+        <p className="mt-1 sm:mt-2 text-[11px] sm:text-sm font-black text-neutral-900 dark:text-white">
           Violators will be banned
         </p>
       </div>
@@ -931,13 +933,13 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* Bottom options and input row (matching Image 2) */}
-      <div className="shrink-0 border-t border-neutral-200/80 dark:border-white/[0.08] bg-neutral-50/60 dark:bg-[#0d0c18] p-3 space-y-2.5">
+      <div className="shrink-0 border-t border-neutral-200/80 dark:border-white/[0.08] bg-neutral-50/60 dark:bg-[#0d0c18] p-2 sm:p-3 space-y-1.5 sm:space-y-2.5">
         {/* Quick options strip: Smart Match & Get Premium */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setShowCountryModal(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/[0.08] transition cursor-pointer"
+            className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.05] px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/[0.08] transition cursor-pointer"
           >
             <span>🌍</span>
             <span>Smart Match</span>
@@ -947,7 +949,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <button
             type="button"
             onClick={() => setShowProModal(true)}
-            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#dc2626] to-[#ef4444] hover:from-[#b91c1c] hover:to-[#dc2626] px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-sm transition cursor-pointer"
           >
             <span>⚡</span>
             <span>Get Premium</span>
@@ -957,7 +959,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <button
               type="button"
               onClick={() => onChangeMode(mode === 'video' ? 'text' : 'video')}
-              className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-[#ef4444] dark:text-[#f87171] hover:underline cursor-pointer"
+              className="ml-auto inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-[#ef4444] dark:text-[#f87171] hover:underline cursor-pointer"
             >
               {mode === 'video' ? 'Switch to Text' : 'Switch to Video'}
             </button>
@@ -965,11 +967,11 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         </div>
 
         {/* Main Start / Stop button and text input (Image 2 style) */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleOmegleStop}
-            className={`flex h-12 w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md shadow-red-600/25 cursor-pointer ${
+            className={`flex h-11 sm:h-12 w-20 sm:w-24 shrink-0 flex-col items-center justify-center rounded-xl font-extrabold text-xs text-white transition active:scale-95 shadow-md shadow-red-600/25 cursor-pointer ${
               stopPhase === 'really'
                 ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
                 : isConnected
@@ -988,7 +990,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                     ? 'Stop'
                     : 'Start'}
             </span>
-            <span className="text-[10px] font-mono opacity-80 leading-tight">Esc</span>
+            <span className="text-[9px] sm:text-[10px] font-mono opacity-80 leading-tight">Esc</span>
           </button>
 
           <form onSubmit={handleSendMessage} className="flex flex-1 items-center gap-2">
@@ -998,15 +1000,15 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                 onChange={(e) => handleChatInput(e.target.value)}
                 disabled={!isConnected}
                 placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
-                className="h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-4 pr-10 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 sm:h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-3 sm:pl-4 pr-9 sm:pr-10 text-xs sm:text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={!isConnected || !chatInput.trim()}
                 aria-label="Send message"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#ef4444] dark:hover:text-[#f87171] disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
+                className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#ef4444] dark:hover:text-[#f87171] disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
               >
-                <svg className="h-5 w-5 rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
               </button>
@@ -1021,17 +1023,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 transition-colors">
       {/* Workspace */}
       {mode === 'text' ? (
-        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-3 sm:p-4">
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-2 sm:p-4">
           {chatPane}
         </div>
       ) : (
-        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col lg:flex-row gap-4 p-3 sm:p-4">
-          {/* Left Column: Stacked dual video boxes (Image 2 style) */}
-          <div className="flex w-full lg:w-[480px] xl:w-[520px] flex-col gap-3 shrink-0">
-            {/* Top Box: Stranger Video */}
+        <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col lg:flex-row gap-2 sm:gap-4 p-2 sm:p-4">
+          {/* Video Container: 2-column side-by-side on mobile, stacked column on desktop */}
+          <div className="grid grid-cols-2 gap-2 h-44 sm:h-56 lg:h-full w-full lg:w-[480px] xl:w-[520px] lg:flex lg:flex-col lg:gap-3 shrink-0">
+            {/* Box 1: Stranger Video */}
             <div
               ref={stageRef}
-              className="relative flex-1 min-h-[240px] sm:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
+              className="relative h-full lg:flex-1 lg:min-h-[240px] xl:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
             >
               <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
 
@@ -1058,36 +1060,36 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                   ))}
 
                   {/* Top Overlay: Live badge & viewer count */}
-                  <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1.5 rounded-full bg-red-600/90 backdrop-blur px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                  <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 z-20 flex items-center justify-between pointer-events-none">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-red-600/90 backdrop-blur px-1.5 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white shadow-md">
                         <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
                         LIVE
                       </span>
-                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-neutral-300">
-                        {PREVIEW_STREAMS[previewIndex].viewers} online
+                      <span className="rounded-full bg-black/60 backdrop-blur px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-neutral-300">
+                        {PREVIEW_STREAMS[previewIndex].viewers}
                       </span>
                     </div>
 
                     {isPro ? (
-                      <span className="flex items-center gap-1 rounded-full bg-amber-500/95 backdrop-blur px-2.5 py-0.5 text-[10px] font-black text-black shadow-md">
-                        <SparklesIcon size={12} />
-                        PRO UNLOCKED
+                      <span className="flex items-center gap-1 rounded-full bg-amber-500/95 backdrop-blur px-1.5 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black text-black shadow-md">
+                        <SparklesIcon size={10} className="sm:size-[12px]" />
+                        PRO
                       </span>
                     ) : (
-                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold text-neutral-300">
-                        HD 1080p
+                      <span className="rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-neutral-300">
+                        1080p
                       </span>
                     )}
                   </div>
 
                   {/* Central Overlay Actions */}
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center">
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-2 sm:p-4 text-center">
                     {isSearching ? (
-                      <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-black/80 backdrop-blur-md p-5 border border-white/15 shadow-2xl max-w-xs">
-                        <div className="h-9 w-9 animate-spin rounded-full border-3 border-red-500/20 border-t-red-500" />
-                        <p className="text-xs font-bold text-white">Looking for someone to chat with…</p>
-                        <p className="text-[11px] text-neutral-400">Searching matching queue…</p>
+                      <div className="flex flex-col items-center gap-1.5 sm:gap-2.5 rounded-2xl sm:rounded-3xl bg-black/85 backdrop-blur-md p-2.5 sm:p-5 border border-white/15 shadow-2xl max-w-[95%] sm:max-w-xs">
+                        <div className="h-6 w-6 sm:h-9 sm:w-9 animate-spin rounded-full border-2 sm:border-3 border-red-500/20 border-t-red-500" />
+                        <p className="text-[11px] sm:text-xs font-bold text-white leading-tight">Searching…</p>
+                        <p className="text-[10px] text-neutral-400 hidden sm:block">Matching queue…</p>
                         {!isPro && (
                           <button
                             type="button"
@@ -1095,41 +1097,42 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                               e.stopPropagation();
                               setShowProModal(true);
                             }}
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-3.5 py-1.5 text-[11px] font-black text-white shadow-md shadow-red-600/30 transition cursor-pointer"
+                            className="mt-1 inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-2 sm:px-3.5 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shadow-red-600/30 transition cursor-pointer"
                           >
-                            <SparklesIcon size={13} />
-                            <span>Upgrade for Pro Plan — ₹299</span>
+                            <SparklesIcon size={11} className="sm:size-[13px]" />
+                            <span>Upgrade ₹299</span>
                           </button>
                         )}
                       </div>
                     ) : state === 'failed' ? (
-                      <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-4 border border-rose-500/30 max-w-xs">
-                        <CameraOff01Icon size={26} className="text-rose-400" />
-                        <p className="text-xs font-bold text-rose-400 max-w-xs">{statusMessage || 'Connection failed'}</p>
+                      <div className="flex flex-col items-center gap-1.5 sm:gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-2.5 sm:p-4 border border-rose-500/30 max-w-[95%] sm:max-w-xs">
+                        <CameraOff01Icon size={20} className="text-rose-400 sm:size-[26px]" />
+                        <p className="text-[11px] sm:text-xs font-bold text-rose-400">{statusMessage || 'Failed'}</p>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStartSearch();
                           }}
-                          className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
                         >
-                          <RefreshIcon size={14} />
-                          <span>Try Again</span>
+                          <RefreshIcon size={12} className="sm:size-[14px]" />
+                          <span>Retry</span>
                         </button>
                       </div>
                     ) : !isPro ? (
-                      <div className="flex flex-col items-center gap-2.5 rounded-3xl bg-black/80 backdrop-blur-md p-5 sm:p-6 border border-white/15 shadow-2xl max-w-sm">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/40">
-                          <LockIcon size={22} />
+                      <div className="flex flex-col items-center gap-1 sm:gap-2 rounded-2xl sm:rounded-3xl bg-black/85 backdrop-blur-md p-2.5 sm:p-5 border border-white/15 shadow-2xl max-w-[95%] sm:max-w-sm">
+                        <div className="flex h-7 w-7 sm:h-11 sm:w-11 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-md">
+                          <LockIcon size={14} className="sm:hidden" />
+                          <LockIcon size={22} className="hidden sm:block" />
                         </div>
 
-                        <div className="space-y-1">
-                          <h3 className="text-sm sm:text-base font-black text-white tracking-tight">
-                            Live Video Blurred
+                        <div className="space-y-0.5">
+                          <h3 className="text-[11px] sm:text-base font-black text-white tracking-tight leading-tight">
+                            Live Blurred
                           </h3>
-                          <p className="text-[11px] text-neutral-300 leading-snug">
-                            Click below to upgrade for Pro Plan to unlock clear HD live video and VIP matching.
+                          <p className="text-[9px] sm:text-[11px] text-neutral-300 leading-tight hidden sm:block">
+                            Click below to upgrade for Pro Plan to unlock clear HD live video.
                           </p>
                         </div>
 
@@ -1139,10 +1142,10 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                             e.stopPropagation();
                             setShowProModal(true);
                           }}
-                          className="mt-1 w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-red-600/40 transition active:scale-95 cursor-pointer"
+                          className="mt-0.5 w-full flex items-center justify-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 px-2 sm:px-4 py-1 sm:py-2.5 text-[10px] sm:text-xs font-black text-white shadow-md transition active:scale-95 cursor-pointer"
                         >
-                          <SparklesIcon size={14} />
-                          <span>Click to Upgrade for Pro Plan — ₹299</span>
+                          <SparklesIcon size={11} className="sm:size-[14px]" />
+                          <span>Upgrade ₹299</span>
                         </button>
 
                         <button
@@ -1151,26 +1154,25 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                             e.stopPropagation();
                             handleStartSearch();
                           }}
-                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-400 hover:text-white transition cursor-pointer"
+                          className="inline-flex items-center gap-1 text-[9px] sm:text-[11px] font-semibold text-neutral-400 hover:text-white transition cursor-pointer"
                         >
-                          <PlayIcon size={12} />
-                          <span>or Press Start to connect with a stranger</span>
+                          <PlayIcon size={10} className="sm:size-[12px]" />
+                          <span>Start Match</span>
                         </button>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/75 backdrop-blur-md p-4 border border-emerald-500/30 text-center max-w-xs">
-                        <span className="text-xs font-bold text-emerald-400">👑 Pro Plan Active • HD Unlocked</span>
-                        <p className="text-[11px] text-neutral-300">Enjoying unlocked live stream preview</p>
+                      <div className="flex flex-col items-center gap-1.5 sm:gap-2 rounded-2xl bg-black/75 backdrop-blur-md p-2.5 sm:p-4 border border-emerald-500/30 text-center max-w-[95%] sm:max-w-xs">
+                        <span className="text-[10px] sm:text-xs font-bold text-emerald-400">👑 Pro HD Active</span>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStartSearch();
                           }}
-                          className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
                         >
-                          <PlayIcon size={14} />
-                          <span>Press Start to Match</span>
+                          <PlayIcon size={12} className="sm:size-[14px]" />
+                          <span>Start Match</span>
                         </button>
                       </div>
                     )}
@@ -1179,7 +1181,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               )}
 
               {/* Watermark badge (Image 2 style) */}
-              <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 rounded-lg bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-10 flex items-center gap-1 rounded-md bg-black/60 backdrop-blur px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-bold text-white shadow-sm">
                 <span className="text-[#ef4444]">💬</span>
                 <span>u-r-live.com</span>
               </div>
@@ -1191,9 +1193,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                   onClick={() => partner && onOpenReportModal(partner.id, partner.name)}
                   aria-label="Report stranger"
                   title="Report stranger"
-                  className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 backdrop-blur text-neutral-300 hover:text-rose-400 transition cursor-pointer shadow-sm"
+                  className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-10 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-black/60 backdrop-blur text-neutral-300 hover:text-rose-400 transition cursor-pointer shadow-sm"
                 >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
                     <line x1="4" y1="22" x2="4" y2="15" />
                   </svg>
@@ -1201,18 +1203,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               )}
             </div>
 
-            {/* Bottom Box: Self preview (Your Camera) */}
-            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl overflow-hidden bg-black border border-neutral-200/80 dark:border-white/10 shadow-sm">
+            {/* Box 2: Self preview (Your Camera) */}
+            <div className="relative h-full lg:flex-1 lg:min-h-[220px] xl:min-h-[260px] rounded-2xl overflow-hidden bg-black border border-neutral-200/80 dark:border-white/10 shadow-sm">
               {localStream ? (
                 <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-[#0b0a14] p-4 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-neutral-400">
-                    <CameraVideoIcon size={24} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 bg-[#0b0a14] p-2 sm:p-4 text-center">
+                  <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 text-neutral-400">
+                    <CameraVideoIcon size={16} className="sm:size-[24px]" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">Camera not active</p>
-                    <p className="text-[11px] text-neutral-400 mt-0.5">Click below to start your live camera view</p>
+                    <p className="text-[10px] sm:text-xs font-bold text-white">Camera off</p>
                   </div>
                   <button
                     type="button"
@@ -1222,51 +1223,51 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                         .then((stream) => setLocalStream(stream))
                         .catch((err) => console.warn('Camera request error:', err));
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
                   >
-                    <CameraVideoIcon size={14} />
-                    <span>Turn On Camera</span>
+                    <CameraVideoIcon size={12} className="sm:size-[14px]" />
+                    <span>Turn On</span>
                   </button>
                 </div>
               )}
 
               {!isCamOn && localStream && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/85 backdrop-blur-sm">
-                  <CameraOff01Icon size={28} className="text-neutral-400" />
-                  <span className="text-xs font-medium text-neutral-400">Camera Off</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/85 backdrop-blur-sm">
+                  <CameraOff01Icon size={20} className="text-neutral-400 sm:size-[28px]" />
+                  <span className="text-[10px] sm:text-xs font-medium text-neutral-400">Camera Off</span>
                 </div>
               )}
 
               {/* You badge */}
-              <span className="absolute left-3 top-3 z-10 rounded-md bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold text-white">
+              <span className="absolute left-2 top-2 sm:left-3 sm:top-3 z-10 rounded-md bg-black/60 backdrop-blur px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-white">
                 You
               </span>
 
               {/* Floating controls */}
-              <div className="absolute bottom-3 left-3 flex items-center gap-2 z-10">
+              <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 flex items-center gap-1 sm:gap-2 z-10">
                 <button
                   type="button"
                   onClick={handleToggleMic}
                   aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
+                  className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
                     isMicOn
                       ? 'border-white/20 bg-black/60 text-white hover:bg-black/80'
                       : 'border-rose-400/40 bg-rose-500/30 text-rose-100'
                   }`}
                 >
-                  {isMicOn ? <Mic01Icon size={14} /> : <MicOff01Icon size={14} />}
+                  {isMicOn ? <Mic01Icon size={12} className="sm:size-[14px]" /> : <MicOff01Icon size={12} className="sm:size-[14px]" />}
                 </button>
                 <button
                   type="button"
                   onClick={handleToggleCam}
                   aria-label={isCamOn ? 'Turn camera off' : 'Turn camera on'}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
+                  className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border backdrop-blur transition cursor-pointer ${
                     isCamOn
                       ? 'border-white/20 bg-black/60 text-white hover:bg-black/80'
                       : 'border-rose-400/40 bg-rose-500/30 text-rose-100'
                   }`}
                 >
-                  {isCamOn ? <CameraVideoIcon size={14} /> : <CameraOff01Icon size={14} />}
+                  {isCamOn ? <CameraVideoIcon size={12} className="sm:size-[14px]" /> : <CameraOff01Icon size={12} className="sm:size-[14px]" />}
                 </button>
               </div>
             </div>

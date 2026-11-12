@@ -1033,7 +1033,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             {/* Box 1: Stranger Video */}
             <div
               ref={stageRef}
-              className="relative h-full lg:flex-1 lg:min-h-[240px] xl:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm"
+              onClick={() => {
+                if (!isPro && !remoteStream) {
+                  setShowProModal(true);
+                }
+              }}
+              className={`relative h-full lg:flex-1 lg:min-h-[240px] xl:min-h-[280px] rounded-2xl overflow-hidden bg-[#1e1d24] border border-neutral-200/80 dark:border-white/10 shadow-sm ${
+                !isPro && !remoteStream ? 'cursor-pointer' : ''
+              }`}
             >
               <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
 

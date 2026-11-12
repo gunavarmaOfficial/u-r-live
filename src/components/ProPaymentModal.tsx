@@ -60,6 +60,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   upiName = 'U-R-LIVE',
   amount = 299,
 }) => {
+  const [step, setStep] = useState<'promo' | 'payment'>('promo');
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [paymentStatus, setPaymentStatus] = useState<
@@ -116,6 +117,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
       return;
     }
 
+    setStep('promo');
     setTimeLeft(600);
     setPaymentStatus('pending');
     setUtrNumber('');
@@ -216,37 +218,99 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
 
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} ariaLabel="Upgrade to Pro Plan">
-      <div className="relative mx-auto w-full max-w-lg overflow-hidden rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#12101a] text-neutral-900 dark:text-neutral-100 shadow-2xl">
-        {/* Glow accent header */}
-        <div className="relative bg-gradient-to-r from-red-600 via-rose-600 to-red-500 px-6 py-5 text-white">
+      {step === 'promo' ? (
+        <div className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-3xl border border-red-500/40 bg-[#0c0306] text-white shadow-[0_0_60px_rgba(239,68,68,0.35)] animate-in fade-in zoom-in-95 duration-200">
+          {/* Floating Close Button */}
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 rounded-full bg-black/20 p-1.5 text-white/80 hover:bg-black/40 hover:text-white transition cursor-pointer"
+            className="absolute right-3.5 top-3.5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 backdrop-blur-md text-white/85 hover:bg-black hover:text-white transition cursor-pointer shadow-lg border border-white/15"
             aria-label="Close"
           >
             <Cancel01Icon size={18} />
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider backdrop-blur">
-              <SparklesIcon size={12} />
-              VIP Pro Plan
-            </span>
-            <span className="text-xs font-semibold text-white/80">• 30 Days Access</span>
+          {/* The Promo Poster - Clicking anywhere on the banner triggers redirect to payment */}
+          <div
+            onClick={() => setStep('payment')}
+            className="relative cursor-pointer group select-none block overflow-hidden"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setStep('payment');
+              }
+            }}
+            aria-label="Get Premium Now - Proceed to payment"
+          >
+            <img
+              src="/premium-promo.jpg"
+              alt="UR Live Go Premium - Match with Girls Only"
+              className="w-full h-auto object-cover rounded-3xl transition duration-300 group-hover:scale-[1.01]"
+            />
           </div>
 
-          <div className="mt-2 flex items-baseline justify-between">
-            <div>
-              <h2 className="text-xl font-black tracking-tight">Unlock HD Live Video & All Strangers</h2>
-              <p className="text-xs text-white/85">Instant unblurred HD video, direct connection & no limits.</p>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-black">₹{amount}</span>
-              <span className="block text-[10px] text-white/70">One-time payment</span>
+          {/* Bottom Action Footer */}
+          <div className="p-4 sm:p-5 bg-gradient-to-t from-black via-[#140407] to-[#0c0306] text-center space-y-2 border-t border-red-500/20">
+            <button
+              type="button"
+              onClick={() => setStep('payment')}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 py-3.5 px-6 font-black text-sm sm:text-base text-white shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95 cursor-pointer"
+            >
+              <SparklesIcon size={18} />
+              <span>Get Premium Now (₹{amount})</span>
+              <span className="text-base font-bold">➔</span>
+            </button>
+            <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-400">
+              <LockIcon size={12} className="text-emerald-500" />
+              <span>Instant UPI Payment • Google Pay, PhonePe, Paytm, BHIM</span>
             </div>
           </div>
         </div>
+      ) : (
+        <div className="relative mx-auto w-full max-w-lg overflow-hidden rounded-3xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-[#12101a] text-neutral-900 dark:text-neutral-100 shadow-2xl">
+          {/* Glow accent header */}
+          <div className="relative bg-gradient-to-r from-red-600 via-rose-600 to-red-500 px-6 py-5 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => setStep('promo')}
+                className="inline-flex items-center gap-1 rounded-full bg-black/30 hover:bg-black/50 px-3 py-1 text-xs font-bold text-white transition cursor-pointer backdrop-blur"
+              >
+                <span>←</span>
+                <span>Back to Plan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full bg-black/20 p-1.5 text-white/80 hover:bg-black/40 hover:text-white transition cursor-pointer"
+                aria-label="Close"
+              >
+                <Cancel01Icon size={18} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider backdrop-blur">
+                <SparklesIcon size={12} />
+                VIP Pro Plan
+              </span>
+              <span className="text-xs font-semibold text-white/80">• 30 Days Access</span>
+            </div>
+
+            <div className="mt-2 flex items-baseline justify-between">
+              <div>
+                <h2 className="text-xl font-black tracking-tight">Unlock HD Live Video & All Strangers</h2>
+                <p className="text-xs text-white/85">Instant unblurred HD video, direct connection & no limits.</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black">₹{amount}</span>
+                <span className="block text-[10px] text-white/70">One-time payment</span>
+              </div>
+            </div>
+          </div>
 
         {/* Content body */}
         <div className="max-h-[80vh] overflow-y-auto p-5 sm:p-6 space-y-5">
@@ -514,6 +578,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
           </div>
         </div>
       </div>
+      )}
     </ModalShell>
   );
 };

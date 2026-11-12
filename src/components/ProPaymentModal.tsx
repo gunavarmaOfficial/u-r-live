@@ -34,7 +34,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  upiId = 'urlive@slc',
+  upiId = 'gunavarma0000-5@okicici',
   upiName = 'U-R-LIVE',
   amount = 299,
 }) => {
@@ -51,7 +51,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
   const timerRef = useRef<number | null>(null);
 
   // Standard parameters for UPI Intent and QR payment (amount pre-filled, without conflicting mode=02)
-  const upiQuery = `pa=${encodeURIComponent(upiId)}&pn=UR%20Live&am=${amount}&cu=INR&tn=UR%20LIVE%20Pro%20Plan`;
+  const upiQuery = `pa=${encodeURIComponent(upiId)}&pn=U%20R%20LIVE&am=${amount}&cu=INR&tn=UR%20LIVE%20Pro%20Plan`;
   const universalUpiUrl = `upi://pay?${upiQuery}`;
 
   const getAppDeepLink = (app: 'gpay' | 'phonepe' | 'paytm' | 'bhim') => {
@@ -82,13 +82,6 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
 
     // Default universal fallback
     return universalUpiUrl;
-  };
-
-  const handleLaunchApp = (
-    app: 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'universal'
-  ) => {
-    const targetUrl = app === 'universal' ? universalUpiUrl : getAppDeepLink(app);
-    window.location.href = targetUrl;
   };
 
   // Countdown timer
@@ -277,7 +270,7 @@ export const ProPaymentModal: React.FC<ProPaymentModalProps> = ({
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="relative rounded-2xl bg-white p-3 shadow-md border border-neutral-200">
                   <img
-                    src="/payment-qr.png?v=5"
+                    src="/payment-qr.png?v=6"
                     alt={`Scan UR Live UPI QR Code to pay ₹${amount}`}
                     className="h-56 w-56 sm:h-64 sm:w-64 object-contain rounded-xl mx-auto"
                   />

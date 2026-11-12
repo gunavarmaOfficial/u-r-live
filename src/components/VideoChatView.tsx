@@ -1300,7 +1300,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         onSuccess={() => {
           setIsPro(true);
         }}
-        upiId="urlive@slc"
+        upiId="gunavarma0000-5@okicici"
         amount={299}
       />
 

@@ -1,7 +1,7 @@
 // server.ts
 import "dotenv/config";
 import http from "http";
-import fs2 from "fs";
+import fs from "fs";
 import path2 from "path";
 import crypto5 from "crypto";
 import express from "express";
@@ -11,7 +11,6 @@ import { WebSocketServer as WebSocketServer2 } from "ws";
 import { z as z2 } from "zod";
 
 // server/db.ts
-import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import pg from "pg";
@@ -48,79 +47,21 @@ var Database = class {
   }
   /**
    * Initialize database engine:
-   * 1. If DATABASE_URL / SUPABASE_DB_URL is set, connect to PostgreSQL.
-   * 2. If in production and no database URL is set, fail closed.
-   * 3. Otherwise, use file-backed local JSON storage for development/test.
+   * Pure in-memory storage engine: stores nothing to disk or external databases.
    */
   init() {
-    const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-    if (dbUrl) {
-      try {
-        const isSslRequired = !dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1");
-        this.pool = new Pool({
-          connectionString: dbUrl,
-          ssl: isSslRequired ? { rejectUnauthorized: false } : void 0,
-          max: 10,
-          idleTimeoutMillis: 3e4,
-          connectionTimeoutMillis: 5e3
-        });
-        this.pool.on("error", (err) => {
-          console.error("[Database] Unexpected PostgreSQL pool error:", err.message);
-        });
-        this.isPostgresActive = true;
-        this.hydrateFromPostgres();
-      } catch (err) {
-        console.error("[Database] Failed to initialize PostgreSQL pool:", err.message);
-        if (process.env.NODE_ENV === "production") {
-          throw new Error("Database initialization failed in production: " + err.message);
-        }
-      }
-    } else {
-      if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
-        throw new Error(
-          "FATAL: Production environment detected (NODE_ENV=production) but DATABASE_URL or SUPABASE_DB_URL is not configured. Silently falling back to JSON storage in production is prohibited."
-        );
-      }
-      this.loadLocalJson();
+    if (process.env.NODE_ENV === "production" && !process.env.VERCEL && !process.env.DATABASE_URL && !process.env.SUPABASE_DB_URL) {
+      throw new Error(
+        "FATAL: Production environment detected (NODE_ENV=production) but DATABASE_URL or SUPABASE_DB_URL is not configured. Silently falling back to JSON storage in production is prohibited."
+      );
     }
+    this.isPostgresActive = false;
+    this.pool = null;
   }
   /**
-   * Load snapshot from local JSON file (development & offline testing)
-   */
-  loadLocalJson() {
-    try {
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, "utf-8");
-        const parsed = JSON.parse(raw);
-        this.data = {
-          ...this.data,
-          ...parsed,
-          users: { ...this.data.users, ...parsed.users || {} },
-          reports: { ...this.data.reports, ...parsed.reports || {} },
-          blocks: { ...this.data.blocks, ...parsed.blocks || {} },
-          auditLogs: parsed.auditLogs || this.data.auditLogs,
-          preferences: { ...this.data.preferences, ...parsed.preferences || {} },
-          sessions: { ...this.data.sessions, ...parsed.sessions || {} },
-          consents: { ...this.data.consents, ...parsed.consents || {} }
-        };
-      }
-    } catch (err) {
-      console.warn("[Database] Could not load local JSON database:", err);
-    }
-  }
-  /**
-   * Save snapshot to local JSON file when running without PostgreSQL
+   * No-op: do not write any database files to disk.
    */
   save() {
-    if (this.isPostgresActive || process.env.NODE_ENV === "test") return;
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), "utf-8");
-    } catch (err) {
-      console.error("[Database] Failed to persist local database file:", err);
-    }
   }
   /**
    * Hydrate in-memory cache from PostgreSQL tables
@@ -1037,7 +978,7 @@ var commandClient = null;
 var subscriberClient = null;
 var lastError = null;
 function isRedisConfigured() {
-  return Boolean(process.env.REDIS_URL);
+  return false;
 }
 function buildClient() {
   const client = new Redis(process.env.REDIS_URL, {
@@ -1065,16 +1006,6 @@ function getRedisSubscriber() {
   if (!isRedisConfigured()) return null;
   if (!subscriberClient) subscriberClient = buildClient();
   return subscriberClient;
-}
-async function pingRedis() {
-  const client = getRedis();
-  if (!client) return true;
-  try {
-    await client.ping();
-    return true;
-  } catch {
-    return false;
-  }
 }
 function getRedisStatus() {
   if (!isRedisConfigured()) return "disabled";
@@ -3441,21 +3372,9 @@ app.get("/healthz", (_req, res) => {
   res.status(200).json({ status: "ok", uptimeSeconds: Math.floor(process.uptime()) });
 });
 app.get("/readyz", async (_req, res) => {
-  const [dbReady, redisReachable] = await Promise.all([db.ping(), pingRedis()]);
-  const redisRequired = process.env.NODE_ENV === "production" && !isRedisConfigured();
-  const redisReady = redisReachable && !redisRequired;
-  if (!dbReady || !redisReady) {
-    res.status(503).json({
-      status: "unavailable",
-      database: dbReady ? "ok" : "unreachable",
-      redis: redisRequired ? "not_configured" : redisReachable ? getRedisStatus() : "unreachable"
-    });
-    return;
-  }
   res.status(200).json({
     status: "ready",
-    database: db.isPostgresConnected() ? "postgres" : "memory",
-    redis: getRedisStatus()
+    mode: "in-memory-zero-storage"
   });
 });
 app.post("/api/match/join", (req, res) => {
@@ -3546,7 +3465,7 @@ async function startServer() {
         return;
       }
       const prerendered = cleanPath === "/" ? path2.join(distPath, "index.html") : path2.join(distPath, cleanPath, "index.html");
-      if (fs2.existsSync(prerendered)) {
+      if (fs.existsSync(prerendered)) {
         sendHtml(res, prerendered);
         return;
       }

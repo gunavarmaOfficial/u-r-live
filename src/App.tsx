@@ -155,9 +155,7 @@ export default function App() {
         }
       });
 
-    if (hasStoredSessionToken()) {
-      void loadSession();
-    }
+    void loadSession();
 
     return () => {
       cancelled = true;

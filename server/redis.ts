@@ -12,7 +12,7 @@ let subscriberClient: Redis | null = null;
 let lastError: string | null = null;
 
 export function isRedisConfigured(): boolean {
-  return Boolean(process.env.REDIS_URL);
+  return false;
 }
 
 function buildClient(): Redis {

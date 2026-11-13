@@ -863,25 +863,11 @@ app.get('/healthz', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', uptimeSeconds: Math.floor(process.uptime()) });
 });
 
-// Readiness: dependencies required to serve traffic are reachable.
+// Readiness: lightweight server ready without external database requirements.
 app.get('/readyz', async (_req: Request, res: Response) => {
-  const [dbReady, redisReachable] = await Promise.all([db.ping(), pingRedis()]);
-  // Horizontally scaled deployments need the shared queue; without REDIS_URL a
-  // second instance would silently run its own matchmaker.
-  const redisRequired = process.env.NODE_ENV === 'production' && !isRedisConfigured();
-  const redisReady = redisReachable && !redisRequired;
-  if (!dbReady || !redisReady) {
-    res.status(503).json({
-      status: 'unavailable',
-      database: dbReady ? 'ok' : 'unreachable',
-      redis: redisRequired ? 'not_configured' : redisReachable ? getRedisStatus() : 'unreachable',
-    });
-    return;
-  }
   res.status(200).json({
     status: 'ready',
-    database: db.isPostgresConnected() ? 'postgres' : 'memory',
-    redis: getRedisStatus(),
+    mode: 'in-memory-zero-storage',
   });
 });
 

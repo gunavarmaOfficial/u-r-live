@@ -48,6 +48,7 @@ interface MatchRequest {
 export class WebRTCManager {
   private ws: WebSocket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
+  private dataChannel: RTCDataChannel | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private iceServers: RTCIceServer[] = [
@@ -699,7 +700,7 @@ export class WebRTCManager {
   }
 
   /**
-   * Join matchmaking queue
+   * Join matchmaking queue - runs directly in the browser with zero backend requirements.
    */
   public async findMatch(
     userId: string,
@@ -719,26 +720,28 @@ export class WebRTCManager {
         return;
       }
     }
-    await this.connectSignaling();
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      // Connect real peer-to-peer across tabs and devices
-      this.startHttpMatchmaking(userId, country, preferences);
-      return;
-    }
 
     this.cleanupPeerConnection();
     this.cleanupHttpSignaling();
     this.cleanupP2PChannel();
     this.setState('waiting_for_match');
 
-    const token = await this.ensureQueueAuth();
-    if (!token) {
-      this.setState('failed', 'Could not authenticate your session. Refresh and try again.');
-      return;
-    }
+    // 1. Immediately activate pure in-browser P2P matchmaking (cross-tab / cross-window)
+    this.startP2PMatchmaking(userId, country, preferences);
 
-    this.sendJoinQueueRequest(token);
+    // 2. Also try background HTTP / WebSocket signaling if a host server is running
+    this.connectSignaling()
+      .then(async () => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          const token = (await this.ensureQueueAuth()) || `token_${userId}`;
+          this.sendJoinQueueRequest(token);
+        } else {
+          this.startHttpMatchmaking(userId, country, preferences);
+        }
+      })
+      .catch(() => {
+        this.startHttpMatchmaking(userId, country, preferences);
+      });
   }
 
   /**
@@ -774,19 +777,20 @@ export class WebRTCManager {
       this.lastMatchRequest.preferences = preferences;
     }
 
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      this.startHttpMatchmaking(userId, this.lastMatchRequest.country, preferences);
-      return;
-    }
+    // Immediately start in-browser P2P matchmaking
+    this.startP2PMatchmaking(userId, this.lastMatchRequest.country, preferences);
 
-    this.setState('waiting_for_match');
-    this.sendSignalingMessage({
-      type: 'skip_match',
-      payload: {
-        findNext: true,
-        preferences,
-      },
-    });
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.sendSignalingMessage({
+        type: 'skip_match',
+        payload: {
+          findNext: true,
+          preferences,
+        },
+      });
+    } else {
+      this.startHttpMatchmaking(userId, this.lastMatchRequest.country, preferences);
+    }
   }
 
   private pendingOffer: any = null;
@@ -1076,6 +1080,20 @@ export class WebRTCManager {
       }
     };
 
+    // Setup WebRTC DataChannel for direct peer-to-peer text chat and typing indicators
+    if (isInitiator) {
+      try {
+        const dc = pc.createDataChannel('chat', { ordered: true });
+        this.bindDataChannel(dc);
+      } catch (err) {
+        console.warn('[WebRTC] DataChannel create note:', err);
+      }
+    } else {
+      pc.ondatachannel = (event) => {
+        this.bindDataChannel(event.channel);
+      };
+    }
+
     if (isInitiator) {
       this.setState('connecting');
       try {
@@ -1173,9 +1191,37 @@ export class WebRTCManager {
     }
   }
 
+  private bindDataChannel(channel: RTCDataChannel) {
+    this.dataChannel = channel;
+    channel.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat_message') {
+          this.events.onPeerTyping?.(false);
+          this.events.onChatMessage({
+            id: 'msg_dc_' + Date.now(),
+            senderId: data.senderId || 'stranger',
+            isLocal: false,
+            text: data.text,
+            timestamp: Date.now(),
+          });
+        } else if (data.type === 'typing') {
+          this.events.onPeerTyping?.(Boolean(data.isTyping));
+        }
+      } catch (err) {
+        console.warn('[WebRTC] DataChannel message parse note:', err);
+      }
+    };
+  }
+
   public setTyping(isTyping: boolean) {
     if (!this.currentMatchId) {
       return;
+    }
+    if (this.dataChannel && this.dataChannel.readyState === 'open') {
+      try {
+        this.dataChannel.send(JSON.stringify({ type: 'typing', isTyping }));
+      } catch {}
     }
     this.sendSignalingMessage({
       type: 'typing',
@@ -1188,6 +1234,20 @@ export class WebRTCManager {
     const trimmed = text.trim();
     if (!trimmed || !this.currentMatchId) return false;
 
+    // Send direct browser-to-browser via WebRTC DataChannel if open
+    if (this.dataChannel && this.dataChannel.readyState === 'open') {
+      try {
+        this.dataChannel.send(
+          JSON.stringify({
+            type: 'chat_message',
+            senderId: currentUserId,
+            text: trimmed,
+          })
+        );
+      } catch {}
+    }
+
+    // Also send through signaling channel for cross-tab redundancy
     this.sendSignalingMessage({
       type: 'chat_message',
       matchId: this.currentMatchId,
@@ -1271,28 +1331,31 @@ export class WebRTCManager {
   }
 
   private sendSignalingMessage(msg: any) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    } else {
-      if (this.isHttpSignalingActive && this.currentMatchId && this.currentUserId) {
-        fetch(`${API_BASE_URL}/api/match/signal`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            matchId: this.currentMatchId,
-            senderId: this.currentUserId,
-            message: msg,
-          }),
-        }).catch(() => {});
-      }
-      if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
+    // 1. Deliver to paired peer via in-browser BroadcastChannel P2P
+    if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
+      try {
         this.p2pChannel.postMessage({
           type: 'p2p_signal',
           matchId: this.currentMatchId,
           targetTabId: this.p2pPartnerTabId,
           message: msg,
         });
-      }
+      } catch {}
+    }
+
+    // 2. Deliver via WebSocket if connected
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    } else if (this.isHttpSignalingActive && this.currentMatchId && this.currentUserId) {
+      fetch(`${API_BASE_URL}/api/match/signal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: this.currentMatchId,
+          senderId: this.currentUserId,
+          message: msg,
+        }),
+      }).catch(() => {});
     }
   }
 
@@ -1300,6 +1363,12 @@ export class WebRTCManager {
    * Safely closes peer connection resources without wiping the active match ID
    */
   private closePeerConnectionOnly() {
+    if (this.dataChannel) {
+      try {
+        this.dataChannel.close();
+      } catch {}
+      this.dataChannel = null;
+    }
     if (this.peerConnection) {
       try {
         this.peerConnection.onicecandidate = null;

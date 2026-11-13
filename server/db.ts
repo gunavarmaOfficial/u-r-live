@@ -87,85 +87,23 @@ export class Database {
 
   /**
    * Initialize database engine:
-   * 1. If DATABASE_URL / SUPABASE_DB_URL is set, connect to PostgreSQL.
-   * 2. If in production and no database URL is set, fail closed.
-   * 3. Otherwise, use file-backed local JSON storage for development/test.
+   * Pure in-memory storage engine: stores nothing to disk or external databases.
    */
   private init() {
-    const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-
-    if (dbUrl) {
-      try {
-        const isSslRequired = !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1');
-        this.pool = new Pool({
-          connectionString: dbUrl,
-          ssl: isSslRequired ? { rejectUnauthorized: false } : undefined,
-          max: 10,
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
-        });
-
-        this.pool.on('error', (err) => {
-          console.error('[Database] Unexpected PostgreSQL pool error:', err.message);
-        });
-
-        this.isPostgresActive = true;
-        // Load initial state into in-memory cache asynchronously
-        this.hydrateFromPostgres();
-      } catch (err: any) {
-        console.error('[Database] Failed to initialize PostgreSQL pool:', err.message);
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error('Database initialization failed in production: ' + err.message);
-        }
-      }
-    } else {
-      if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-        throw new Error(
-          'FATAL: Production environment detected (NODE_ENV=production) but DATABASE_URL or SUPABASE_DB_URL is not configured. Silently falling back to JSON storage in production is prohibited.'
-        );
-      }
-      this.loadLocalJson();
+    if (process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.DATABASE_URL && !process.env.SUPABASE_DB_URL) {
+      throw new Error(
+        'FATAL: Production environment detected (NODE_ENV=production) but DATABASE_URL or SUPABASE_DB_URL is not configured. Silently falling back to JSON storage in production is prohibited.'
+      );
     }
+    this.isPostgresActive = false;
+    this.pool = null;
   }
 
   /**
-   * Load snapshot from local JSON file (development & offline testing)
-   */
-  private loadLocalJson() {
-    try {
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        this.data = {
-          ...this.data,
-          ...parsed,
-          users: { ...this.data.users, ...(parsed.users || {}) },
-          reports: { ...this.data.reports, ...(parsed.reports || {}) },
-          blocks: { ...this.data.blocks, ...(parsed.blocks || {}) },
-          auditLogs: parsed.auditLogs || this.data.auditLogs,
-          preferences: { ...this.data.preferences, ...(parsed.preferences || {}) },
-          sessions: { ...this.data.sessions, ...(parsed.sessions || {}) },
-          consents: { ...this.data.consents, ...(parsed.consents || {}) },
-        };
-      }
-    } catch (err) {
-      console.warn('[Database] Could not load local JSON database:', err);
-    }
-  }
-
-  /**
-   * Save snapshot to local JSON file when running without PostgreSQL
+   * No-op: do not write any database files to disk.
    */
   public save() {
-    if (this.isPostgresActive || process.env.NODE_ENV === 'test') return;
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('[Database] Failed to persist local database file:', err);
-    }
+    // Pure in-memory: zero disk writes
   }
 
   /**

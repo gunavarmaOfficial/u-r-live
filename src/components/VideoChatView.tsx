@@ -21,8 +21,11 @@ import {
   Share01Icon,
   SparklesIcon,
   StopCircleIcon,
+  Sun02Icon,
+  Moon02Icon,
   WebProtectionIcon,
 } from 'hugeicons-react';
+import { useApp } from '../context/AppContext';
 import { WebRTCManager, NetworkQuality, NetworkStats } from '../services/webrtc';
 import { WebRTCState, MatchPreferences, ChatMessage, UserProfile, ChatMode } from '../types';
 import { api } from '../services/api';
@@ -167,6 +170,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   onUserUpdated,
   onOpenSafetyCentre,
 }) => {
+  const { theme, toggleTheme } = useApp();
   const managerRef = useRef<WebRTCManager | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -551,7 +555,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       if (res.iceServers) manager.updateIceServers(res.iceServers);
     });
 
-    if (user.isAdultVerified) {
+    if (user.isAdultVerified && mode !== 'text') {
       manager
         .initMedia()
         .then((stream) => {
@@ -684,13 +688,13 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     resetConversation();
     setPartner(null);
     setNetwork(null);
-    setMobileTab('video');
+    setMobileTab(mode === 'text' ? 'chat' : 'video');
     setStopPhase('stop');
     setState('waiting_for_match');
     setStatusMessage('Looking for someone to chat with…');
 
-    // Ensure camera is started during user gesture
-    if (!localStream && managerRef.current) {
+    // Ensure camera is started during user gesture ONLY for video mode
+    if (mode !== 'text' && !localStream && managerRef.current) {
       try {
         const stream = await managerRef.current.initMedia();
         if (stream) setLocalStream(stream);
@@ -1355,7 +1359,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           </div>
         </div>
 
-        {/* Right: Camera flip + Timer pill + Pro button */}
+        {/* Right: Camera flip + Theme toggle + Timer pill + Pro button */}
         <div className="flex items-center gap-1.5">
           {localStream && (
             <button
@@ -1367,6 +1371,15 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               <RefreshIcon size={14} />
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white shadow-lg transition active:scale-90 cursor-pointer"
+            title="Toggle light or dark theme"
+          >
+            {theme === 'dark' ? <Sun02Icon size={14} /> : <Moon02Icon size={14} />}
+          </button>
 
           {isConnected && (
             <div className="flex items-center gap-1 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 px-2.5 py-1 text-xs font-mono font-black text-white shadow-lg">
@@ -1521,6 +1534,55 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       {/* Workspace */}
       {mode === 'text' ? (
         <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-2 sm:p-4">
+          {/* Top Bar for Text Mode on both Mobile & Desktop */}
+          <div className="mb-2 flex items-center justify-between px-1 shrink-0 select-none">
+            <div className="flex items-center gap-2">
+              <Link
+                to="/"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/[0.08] transition active:scale-95 shadow-sm cursor-pointer"
+                title="Return to Home"
+              >
+                <ArrowLeft01Icon size={16} />
+              </Link>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm sm:text-base text-neutral-900 dark:text-white">
+                  Text Chat
+                </span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  isConnected
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    : isSearching
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse'
+                      : 'bg-neutral-500/10 text-neutral-600 dark:text-neutral-400'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-ping' : isSearching ? 'bg-amber-500' : 'bg-neutral-400'}`} />
+                  <span>{isConnected ? 'Connected' : isSearching ? 'Searching…' : 'Idle'}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {onChangeMode && (
+                <button
+                  type="button"
+                  onClick={() => onChangeMode('video')}
+                  className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 transition active:scale-95 cursor-pointer shadow-sm"
+                >
+                  <CameraVideoIcon size={14} />
+                  <span>Switch to Video</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/[0.08] transition active:scale-95 shadow-sm cursor-pointer"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <Sun02Icon size={16} /> : <Moon02Icon size={16} />}
+              </button>
+            </div>
+          </div>
+
           {chatPane}
         </div>
       ) : (

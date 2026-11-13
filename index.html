@@ -20,11 +20,24 @@
       crossorigin
     />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var theme = (saved === 'dark' || saved === 'light') ? saved : 'dark';
+          document.documentElement.classList.remove('light', 'dark');
+          document.documentElement.classList.add(theme);
+        } catch (e) {}
+      })();
+    </script>
     <style>
-      html,
-      body {
+      html.dark, html.dark body {
         background-color: #07060d;
         color: #f6f5ff;
+      }
+      html.light, html.light body {
+        background-color: #f8f7ff;
+        color: #111827;
       }
     </style>
     <!--app-head-->
@@ -37,7 +50,7 @@
     <link rel="canonical" href="https://u-r-live.com/" />
     <!--/app-head-->
   </head>
-  <body class="bg-[#07060d] text-neutral-100 antialiased min-h-screen">
+  <body class="bg-[#f8f7ff] dark:bg-[#07060d] text-neutral-900 dark:text-neutral-100 antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
   font-family: 'Plus Jakarta Sans';
   font-style: normal;
@@ -39,23 +41,33 @@
     --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
+    --bg: #f8f7ff;
+    --bg-elev: #ffffff;
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: rgba(0, 0, 0, 0.08);
+    --line-strong: rgba(0, 0, 0, 0.16);
+
+    --violet: #8b5cf6;
+    --indigo: #6366f1;
+    --cyan: #06b6d4;
+    --pink: #ec4899;
+    --live: #10b981;
+    --danger: #ef4444;
+    --amber: #f59e0b;
+
+    --grad-brand: linear-gradient(120deg, #f472b6 0%, #8b5cf6 46%, #22d3ee 100%);
+    --grad-button: linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 120%);
+    --grad-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
+  }
+
+  .dark {
     --bg: #07060d;
     --bg-elev: #0c0a15;
     --ink: #f6f5ff;
     --muted: #a8a4bf;
     --line: rgba(255, 255, 255, 0.09);
     --line-strong: rgba(255, 255, 255, 0.16);
-
-    --violet: #8b5cf6;
-    --indigo: #6366f1;
-    --cyan: #22d3ee;
-    --pink: #f472b6;
-    --live: #34d399;
-    --danger: #fb7185;
-    --amber: #fbbf24;
-
-    --grad-brand: linear-gradient(120deg, #f472b6 0%, #8b5cf6 46%, #22d3ee 100%);
-    --grad-button: linear-gradient(120deg, #8b5cf6 0%, #6366f1 55%, #22d3ee 120%);
     --grad-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.022));
   }
 
@@ -66,6 +78,10 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .dark body, body:where(.dark, .dark *) {
     background-image:
       radial-gradient(60% 46% at 12% -5%, rgba(139, 92, 246, 0.20), transparent 62%),
       radial-gradient(52% 42% at 88% 0%, rgba(34, 211, 238, 0.12), transparent 60%),

@@ -434,6 +434,11 @@ export class WebRTCManager {
 
         // 1. Another real peer announces it's searching in the queue
         if (data.type === 'p2p_queue_announce' && this.state === 'waiting_for_match') {
+          // Match mode compatibility: text users match with text users, video with video
+          const myMode = preferences?.mode || 'video';
+          const peerMode = data.preferences?.mode || 'video';
+          if (myMode !== peerMode) return;
+
           // Higher tab ID becomes initiator to avoid double pairing
           if (this.p2pTabId > data.senderTabId) {
             const matchId = 'p2p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -712,7 +717,9 @@ export class WebRTCManager {
     this.authRetried = false;
     this.reconnectAttempts = 0;
 
-    if (!this.localStream) {
+    const isTextMode = preferences.mode === 'text';
+
+    if (!isTextMode && !this.localStream) {
       try {
         await this.initMedia();
       } catch {
@@ -996,11 +1003,13 @@ export class WebRTCManager {
     });
     this.peerConnection = pc;
 
-    if (this.localStream) {
+    const isTextMode = this.lastMatchRequest?.preferences?.mode === 'text';
+
+    if (this.localStream && !isTextMode) {
       this.localStream.getTracks().forEach((track) => {
         pc.addTrack(track, this.localStream!);
       });
-    } else {
+    } else if (!isTextMode) {
       pc.addTransceiver('audio', { direction: 'sendrecv' });
       pc.addTransceiver('video', { direction: 'sendrecv' });
     }
@@ -1097,10 +1106,14 @@ export class WebRTCManager {
     if (isInitiator) {
       this.setState('connecting');
       try {
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
+        const offer = await pc.createOffer(
+          isTextMode
+            ? undefined
+            : {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+              }
+        );
         await pc.setLocalDescription(offer);
 
         this.sendSignalingMessage({
@@ -1193,6 +1206,9 @@ export class WebRTCManager {
 
   private bindDataChannel(channel: RTCDataChannel) {
     this.dataChannel = channel;
+    channel.onopen = () => {
+      this.setState('connected');
+    };
     channel.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);

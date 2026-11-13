@@ -315,7 +315,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   }, [remoteStream]);
 
   const isSearching = SEARCHING_STATES.includes(state);
-  const isConnected = state === 'connected';
+  const isConnected = state === 'connected' || Boolean(partner) || state === 'connecting' || state === 'match_found';
   const currentCountryObj = getCountryMeta(selectedCountry);
   const partnerCountryObj = getCountryMeta(partner?.country);
 
@@ -512,7 +512,20 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       onLocalStream: (stream) => setLocalStream(stream),
       onRemoteStream: (stream) => setRemoteStream(stream),
       onChatMessage: (msg) => {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          if (
+            prev.some(
+              (m) =>
+                m.id === msg.id ||
+                (m.text === msg.text &&
+                  m.isLocal === msg.isLocal &&
+                  Math.abs(m.timestamp - msg.timestamp) < 2000)
+            )
+          ) {
+            return prev;
+          }
+          return [...prev, msg];
+        });
         if (!msg.isLocal) {
           setLatestMessageToast({ text: msg.text });
           if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -758,11 +771,26 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   const handleSendMessage = (event: React.FormEvent) => {
     event.preventDefault();
     const text = chatInput.trim();
-    if (!text || !managerRef.current) return;
-    managerRef.current.setTyping(false);
+    if (!text) return;
+
+    const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const newMsg: ChatMessage = {
+      id: msgId,
+      senderId: user.id,
+      isLocal: true,
+      text,
+      timestamp: Date.now(),
+    };
+
+    // Optimistic UI delivery: instant message display in chat
+    setMessages((prev) => [...prev, newMsg]);
+    setChatInput('');
+
     if (typingClearRef.current) clearTimeout(typingClearRef.current);
-    if (managerRef.current.sendChatMessage(text, user.id)) {
-      setChatInput('');
+    const manager = managerRef.current;
+    if (manager) {
+      manager.setTyping(false);
+      manager.sendChatMessage(text, user.id, msgId);
     }
   };
 
@@ -1062,8 +1090,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           )}
         </div>
 
-        {/* Main Start / Stop button and text input (Image 2 style) */}
+        {/* Main Start / Stop button, Skip button, and text input */}
         <div className="flex items-center gap-2">
+          {/* Start / Stop Button */}
           <button
             type="button"
             onClick={handleOmegleStop}
@@ -1089,22 +1118,35 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <span className="text-[9px] sm:text-[10px] font-mono opacity-80 leading-tight">Esc</span>
           </button>
 
+          {/* Skip Button */}
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!isConnected && !isSearching}
+            className="flex h-11 sm:h-12 px-3 sm:px-4 shrink-0 items-center justify-center gap-1.5 rounded-xl font-extrabold text-xs text-neutral-800 dark:text-white bg-neutral-100 hover:bg-neutral-200 dark:bg-white/10 dark:hover:bg-white/20 border border-neutral-200 dark:border-white/10 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            title="Skip to next stranger"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.05 5.05a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L10.71 12 5.05 6.46a1 1 0 0 1 0-1.41zm8 0a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L18.71 12l-5.66-5.54a1 1 0 0 1 0-1.41z" />
+            </svg>
+            <span>Skip</span>
+          </button>
+
           <form onSubmit={handleSendMessage} className="flex flex-1 items-center gap-2">
             <div className="relative flex-1">
               <input
                 value={chatInput}
                 onChange={(e) => handleChatInput(e.target.value)}
-                disabled={!isConnected}
-                placeholder={isConnected ? 'Type your message and press Enter...' : 'Waiting for connection...'}
-                className="h-11 sm:h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-3 sm:pl-4 pr-9 sm:pr-10 text-xs sm:text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20 transition disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder={isConnected ? 'Type your message and press Enter...' : isSearching ? 'Looking for match… you can type here' : 'Start chat to message…'}
+                className="h-11 sm:h-12 w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04] pl-3 sm:pl-4 pr-10 text-xs sm:text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-[#ef4444] focus:ring-2 focus:ring-[#ef4444]/20 transition"
               />
               <button
                 type="submit"
-                disabled={!isConnected || !chatInput.trim()}
+                disabled={!chatInput.trim()}
                 aria-label="Send message"
-                className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#ef4444] dark:hover:text-[#f87171] disabled:opacity-30 disabled:hover:text-neutral-400 transition cursor-pointer"
+                className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-30 disabled:bg-neutral-300 dark:disabled:bg-white/10 dark:disabled:text-neutral-500 transition cursor-pointer"
               >
-                <svg className="h-4 w-4 sm:h-5 sm:w-5 rotate-45 -translate-y-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-4 w-4 rotate-45 -translate-y-0.5 -translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
               </button>
@@ -1269,17 +1311,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* 2. Floating Self-Camera PiP ("You") in Top-Right Corner */}
-      <div className="absolute top-14 right-3 z-30 w-24 sm:w-28 h-32 sm:h-38 rounded-2xl overflow-hidden border border-white/25 bg-black/90 shadow-2xl backdrop-blur-sm select-none">
+      <div className="absolute top-14 right-3 z-30 w-28 sm:w-32 h-38 sm:h-44 rounded-3xl overflow-hidden border-2 border-white/30 bg-black/90 shadow-2xl backdrop-blur-md select-none">
         {localStream ? (
           <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center bg-[#100e19]">
-            <CameraOff01Icon size={18} className="text-neutral-500 mb-1" />
-            <span className="text-[9px] font-bold text-white/70">Cam Off</span>
+            <CameraOff01Icon size={20} className="text-neutral-500 mb-1" />
+            <span className="text-[10px] font-bold text-white/70">Cam Off</span>
             <button
               type="button"
               onClick={() => handleRequestPermissions('user_action')}
-              className="mt-1 rounded-md bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 text-[8px] font-black text-white shadow cursor-pointer active:scale-95"
+              className="mt-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-2.5 py-1 text-[9px] font-black text-white shadow-md cursor-pointer active:scale-95"
             >
               Turn On
             </button>
@@ -1288,103 +1330,123 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
         {!isCamOn && localStream && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
-            <CameraOff01Icon size={20} className="text-white/60 mb-0.5" />
-            <span className="text-[8px] font-bold text-white/70">Cam Off</span>
+            <CameraOff01Icon size={22} className="text-white/60 mb-0.5" />
+            <span className="text-[9px] font-bold text-white/70">Cam Off</span>
           </div>
         )}
 
-        {/* Top Badge: "You" */}
-        <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm border border-white/10">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        {/* Top Badge: "You" matching screenshot */}
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/75 backdrop-blur-md px-2 py-0.5 text-[10px] font-black text-white shadow-md border border-white/15">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
           <span>You</span>
+          <span>{currentCountryObj.flag || '🇮🇳'}</span>
         </div>
 
         {/* Bottom Quick Controls (Mic & Cam toggles) */}
-        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
+        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
           <button
             type="button"
             onClick={handleToggleMic}
-            className={`flex h-5 w-5 items-center justify-center rounded-full backdrop-blur-md text-[10px] shadow transition cursor-pointer ${
-              isMicOn ? 'bg-black/70 text-white' : 'bg-red-600 text-white'
+            className={`flex h-6 w-6 items-center justify-center rounded-full backdrop-blur-md text-[11px] shadow-md transition cursor-pointer active:scale-90 ${
+              isMicOn ? 'bg-black/75 text-white border border-white/15' : 'bg-red-600 text-white'
             }`}
             title={isMicOn ? 'Mute' : 'Unmute'}
           >
-            {isMicOn ? <Mic01Icon size={10} /> : <MicOff01Icon size={10} />}
+            {isMicOn ? <Mic01Icon size={11} /> : <MicOff01Icon size={11} />}
           </button>
           <button
             type="button"
             onClick={handleToggleCam}
-            className={`flex h-5 w-5 items-center justify-center rounded-full backdrop-blur-md text-[10px] shadow transition cursor-pointer ${
-              isCamOn ? 'bg-black/70 text-white' : 'bg-red-600 text-white'
+            className={`flex h-6 w-6 items-center justify-center rounded-full backdrop-blur-md text-[11px] shadow-md transition cursor-pointer active:scale-90 ${
+              isCamOn ? 'bg-black/75 text-white border border-white/15' : 'bg-red-600 text-white'
             }`}
             title={isCamOn ? 'Turn off camera' : 'Turn on camera'}
           >
-            {isCamOn ? <CameraVideoIcon size={10} /> : <CameraOff01Icon size={10} />}
+            {isCamOn ? <CameraVideoIcon size={11} /> : <CameraOff01Icon size={11} />}
           </button>
         </div>
       </div>
 
-      {/* 3. Top Header Bar Overlay */}
+      {/* 3. Top Header Bar Overlay (Mobbin Style matching reference) */}
       <div className="absolute top-2.5 left-3 right-3 z-30 flex items-center justify-between pointer-events-auto select-none">
-        {/* Left: Home link + Stranger Info Pill */}
-        <div className="flex items-center gap-1.5">
+        {/* Left: Home link + Stranger Info Capsule + Viewer Count */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Link
             to="/"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white/90 hover:text-white transition active:scale-90 shadow-lg cursor-pointer"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 text-white hover:text-white transition active:scale-90 shadow-xl cursor-pointer"
             title="Leave / Return to Home"
           >
-            <ArrowLeft01Icon size={16} />
+            <ArrowLeft01Icon size={18} />
           </Link>
 
-          <div className="flex items-center gap-2 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 pl-1.5 pr-3 py-1 shadow-lg">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 text-white text-xs font-black shadow-inner">
+          <div className="flex items-center gap-2 rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 pl-1.5 pr-3 py-1 shadow-xl">
+            <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-red-500 to-amber-500 text-white text-xs font-black shadow-inner ring-1 ring-white/30">
               {partner?.name ? partner.name.charAt(0).toUpperCase() : '👤'}
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-black ${isConnected ? 'bg-emerald-400' : isSearching ? 'bg-amber-400' : 'bg-neutral-500'}`} />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <span className="text-xs font-black text-white leading-tight">
                   {partner?.name || (isConnected ? 'Stranger' : isSearching ? 'Matching…' : 'UR Live')}
                 </span>
-                {partner?.country && (
-                  <span className="text-[11px] leading-tight">
-                    {getCountryMeta(partner.country).flag}
-                  </span>
-                )}
+                <span className="text-xs leading-none">
+                  {partnerCountryObj.flag || (partner?.country ? '' : '🌍')}
+                </span>
               </div>
-              <div className="flex items-center gap-1 text-[9px] font-semibold text-neutral-300">
-                <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : isSearching ? 'bg-amber-400' : 'bg-neutral-500'}`} />
-                <span>{isConnected ? 'Connected' : isSearching ? 'Looking for match…' : 'Idle'}</span>
-              </div>
+              <span className="text-[9px] font-semibold text-neutral-300 leading-tight">
+                {isConnected ? 'Connected' : isSearching ? 'Looking for match…' : 'Ready'}
+              </span>
             </div>
+          </div>
+
+          {/* Live Viewers Chip */}
+          <div className="hidden xs:flex items-center gap-1 rounded-full bg-black/50 backdrop-blur-xl border border-white/15 px-2.5 py-1 text-[10px] font-bold text-white/90 shadow-lg">
+            <span className="text-red-500">🔥</span>
+            <span>15.4K</span>
           </div>
         </div>
 
-        {/* Right: Camera flip + Theme toggle + Timer pill + Pro button */}
+        {/* Right: Timer & Hangup Pill + Controls */}
         <div className="flex items-center gap-1.5">
+          {/* Flip camera */}
           {localStream && (
             <button
               type="button"
               onClick={handleFlipCamera}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white shadow-lg transition active:scale-90 cursor-pointer"
-              title="Flip camera front/back"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 text-white shadow-xl transition active:scale-90 cursor-pointer"
+              title="Flip camera"
             >
-              <RefreshIcon size={14} />
+              <RefreshIcon size={15} />
             </button>
           )}
 
+          {/* Theme toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white shadow-lg transition active:scale-90 cursor-pointer"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 text-white shadow-xl transition active:scale-90 cursor-pointer"
             title="Toggle light or dark theme"
           >
-            {theme === 'dark' ? <Sun02Icon size={14} /> : <Moon02Icon size={14} />}
+            {theme === 'dark' ? <Sun02Icon size={15} /> : <Moon02Icon size={15} />}
           </button>
 
+          {/* Timer capsule + End Call button (Exact screenshot match) */}
           {isConnected && (
-            <div className="flex items-center gap-1 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 px-2.5 py-1 text-xs font-mono font-black text-white shadow-lg">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping" />
-              <span>{formatTimer(elapsedSeconds)}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-2xl border border-white/20 pl-2.5 pr-1 py-1 shadow-xl">
+              <div className="flex items-center gap-1 text-xs font-mono font-black text-white">
+                <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+                <span>{formatTimer(elapsedSeconds)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleOmegleStop}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow transition active:scale-90 cursor-pointer"
+                title="End video call"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm4.3 14.3a.996.996 0 01-1.41 0L12 13.41 9.11 16.3a.996.996 0 11-1.41-1.41L10.59 12 7.7 9.11A.996.996 0 119.11 7.7L12 10.59l2.89-2.89a.996.996 0 111.41 1.41L13.41 12l2.89 2.89c.38.38.38 1.02 0 1.41z" />
+                </svg>
+              </button>
             </div>
           )}
 
@@ -1392,9 +1454,9 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <button
               type="button"
               onClick={handleOpenPaymentDirectly}
-              className="flex items-center gap-1 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-2.5 py-1 text-[11px] font-black text-white shadow-lg shadow-red-600/30 transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-1 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-2.5 py-1 text-[11px] font-black text-white shadow-xl shadow-red-600/30 transition active:scale-95 cursor-pointer"
             >
-              <SparklesIcon size={11} />
+              <SparklesIcon size={12} />
               <span>₹299</span>
             </button>
           )}
@@ -1403,12 +1465,12 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
       {/* Floating Stranger Disconnected Banner */}
       {state === 'remote_disconnected' && (
-        <div className="absolute top-20 inset-x-4 z-30 mx-auto max-w-xs rounded-2xl bg-black/85 backdrop-blur-md p-3 border border-rose-500/40 text-center shadow-2xl animate-in fade-in zoom-in-95">
+        <div className="absolute top-20 inset-x-4 z-30 mx-auto max-w-xs rounded-3xl bg-black/90 backdrop-blur-xl p-4 border border-rose-500/40 text-center shadow-2xl animate-in fade-in zoom-in-95">
           <p className="text-xs font-bold text-rose-400">Stranger has disconnected.</p>
           <button
             type="button"
             onClick={handleNext}
-            className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-3 py-1 text-xs font-black text-white shadow-md active:scale-95 cursor-pointer"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 px-4 py-1.5 text-xs font-black text-white shadow-lg active:scale-95 cursor-pointer"
           >
             <span>Tap Skip for next match</span>
             <span>➔</span>
@@ -1416,31 +1478,40 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         </div>
       )}
 
-      {/* 4. Floating Live Text Chat (Overlaid on Bottom-Left) */}
-      <div className="absolute bottom-[115px] left-3 max-w-[76%] z-20 pointer-events-none flex flex-col justify-end">
-        <div className="pointer-events-auto max-h-40 overflow-y-auto space-y-1.5 pr-1 scrollbar-none flex flex-col justify-end">
+      {/* 4. Floating Live Text Chat (Overlaid on Bottom-Left - Screenshot Style) */}
+      <div className="absolute bottom-[120px] left-3 max-w-[82%] z-20 pointer-events-none flex flex-col justify-end">
+        <div className="pointer-events-auto max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-none flex flex-col justify-end">
           {messages.length === 0 ? (
-            <div className="inline-flex items-center gap-1.5 rounded-2xl bg-black/55 backdrop-blur-md px-3 py-1.5 border border-white/10 text-white/80 text-[11px] shadow-md">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-black/55 backdrop-blur-xl px-3 py-1.5 border border-white/15 text-white/80 text-xs shadow-xl">
               <span>👋 Say hello to start chatting!</span>
             </div>
           ) : (
             messages.slice(-8).map((msg) => (
               <div
                 key={msg.id}
-                className="inline-flex items-start gap-1.5 rounded-2xl bg-black/60 backdrop-blur-md px-3 py-1.5 border border-white/10 text-white shadow-md text-xs leading-snug break-words max-w-full animate-in fade-in slide-in-from-bottom-2 duration-150"
+                className="inline-flex items-center gap-2 rounded-2xl bg-black/55 backdrop-blur-xl px-3 py-1.5 border border-white/15 text-white shadow-xl text-xs leading-snug break-words max-w-full animate-in fade-in slide-in-from-bottom-2 duration-150"
               >
-                <span className={`font-black shrink-0 ${msg.isLocal ? 'text-[#ef4444]' : 'text-amber-400'}`}>
-                  {msg.isLocal ? 'You:' : 'Stranger:'}
-                </span>
-                <span className="text-white/95 font-medium">{msg.text}</span>
+                <div
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                    msg.isLocal ? 'bg-red-500 text-white' : 'bg-amber-400 text-black'
+                  }`}
+                >
+                  {msg.isLocal ? 'Y' : (partner?.name ? partner.name.charAt(0).toUpperCase() : 'S')}
+                </div>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className={`font-bold shrink-0 ${msg.isLocal ? 'text-red-400' : 'text-amber-300'}`}>
+                    {msg.isLocal ? 'You:' : (partner?.name || 'Stranger') + ':'}
+                  </span>
+                  <span className="text-white/95 font-medium">{msg.text}</span>
+                </div>
               </div>
             ))
           )}
 
           {peerTyping && (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 border border-white/10 text-white/80 text-[11px] animate-pulse">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>Stranger is typing…</span>
+            <div className="inline-flex items-center gap-2 rounded-full bg-black/60 backdrop-blur-xl px-3 py-1 border border-white/15 text-white/90 text-xs shadow-lg animate-pulse">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-[11px] font-semibold">{partner?.name || 'Stranger'} is typing…</span>
             </div>
           )}
 
@@ -1449,21 +1520,21 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* 5. Bottom Action Controls: Start/Stop, Skip, Smart Match, and Text Input */}
-      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col gap-2 pointer-events-auto">
+      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black via-black/85 to-transparent flex flex-col gap-2 pointer-events-auto">
         {/* Row 1: Start / Stop Button + Skip Button + Smart Match Filter */}
         <div className="flex items-center gap-2">
           {/* Start / Stop Button */}
           <button
             type="button"
             onClick={handleOmegleStop}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2.5 px-3 text-xs font-black text-white shadow-lg transition active:scale-95 cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-2 rounded-full py-2.5 px-4 text-xs font-black text-white shadow-xl transition active:scale-95 cursor-pointer ${
               stopPhase === 'really'
                 ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
                 : isConnected
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-red-600/40'
                   : isSearching
                     ? 'bg-neutral-800 hover:bg-neutral-700 border border-white/20'
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/40'
+                    : 'bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-700 hover:to-rose-700 shadow-red-600/40'
             }`}
           >
             {isConnected || isSearching ? (
@@ -1484,7 +1555,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             type="button"
             onClick={handleNext}
             disabled={!isConnected && !isSearching}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 py-2.5 px-3 text-xs font-black text-white shadow-lg transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-xl border border-white/30 py-2.5 px-4 text-xs font-black text-white shadow-xl transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M5.05 5.05a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L10.71 12 5.05 6.46a1 1 0 0 1 0-1.41zm8 0a1 1 0 0 1 1.41 0l7.07 7.07-7.07 7.07a1 1 0 0 1-1.41-1.41L18.71 12l-5.66-5.54a1 1 0 0 1 0-1.41z" />
@@ -1496,7 +1567,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <button
             type="button"
             onClick={() => setShowCountryModal(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white shadow-lg transition active:scale-95 cursor-pointer shrink-0"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/25 text-white shadow-xl transition active:scale-95 cursor-pointer shrink-0"
             title="Filter Country"
           >
             <span className="text-base">{currentCountryObj.flag || '🌍'}</span>
@@ -1509,15 +1580,14 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <input
               value={chatInput}
               onChange={(e) => handleChatInput(e.target.value)}
-              disabled={!isConnected}
-              placeholder={isConnected ? 'Type here…' : 'Waiting for connection…'}
-              className="h-11 w-full rounded-full border border-white/20 bg-black/60 backdrop-blur-xl pl-4 pr-11 text-xs text-white placeholder-white/45 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 transition disabled:opacity-50 shadow-lg"
+              placeholder={isConnected ? 'Type here…' : isSearching ? 'Connecting… type here' : 'Type here…'}
+              className="h-11 sm:h-12 w-full rounded-full border border-white/25 bg-black/60 backdrop-blur-2xl pl-4 pr-12 text-xs sm:text-sm text-white placeholder-white/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/30 outline-none shadow-2xl transition"
             />
             <button
               type="submit"
-              disabled={!isConnected || !chatInput.trim()}
+              disabled={!chatInput.trim()}
               aria-label="Send message"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-black hover:bg-red-500 hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-black transition active:scale-90 cursor-pointer shadow"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-black hover:bg-red-500 hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-black transition active:scale-90 cursor-pointer shadow-md"
             >
               <svg className="h-4 w-4 rotate-45 -translate-y-0.5 -translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

@@ -33,6 +33,9 @@ import {
 const LivePage = lazy(() =>
   import("./pages/LivePage").then((module) => ({ default: module.LivePage })),
 );
+const NewsPage = lazy(() =>
+  import("./pages/NewsPage").then((module) => ({ default: module.NewsPage })),
+);
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })),
 );
@@ -262,6 +265,7 @@ export default function App() {
                 element={<LegalPage slug="community-rules" />}
               />
               <Route path="/live" element={<LivePage />} />
+              <Route path="/news" element={<NewsPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

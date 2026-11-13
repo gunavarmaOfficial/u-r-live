@@ -46,6 +46,11 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/news" className={linkClass}>
+                  Kerala results news
+                </Link>
+              </li>
+              <li>
                 <a href="/#how-it-works" className={linkClass}>
                   How it works
                 </a>

@@ -60,10 +60,11 @@ const FAQ_LD = {
 const PUBLIC_ROUTES = new Set<string>([
   '/',
   '/safety',
+  '/news',
   ...LEGAL_DOCS.map((slug) => LEGAL_PATHS[slug]),
 ]);
 
-export const PRERENDER_PATHS: string[] = ['/', '/safety', ...LEGAL_DOCS.map((slug) => LEGAL_PATHS[slug])];
+export const PRERENDER_PATHS: string[] = ['/', '/safety', '/news', ...LEGAL_DOCS.map((slug) => LEGAL_PATHS[slug])];
 
 export function normalizePath(pathname: string): string {
   if (!pathname) return '/';
@@ -96,6 +97,16 @@ export function getSeoMeta(pathname: string): SeoMeta {
       description:
         'How U-R-LIVE keeps live video chat safe: 18+ age assurance, one-tap reporting and blocking, moderation, zero recordings and clear enforcement.',
       jsonLd: [FAQ_LD, ORGANIZATION_LD],
+    };
+  }
+
+  if (path === '/news') {
+    return {
+      ...base,
+      title: 'Kerala Lottery Results & Daily News Live Broadcast | U-R-LIVE',
+      description:
+        'Watch daily Kerala lottery results live video broadcast on YouTube at 3:00 PM IST. Complete weekly schedule (Win-Win, Sthree Sakthi, Fifty-Fifty, Karunya Plus, Nirmal, Karunya, Akshaya) and verified updates.',
+      jsonLd: [ORGANIZATION_LD, WEBSITE_LD],
     };
   }
 

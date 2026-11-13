@@ -20,10 +20,46 @@ export const Header: React.FC = () => {
       isLive ? 'hidden lg:block' : 'block'
     }`}>
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6">
-        {/* Left: Logo */}
-        <Link to="/" aria-label="U-R-LIVE home" className="flex items-center gap-2.5 transition active:scale-95">
-          <Logo size="sm" />
-        </Link>
+        {/* Left: Logo & Navigation */}
+        <div className="flex items-center gap-6">
+          <Link to="/" aria-label="U-R-LIVE home" className="flex items-center gap-2.5 transition active:scale-95">
+            <Logo size="sm" />
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              to="/live"
+              className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                location.pathname === '/live'
+                  ? 'bg-red-500/10 text-red-500'
+                  : 'text-neutral-600 dark:text-neutral-300 hover:text-red-500 dark:hover:text-red-400'
+              }`}
+            >
+              Video Chat
+            </Link>
+            <Link
+              to="/news"
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                location.pathname === '/news'
+                  ? 'bg-red-500/10 text-red-500'
+                  : 'text-neutral-600 dark:text-neutral-300 hover:text-red-500 dark:hover:text-red-400'
+              }`}
+            >
+              <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span>Kerala News</span>
+            </Link>
+            <Link
+              to="/safety"
+              className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                location.pathname === '/safety'
+                  ? 'bg-red-500/10 text-red-500'
+                  : 'text-neutral-600 dark:text-neutral-300 hover:text-red-500 dark:hover:text-red-400'
+              }`}
+            >
+              Safety
+            </Link>
+          </nav>
+        </div>
 
         {/* Right: Theme switch + Live online counter */}
         <div className="flex items-center gap-3">

@@ -504,7 +504,11 @@ export class WebRTCManager {
         }
 
         // 3. Forward real WebRTC signaling messages (offer, answer, ice_candidate, chat, typing, disconnect)
-        if (data.type === 'p2p_signal' && data.targetTabId === this.p2pTabId && data.matchId === this.currentMatchId) {
+        if (
+          data.type === 'p2p_signal' &&
+          (!data.targetTabId || data.targetTabId === this.p2pTabId) &&
+          (!this.currentMatchId || !data.matchId || data.matchId === this.currentMatchId)
+        ) {
           await this.handleSignalingMessage(data.message);
         }
       };
@@ -894,14 +898,16 @@ export class WebRTCManager {
       }
 
       case 'chat_message': {
-        if (msg.matchId !== this.currentMatchId) return;
+        if (msg.matchId && this.currentMatchId && msg.matchId !== this.currentMatchId) return;
+        const payload = msg.payload || msg;
+        const msgId = msg.id || payload.id || ('msg_rem_' + Date.now());
         this.events.onPeerTyping?.(false);
         this.events.onChatMessage({
-          id: 'msg_rem_' + Date.now(),
-          senderId: msg.payload.senderId || 'stranger',
+          id: msgId,
+          senderId: payload.senderId || 'stranger',
           isLocal: false,
-          text: msg.payload.text,
-          timestamp: Date.now(),
+          text: payload.text || msg.text || '',
+          timestamp: payload.timestamp || Date.now(),
         });
         break;
       }
@@ -1215,11 +1221,11 @@ export class WebRTCManager {
         if (data.type === 'chat_message') {
           this.events.onPeerTyping?.(false);
           this.events.onChatMessage({
-            id: 'msg_dc_' + Date.now(),
+            id: data.id || ('msg_dc_' + Date.now()),
             senderId: data.senderId || 'stranger',
             isLocal: false,
             text: data.text,
-            timestamp: Date.now(),
+            timestamp: data.timestamp || Date.now(),
           });
         } else if (data.type === 'typing') {
           this.events.onPeerTyping?.(Boolean(data.isTyping));
@@ -1246,41 +1252,50 @@ export class WebRTCManager {
     });
   }
 
-  public sendChatMessage(text: string, currentUserId: string): boolean {
+  public sendChatMessage(text: string, currentUserId: string, customId?: string): boolean {
     const trimmed = text.trim();
-    if (!trimmed || !this.currentMatchId) return false;
+    if (!trimmed) return false;
+    const msgId = customId || ('msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
 
-    // Send direct browser-to-browser via WebRTC DataChannel if open
+    // 1. Send direct browser-to-browser via WebRTC DataChannel if open
     if (this.dataChannel && this.dataChannel.readyState === 'open') {
       try {
         this.dataChannel.send(
           JSON.stringify({
             type: 'chat_message',
+            id: msgId,
             senderId: currentUserId,
             text: trimmed,
+            timestamp: Date.now(),
           })
         );
       } catch {}
     }
 
-    // Also send through signaling channel for cross-tab redundancy
+    // 2. Also broadcast through signaling channel (BroadcastChannel and/or WebSocket/HTTP)
     this.sendSignalingMessage({
       type: 'chat_message',
+      id: msgId,
       matchId: this.currentMatchId,
       payload: {
+        id: msgId,
         text: trimmed,
         senderId: currentUserId,
+        timestamp: Date.now(),
       },
     });
     this.setTyping(false);
 
-    this.events.onChatMessage({
-      id: 'msg_loc_' + Date.now(),
-      senderId: currentUserId,
-      isLocal: true,
-      text: trimmed,
-      timestamp: Date.now(),
-    });
+    // 3. Emit local message event if not already handled optimistically by caller
+    if (!customId) {
+      this.events.onChatMessage({
+        id: msgId,
+        senderId: currentUserId,
+        isLocal: true,
+        text: trimmed,
+        timestamp: Date.now(),
+      });
+    }
 
     return true;
   }
@@ -1348,7 +1363,7 @@ export class WebRTCManager {
 
   private sendSignalingMessage(msg: any) {
     // 1. Deliver to paired peer via in-browser BroadcastChannel P2P
-    if (this.p2pChannel && this.p2pPartnerTabId && this.currentMatchId) {
+    if (this.p2pChannel) {
       try {
         this.p2pChannel.postMessage({
           type: 'p2p_signal',

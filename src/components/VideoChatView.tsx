@@ -30,6 +30,8 @@ import { COUNTRIES } from '../data/constants';
 import { ThreeDMaleAvatar, ThreeDFemaleAvatar, ThreeDOtherAvatar, ThreeDGlobeIcon } from './ThreeDIcons';
 import { CountryFilterModal } from './CountryFilterModal';
 import { ProPaymentModal } from './ProPaymentModal';
+import { PermissionModal, PermissionErrorType } from './PermissionModal';
+import { Link } from 'react-router-dom';
 
 const PREVIEW_STREAMS = [
   { id: 1, src: '/previews/stream-1.jpg', name: 'Simran', viewers: '2.4k' },
@@ -238,6 +240,57 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   });
   const [showProModal, setShowProModal] = useState(false);
   const [proModalStep, setProModalStep] = useState<'promo' | 'payment'>('promo');
+
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [permissionErrorType, setPermissionErrorType] = useState<PermissionErrorType>('prompt');
+  const [permissionErrorMessage, setPermissionErrorMessage] = useState<string>('');
+
+  const handleRequestPermissions = async (triggerOrigin = 'manual') => {
+    if (!managerRef.current) return;
+    try {
+      const stream = await managerRef.current.initMedia();
+      if (stream) {
+        setLocalStream(stream);
+        setIsCamOn(true);
+        setIsMicOn(true);
+        setShowPermissionModal(false);
+      }
+    } catch (err: any) {
+      console.warn('Camera request error:', err);
+      let type: PermissionErrorType = 'denied';
+      let msg = 'Camera and microphone access was denied.';
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        type = 'denied';
+        msg = 'Permission was blocked in your browser. Please allow camera and mic permissions to continue.';
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        type = 'not_found';
+        msg = 'No camera or microphone hardware found on your device.';
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        type = 'in_use';
+        msg = 'Your camera is already in use by another application.';
+      } else if (err?.message?.includes('WebRTC')) {
+        type = 'unsupported';
+        msg = 'WebRTC media capture is not supported by your browser or connection.';
+      }
+      setPermissionErrorType(type);
+      setPermissionErrorMessage(msg);
+      if (triggerOrigin === 'user_action') {
+        setShowPermissionModal(true);
+      }
+    }
+  };
+
+  const handleFlipCamera = async () => {
+    if (!managerRef.current) return;
+    try {
+      const newStream = await managerRef.current.switchCamera();
+      if (newStream) {
+        setLocalStream(newStream);
+      }
+    } catch (err) {
+      console.warn('Failed to switch camera:', err);
+    }
+  };
 
   // When user clicks any in-app payment/upgrade button, go directly to payment view (do not show promo banner)
   const handleOpenPaymentDirectly = (e?: React.MouseEvent) => {
@@ -499,7 +552,18 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     });
 
     if (user.isAdultVerified) {
-      manager.initMedia().catch(() => {});
+      manager
+        .initMedia()
+        .then((stream) => {
+          setLocalStream(stream);
+        })
+        .catch((err) => {
+          let type: PermissionErrorType = 'denied';
+          if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') type = 'not_found';
+          else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') type = 'in_use';
+          setPermissionErrorType(type);
+          setPermissionErrorMessage(err?.message || 'Camera permission required.');
+        });
     }
 
     return () => {
@@ -630,8 +694,17 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       try {
         const stream = await managerRef.current.initMedia();
         if (stream) setLocalStream(stream);
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Camera request during search:', err);
+        let type: PermissionErrorType = 'denied';
+        if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') type = 'not_found';
+        else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') type = 'in_use';
+        setPermissionErrorType(type);
+        setPermissionErrorMessage(err?.message || 'Camera and microphone access is required to connect.');
+        setShowPermissionModal(true);
+        setState('idle');
+        setStatusMessage('Camera access needed to start.');
+        return;
       }
     }
 
@@ -1097,18 +1170,32 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
               ) : state === 'failed' ? (
                 <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-4 border border-rose-500/30 max-w-xs">
                   <CameraOff01Icon size={24} className="text-rose-400" />
-                  <p className="text-xs font-bold text-rose-400">{statusMessage || 'Failed'}</p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartSearch();
-                    }}
-                    className="mt-1 inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-4 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer"
-                  >
-                    <RefreshIcon size={14} />
-                    <span>Retry</span>
-                  </button>
+                  <p className="text-xs font-bold text-rose-400">{statusMessage || 'Camera access needed'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRequestPermissions('user_action');
+                      }}
+                      className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                    >
+                      <RefreshIcon size={14} />
+                      <span>Enable Camera</span>
+                    </button>
+                    {onChangeMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onChangeMode('text');
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition cursor-pointer"
+                      >
+                        <span>Text Chat</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : !isPro ? (
                 <div className="flex flex-col items-center gap-2 rounded-3xl bg-black/85 backdrop-blur-md p-5 border border-white/15 shadow-2xl max-w-xs">
@@ -1183,14 +1270,12 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
           <StreamVideo stream={localStream} muted mirrored className="h-full w-full object-cover" />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center bg-[#100e19]">
-            <CameraVideoIcon size={18} className="text-neutral-500 mb-1" />
+            <CameraOff01Icon size={18} className="text-neutral-500 mb-1" />
             <span className="text-[9px] font-bold text-white/70">Cam Off</span>
             <button
               type="button"
-              onClick={() => {
-                managerRef.current?.initMedia().then((s) => setLocalStream(s)).catch(() => {});
-              }}
-              className="mt-1 rounded-md bg-red-600 px-2 py-0.5 text-[8px] font-black text-white"
+              onClick={() => handleRequestPermissions('user_action')}
+              className="mt-1 rounded-md bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 text-[8px] font-black text-white shadow cursor-pointer active:scale-95"
             >
               Turn On
             </button>
@@ -1237,31 +1322,52 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
       {/* 3. Top Header Bar Overlay */}
       <div className="absolute top-2.5 left-3 right-3 z-30 flex items-center justify-between pointer-events-auto select-none">
-        {/* Left: Stranger Info Pill */}
-        <div className="flex items-center gap-2 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 pl-1.5 pr-3 py-1 shadow-lg">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 text-white text-xs font-black shadow-inner">
-            {partner?.name ? partner.name.charAt(0).toUpperCase() : '👤'}
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-white leading-tight">
-                {partner?.name || (isConnected ? 'Stranger' : isSearching ? 'Matching…' : 'UR Live')}
-              </span>
-              {partner?.country && (
-                <span className="text-[11px] leading-tight">
-                  {getCountryMeta(partner.country).flag}
-                </span>
-              )}
+        {/* Left: Home link + Stranger Info Pill */}
+        <div className="flex items-center gap-1.5">
+          <Link
+            to="/"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white/90 hover:text-white transition active:scale-90 shadow-lg cursor-pointer"
+            title="Leave / Return to Home"
+          >
+            <ArrowLeft01Icon size={16} />
+          </Link>
+
+          <div className="flex items-center gap-2 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 pl-1.5 pr-3 py-1 shadow-lg">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 text-white text-xs font-black shadow-inner">
+              {partner?.name ? partner.name.charAt(0).toUpperCase() : '👤'}
             </div>
-            <div className="flex items-center gap-1 text-[9px] font-semibold text-neutral-300">
-              <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : isSearching ? 'bg-amber-400' : 'bg-neutral-500'}`} />
-              <span>{isConnected ? 'Connected' : isSearching ? 'Looking for match…' : 'Idle'}</span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-white leading-tight">
+                  {partner?.name || (isConnected ? 'Stranger' : isSearching ? 'Matching…' : 'UR Live')}
+                </span>
+                {partner?.country && (
+                  <span className="text-[11px] leading-tight">
+                    {getCountryMeta(partner.country).flag}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-[9px] font-semibold text-neutral-300">
+                <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : isSearching ? 'bg-amber-400' : 'bg-neutral-500'}`} />
+                <span>{isConnected ? 'Connected' : isSearching ? 'Looking for match…' : 'Idle'}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Timer pill & Pro button */}
+        {/* Right: Camera flip + Timer pill + Pro button */}
         <div className="flex items-center gap-1.5">
+          {localStream && (
+            <button
+              type="button"
+              onClick={handleFlipCamera}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/65 backdrop-blur-xl border border-white/15 text-white shadow-lg transition active:scale-90 cursor-pointer"
+              title="Flip camera front/back"
+            >
+              <RefreshIcon size={14} />
+            </button>
+          )}
+
           {isConnected && (
             <div className="flex items-center gap-1 rounded-full bg-black/65 backdrop-blur-xl border border-white/15 px-2.5 py-1 text-xs font-mono font-black text-white shadow-lg">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping" />
@@ -1330,7 +1436,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* 5. Bottom Action Controls: Start/Stop, Skip, Smart Match, and Text Input */}
-      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col gap-2 pointer-events-auto">
+      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col gap-2 pointer-events-auto">
         {/* Row 1: Start / Stop Button + Skip Button + Smart Match Filter */}
         <div className="flex items-center gap-2">
           {/* Start / Stop Button */}
@@ -1505,18 +1611,32 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                     ) : state === 'failed' ? (
                       <div className="flex flex-col items-center gap-1.5 sm:gap-2 rounded-2xl bg-black/85 backdrop-blur-md p-2.5 sm:p-4 border border-rose-500/30 max-w-[95%] sm:max-w-xs">
                         <CameraOff01Icon size={20} className="text-rose-400 sm:size-[26px]" />
-                        <p className="text-[11px] sm:text-xs font-bold text-rose-400">{statusMessage || 'Failed'}</p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartSearch();
-                          }}
-                          className="mt-1 inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
-                        >
-                          <RefreshIcon size={12} className="sm:size-[14px]" />
-                          <span>Retry</span>
-                        </button>
+                        <p className="text-[11px] sm:text-xs font-bold text-rose-400">{statusMessage || 'Camera access needed'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRequestPermissions('user_action');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#dc2626] to-[#ef4444] px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
+                          >
+                            <RefreshIcon size={12} className="sm:size-[14px]" />
+                            <span>Enable Camera</span>
+                          </button>
+                          {onChangeMode && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onChangeMode('text');
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl border border-white/20 bg-white/10 px-2.5 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition cursor-pointer"
+                            >
+                              <span>Text Chat</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ) : !isPro ? (
                       <div className="flex flex-col items-center gap-1 sm:gap-2 rounded-2xl sm:rounded-3xl bg-black/85 backdrop-blur-md p-2.5 sm:p-5 border border-white/15 shadow-2xl max-w-[95%] sm:max-w-sm">
@@ -1613,10 +1733,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      managerRef.current
-                        ?.initMedia()
-                        .then((stream) => setLocalStream(stream))
-                        .catch((err) => console.warn('Camera request error:', err));
+                      handleRequestPermissions('user_action');
                     }}
                     className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-2.5 sm:px-4 py-1 sm:py-2 text-[10px] sm:text-xs font-bold text-white shadow-md transition cursor-pointer"
                   >
@@ -1699,6 +1816,16 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
         }}
         upiId={import.meta.env.VITE_UPI_ID || 'urlive@slc'}
         amount={Number(import.meta.env.VITE_PRO_PLAN_PRICE) || 299}
+      />
+
+      {/* ---------- Camera & Microphone Permission Modal ---------- */}
+      <PermissionModal
+        isOpen={showPermissionModal}
+        errorType={permissionErrorType}
+        errorMessage={permissionErrorMessage}
+        onClose={() => setShowPermissionModal(false)}
+        onRetry={() => handleRequestPermissions('user_action')}
+        onSwitchToText={onChangeMode ? () => onChangeMode('text') : undefined}
       />
 
       {/* ---------- Settings ---------- */}

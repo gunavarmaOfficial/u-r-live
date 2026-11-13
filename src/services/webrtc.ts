@@ -78,6 +78,7 @@ export class WebRTCManager {
   private mediaConnectedSent = false;
 
   public isUsingPlaceholderMedia = false;
+  private currentFacingMode: 'user' | 'environment' = 'user';
 
   // Real Cross-Tab P2P Signaling via BroadcastChannel
   private p2pChannel: BroadcastChannel | null = null;
@@ -133,11 +134,11 @@ export class WebRTCManager {
     let stream: MediaStream | null = null;
     let lastErr: any = null;
 
-    // 1. Attempt preferred constraints (user facing camera + audio)
+    // 1. Attempt preferred constraints with facingMode + audio
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'user',
+          facingMode: this.currentFacingMode,
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
@@ -154,6 +155,18 @@ export class WebRTCManager {
     if (!stream) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: this.currentFacingMode },
+          audio: true,
+        });
+      } catch (err: any) {
+        lastErr = err;
+      }
+    }
+
+    // 3. Attempt simple fallback video + audio
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
@@ -162,7 +175,7 @@ export class WebRTCManager {
       }
     }
 
-    // 3. Attempt video only (if microphone device is absent or in use)
+    // 4. Attempt video only (if microphone device is absent or in use)
     if (!stream) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -206,8 +219,65 @@ export class WebRTCManager {
     this.localStream = null;
     this.isUsingPlaceholderMedia = false;
     this.events.onLocalStream(null as any);
-    this.setState('idle');
+    this.setState('camera_unavailable', lastErr?.message || 'Camera permission denied or camera unavailable');
     throw lastErr || new Error('Could not access camera.');
+  }
+
+  public getFacingMode(): 'user' | 'environment' {
+    return this.currentFacingMode;
+  }
+
+  /**
+   * Switch between front (user) and rear (environment) cameras on mobile/tablets.
+   */
+  public async switchCamera(): Promise<MediaStream> {
+    const nextMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+    this.currentFacingMode = nextMode;
+
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach((track) => track.stop());
+    }
+
+    let newStream: MediaStream | null = null;
+    try {
+      newStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: nextMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+    } catch {
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: nextMode },
+          audio: true,
+        });
+      } catch {
+        newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      }
+    }
+
+    if (newStream) {
+      // Replace video track in peer connection if active
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (this.pc && newVideoTrack) {
+        const sender = this.pc.getSenders().find((s) => s.track && s.track.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(newVideoTrack).catch(() => {});
+        }
+      }
+
+      this.localStream = newStream;
+      this.events.onLocalStream(newStream);
+      return newStream;
+    }
+
+    throw new Error('Failed to switch camera device');
   }
 
   public cleanupP2PChannel() {

@@ -16,7 +16,9 @@ export const Header: React.FC = () => {
     : '15,420';
 
   return (
-    <header className="relative z-40 w-full shrink-0 border-b border-neutral-200/80 dark:border-white/[0.06] bg-white/80 dark:bg-[#07060d]/80 backdrop-blur-xl transition-colors">
+    <header className={`relative z-40 w-full shrink-0 border-b border-neutral-200/80 dark:border-white/[0.06] bg-white/80 dark:bg-[#07060d]/80 backdrop-blur-xl transition-colors ${
+      isLive ? 'hidden lg:block' : 'block'
+    }`}>
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6">
         {/* Left: Logo */}
         <Link to="/" aria-label="U-R-LIVE home" className="flex items-center gap-2.5 transition active:scale-95">

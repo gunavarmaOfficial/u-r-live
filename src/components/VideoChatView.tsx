@@ -331,6 +331,43 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
     setSelfGender((user.gender as SelfGender | 'unspecified') || 'unspecified');
   }, [user.gender]);
 
+  /* ---------------- Lock window scroll & eliminate mobile viewport gaps ---------------- */
+  useEffect(() => {
+    document.documentElement.classList.add('live-locked');
+    document.body.classList.add('live-locked');
+    window.scrollTo(0, 0);
+
+    const handleReset = () => {
+      if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    };
+
+    window.addEventListener('scroll', handleReset, { passive: true });
+    window.addEventListener('resize', handleReset);
+    window.addEventListener('orientationchange', handleReset);
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', handleReset);
+      vv.addEventListener('scroll', handleReset);
+    }
+
+    return () => {
+      document.documentElement.classList.remove('live-locked');
+      document.body.classList.remove('live-locked');
+      window.removeEventListener('scroll', handleReset);
+      window.removeEventListener('resize', handleReset);
+      window.removeEventListener('orientationchange', handleReset);
+      if (vv) {
+        vv.removeEventListener('resize', handleReset);
+        vv.removeEventListener('scroll', handleReset);
+      }
+    };
+  }, []);
+
   /* ---------------- Preferences hydration ---------------- */
   useEffect(() => {
     api
@@ -1159,7 +1196,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
   /* ---------------- Mobile Immersive Video Layout (< lg) ---------------- */
   const mobileVideoLayout = (
-    <div className="relative flex lg:hidden h-full min-h-0 flex-1 w-full overflow-hidden bg-black select-none">
+    <div className="fixed inset-0 z-20 flex lg:hidden h-[100dvh] w-full overflow-hidden bg-black select-none overscroll-none touch-none">
       {/* 1. Main Background Video (Stranger or Live Preview) */}
       <div
         onClick={() => {
@@ -1368,7 +1405,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* 3. Top Header Bar Overlay (Mobbin Style matching reference) */}
-      <div className="absolute top-2.5 left-3 right-3 z-30 flex items-center justify-between pointer-events-auto select-none">
+      <div className="absolute top-2.5 left-3 right-3 z-30 flex items-center justify-between pointer-events-auto select-none pt-[env(safe-area-inset-top,0px)]">
         {/* Left: Home link + Stranger Info Capsule + Viewer Count */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Link
@@ -1480,7 +1517,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
 
       {/* 4. Floating Live Text Chat (Overlaid on Bottom-Left - Screenshot Style) */}
       <div className="absolute bottom-[120px] left-3 max-w-[82%] z-20 pointer-events-none flex flex-col justify-end">
-        <div className="pointer-events-auto max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-none flex flex-col justify-end">
+        <div className="pointer-events-auto max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-none flex flex-col justify-end overscroll-contain touch-pan-y">
           {messages.length === 0 ? (
             <div className="inline-flex items-center gap-2 rounded-2xl bg-black/55 backdrop-blur-xl px-3 py-1.5 border border-white/15 text-white/80 text-xs shadow-xl">
               <span>👋 Say hello to start chatting!</span>
@@ -1520,7 +1557,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
       </div>
 
       {/* 5. Bottom Action Controls: Start/Stop, Skip, Smart Match, and Text Input */}
-      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black via-black/85 to-transparent flex flex-col gap-2 pointer-events-auto">
+      <div className="absolute bottom-0 inset-x-0 z-30 p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black via-black/85 to-transparent flex flex-col gap-2 pointer-events-auto touch-manipulation">
         {/* Row 1: Start / Stop Button + Skip Button + Smart Match Filter */}
         <div className="flex items-center gap-2">
           {/* Start / Stop Button */}
@@ -1580,6 +1617,11 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
             <input
               value={chatInput}
               onChange={(e) => handleChatInput(e.target.value)}
+              onBlur={() => {
+                window.scrollTo(0, 0);
+                document.body.scrollTop = 0;
+                document.documentElement.scrollTop = 0;
+              }}
               placeholder={isConnected ? 'Type here…' : isSearching ? 'Connecting… type here' : 'Type here…'}
               className="h-11 sm:h-12 w-full rounded-full border border-white/25 bg-black/60 backdrop-blur-2xl pl-4 pr-12 text-xs sm:text-sm text-white placeholder-white/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/30 outline-none shadow-2xl transition"
             />
@@ -1600,7 +1642,7 @@ export const VideoChatView: React.FC<VideoChatViewProps> = ({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 transition-colors">
+    <div className="relative flex h-full w-full min-h-0 flex-1 flex-col bg-[#faf8f8] dark:bg-[#0c0809] text-neutral-900 dark:text-neutral-100 transition-colors overflow-hidden overscroll-none">
       {/* Workspace */}
       {mode === 'text' ? (
         <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col p-2 sm:p-4">

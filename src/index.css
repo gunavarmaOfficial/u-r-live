@@ -71,6 +71,19 @@
     --grad-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.022));
   }
 
+  html, body {
+    overscroll-behavior-y: none;
+  }
+
+  html.live-locked, html.live-locked body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--bg);

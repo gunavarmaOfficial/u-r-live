@@ -5,10 +5,10 @@ import { Logo } from './Logo';
 import { LEGAL, LEGAL_PATHS } from '../legal/config';
 
 export const Footer: React.FC = () => {
-  const linkClass = 'transition-colors hover:text-white';
+  const linkClass = 'transition-colors hover:text-neutral-900 dark:hover:text-white';
 
   return (
-    <footer className="relative mt-auto border-t border-white/[0.06] bg-[#07060d]/80">
+    <footer className="relative mt-auto border-t border-neutral-200/80 dark:border-white/[0.06] bg-white/80 dark:bg-[#07060d]/80 backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6]/40 to-transparent" />
 
       <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6">
@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
             <Link to="/" aria-label="U-R-LIVE home" className="inline-block">
               <Logo size="md" />
             </Link>
-            <p className="max-w-xs text-xs leading-relaxed text-neutral-400">
+            <p className="max-w-xs text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">
               An adults-only (18+) live video social platform. Peer-to-peer WebRTC media,
               server-authoritative matchmaking, and a strict zero video retention policy.
             </p>

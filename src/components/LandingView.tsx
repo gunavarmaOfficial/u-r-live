@@ -233,19 +233,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 w-full border-t border-neutral-200/80 dark:border-white/[0.06] bg-white/50 dark:bg-[#07060d]/50 px-4 py-4 text-xs text-neutral-500 dark:text-neutral-400">
-        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <span>&copy; {new Date().getFullYear()} U-R-LIVE.com</span>
-          <div className="flex items-center gap-4">
-            <Link to="/safety" className="hover:text-neutral-800 dark:hover:text-white transition">Rules</Link>
-            <Link to="/safety" className="hover:text-neutral-800 dark:hover:text-white transition">Safety</Link>
-            <Link to="/terms" className="hover:text-neutral-800 dark:hover:text-white transition">Terms</Link>
-            <Link to="/privacy" className="hover:text-neutral-800 dark:hover:text-white transition">Privacy</Link>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

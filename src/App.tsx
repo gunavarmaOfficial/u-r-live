@@ -233,9 +233,9 @@ export default function App() {
   return (
     <AppContext.Provider value={contextValue}>
       <div
-        className={`relative flex flex-col bg-[#f8f7ff] dark:bg-[#07060d] font-sans text-neutral-900 dark:text-neutral-100 ${isLiveRoute
-          ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
-          : "min-h-[100dvh]"
+        className={`flex flex-col bg-[#f8f7ff] dark:bg-[#07060d] font-sans text-neutral-900 dark:text-neutral-100 ${isLiveRoute
+          ? "fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none"
+          : "relative min-h-[100dvh]"
           }`}
       >
         <a
@@ -250,7 +250,7 @@ export default function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={`flex min-h-0 flex-1 flex-col outline-none ${isLiveRoute ? "overflow-hidden" : "overflow-visible"
+          className={`flex min-h-0 flex-1 flex-col outline-none ${isLiveRoute ? "h-full w-full overflow-hidden overscroll-none" : "overflow-visible"
             }`}
         >
           <Suspense fallback={<RouteFallback />}>
